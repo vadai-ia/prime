@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# keep the example env
+!.env.example
+
+# credenciales reales de la base hospedada (no subir)
+cuentas.md

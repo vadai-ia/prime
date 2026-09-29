@@ -6,20 +6,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/db/types.ts",
+    "db:seed-users": "node --env-file=.env.local scripts/seed-users.mjs",
+    "db:rls-check": "node --env-file=.env.local scripts/rls-check.mjs",
+    "db:rls-lite": "node scripts/rls-lite/assignments.test.mjs && node scripts/rls-lite/candidates.test.mjs && node scripts/rls-lite/manual-capture.test.mjs && node scripts/rls-lite/manual-sql.test.mjs",
+    "smoke": "node --env-file=.env.local scripts/smoke.mjs",
+    "smoke:pages": "node --env-file=.env.local scripts/smoke-pages.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.116.0",
+    "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
+    "unpdf": "^1.8.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "supabase": "^2.117.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

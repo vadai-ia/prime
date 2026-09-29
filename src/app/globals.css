@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
+/*
+  Tokens de marca (plan §5: --color-forest, --color-leaf, …).
+  Valores de la demo que Prime aprobó (docs/demo/PropuestaPrime.jsx, objeto T).
+  Solo se cambian aquí; las páginas usan los nombres semánticos (bg-canvas, text-ink…).
+  Las gráficas repiten estos valores en src/components/charts/theme.ts.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --forest: #0e4632;        /* primario: sidebar, botones, títulos de marca (T.forest) */
+  --forest-2: #145a41;      /* segundo tono del degradado del sidebar (T.forest2) */
+  --forest-deep: #0a3526;   /* hover del primario; la demo no lo trae, es forest oscurecido */
+  --leaf: #1e8a57;          /* acento, éxito, focus (T.leaf) */
+  --lime: #8fd45d;          /* acento claro sobre fondo oscuro (T.lime) */
+  --mint: #ddf2e6;          /* fondo suave verde: pills, avisos positivos (T.leafSoft) */
+  --canvas: #f5f8f6;        /* fondo de página (T.paper) */
+  --surface: #ffffff;       /* tarjetas, inputs, header */
+  --line: #d8e4dc;          /* bordes y divisores (T.line) */
+  --ink: #152019;           /* texto principal (T.ink) */
+  --ink-muted: #5d6d63;     /* texto secundario (T.slate) */
+  --ink-faint: #93a199;     /* placeholders, metadatos; la demo no lo trae, es slate aclarado */
+  --amber: #b7791f;         /* alerta (T.amber) */
+  --amber-soft: #fbf1dc;
+  --danger: #b93a32;        /* error, descarte (T.red) */
+  --danger-soft: #fbe7e5;
+  --info: #2c5fa8;          /* (T.blue) */
+  --info-soft: #e4ecf8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-forest: var(--forest);
+  --color-forest-2: var(--forest-2);
+  --color-forest-deep: var(--forest-deep);
+  --color-leaf: var(--leaf);
+  --color-lime: var(--lime);
+  --color-mint: var(--mint);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-ibm-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+
+  --radius-card: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
