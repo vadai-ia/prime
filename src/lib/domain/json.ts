@@ -17,8 +17,9 @@ export type ProfileRelation = { with: string; purpose: string };
 export type CompetencyLevel = { name: string; level: string };
 export type ProfileCompetencies = { functional?: CompetencyLevel[]; leadership?: CompetencyLevel[]; labor?: string[] };
 
-export type CvWeight = { key: string; label: string; weight: number };
-export type CvBreakdownItem = { key: string; label: string; weight: number; score: number; note?: string };
+// `hint`: qué cuenta para el criterio; lo escribe la generación de la evaluación y lo usa la IA al calificar.
+export type CvWeight = { key: string; label: string; weight: number; hint?: string };
+export type CvBreakdownItem = { key: string; label: string; weight: number; score: number; note?: string; evidence?: string };
 export type PrefilterQuestion = { order: number; key: string; text: string; rule_key: string; answer_type: string };
 export type PrefilterResultItem = { criterion: string; answer: string; ok: boolean; required: boolean };
 export type PsychMinimum = { scale: string; min: number };

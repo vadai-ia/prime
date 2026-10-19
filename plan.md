@@ -2,7 +2,7 @@
 
 Borrador v1 · 14 de septiembre de 2026 · VADAI
 Fuentes: demo interactiva (`PropuestaPrime.jsx`) y propuesta VAD-COT-2026-PRM01.
-Stack fijado: Next.js 16.3 (App Router, Turbopack), React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storage, RLS), Vercel, API de Anthropic, Whaapy, Fireflies, Google Calendar, Resend.
+Stack fijado: Next.js 16.3 (App Router, Turbopack), React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storage, RLS), Vercel, API de Anthropic, Whaapy, Fireflies, Microsoft 365 (Outlook y Teams vía Microsoft Graph), Resend.
 
 ---
 
@@ -19,10 +19,10 @@ Stack fijado: Next.js 16.3 (App Router, Turbopack), React 19, TypeScript, Tailwi
    - **B. Agente nativo de Whaapy + MCP nuestro.** Whaapy conversa y consulta o escribe en nuestra base vía un servidor MCP (`/api/mcp`).
    - **Recomendación: A para el MVP.** El prefiltro es una máquina de estados atada a las reglas del perfil y a nuestra base; cada respuesta se guarda contra un criterio; el mismo motor sirve para agenda, psicométrico y documentos; y se prueba sin WhatsApp. B queda como evolución si Prime quiere que Vale también resuelva preguntas libres. En cualquier caso la IA nativa de Whaapy debe estar apagada en ese número (o pausada por conversación) para que no contesten dos agentes.
 4. **Psicotest no tiene API pública conocida.** Flujo realista: el reclutador crea la evaluación en el panel de Psicotest y pega el enlace en el sistema; el agente lo envía; el PDF de resultados se sube a mano (o llega por correo) y Claude lo lee. Confirmar con Prime si Psicotest ofrece API o exportación.
-5. **Videollamada y Fireflies.** Meet vía Google Calendar API (OAuth de la cuenta de Prime) y Fireflies invitado al evento (auto-join) o vía su API. Zoom es una segunda integración OAuth: fuera del MVP salvo que Prime lo exija.
+5. **Videollamada y Fireflies.** Prime usa Microsoft 365: las entrevistas son reuniones de **Teams** creadas en el calendario de **Outlook** del reclutador vía Microsoft Graph (decisión del 19 oct 2026; sustituye a Google Calendar y Meet). Fireflies se invita al evento y entra a la reunión de Teams. Zoom y Meet: fuera del MVP.
 6. **Datos personales (LFPDPPP).** INE, CURP, RFC, NSS y domicilio son datos sensibles: buckets privados, URLs firmadas de corta vida, RLS estricto, aviso de privacidad en el primer mensaje del agente, bitácora de quién abre qué y política de borrado de descartados. Es requisito, no extra.
 7. **Edad y sexo como criterios de descarte automático** son legalmente delicados (discriminación laboral, LFT art. 3 y 133). El sistema debe permitir configurarlos como alerta y no como bloqueo, y registrar quién decide. Hablarlo con Prime antes de programar reglas duras.
-8. **Diez semanas son viables** si las integraciones riesgosas (template de Meta, webhook de Whaapy, Meet + Fireflies) se prueban como spikes en la semana 1.
+8. **Diez semanas son viables** si las integraciones riesgosas (template de Meta, webhook de Whaapy, Teams + Fireflies) se prueban como spikes en la semana 1.
 
 ---
 
@@ -32,8 +32,8 @@ Stack fijado: Next.js 16.3 (App Router, Turbopack), React 19, TypeScript, Tailwi
 Pandape / Facebook / LinkedIn ──(carga manual · CSV · correo)──▶ Next.js 16 en Vercel
                                                                     │
 Whaapy (WhatsApp)  ◀── webhooks + REST ─────────────────────────────┤──▶ Supabase: Postgres + Auth + Storage
-Fireflies          ◀── webhook + GraphQL ───────────────────────────┤──▶ Anthropic API (Claude Opus 5)
-Google Calendar    ◀── OAuth + REST (Meet) ─────────────────────────┤──▶ Resend (correo saliente)
+Fireflies          ◀── webhook + GraphQL ───────────────────────────┤──▶ Anthropic API (Claude Opus 5.5)
+Microsoft Graph    ◀── Entra ID + REST (Outlook, Teams) ────────────┤──▶ Resend (correo saliente)
 Vercel Cron        ── /api/cron/tick cada minuto ───────────────────┘
 ```
 
@@ -243,8 +243,8 @@ wa_templates                -- catálogo de templates aprobados por Meta
 ```
 interviews
   id, application_id, type interview_type, status interview_status,
-  scheduled_at timestamptz, duration_min, platform (meet | zoom), meeting_url,
-  calendar_event_id, calendar_owner_id → users, interviewer_user_id → users, client_interviewer_name,
+  scheduled_at timestamptz, duration_min, platform (teams | meet | zoom), meeting_url,
+  calendar_event_id (id del evento de Outlook), calendar_owner_id → users, interviewer_user_id → users, client_interviewer_name,
   fireflies_meeting_id, summary, score int, findings jsonb,   -- [{criterion, ok, evidence, quote, at}]
   analyzed_at, analysis_version, ai_run_id → ai_runs
 
@@ -295,7 +295,7 @@ ai_runs                     -- observabilidad y costo de cada llamada a Claude
   cache_read_tokens, cost_usd, latency_ms, status, error, output jsonb, created_at
 
 webhook_events              -- idempotencia y replay
-  id, source (whaapy | fireflies | resend | google), event_type, external_id unique, payload jsonb,
+  id, source (whaapy | fireflies | resend | google | microsoft), event_type, external_id unique, payload jsonb,
   received_at, processed_at, error, attempts
 
 scheduled_tasks             -- cola simple sobre Postgres
@@ -303,8 +303,8 @@ scheduled_tasks             -- cola simple sobre Postgres
   last_error, created_at, finished_at
   índice (status, run_at)
 
-user_integrations           -- tokens OAuth cifrados (Google Calendar por reclutador)
-  id, user_id → users, provider (google), access_token_enc, refresh_token_enc, expires_at, scopes text[], account_email
+user_integrations           -- tokens OAuth cifrados; solo si se elige la conexión por reclutador (§4.4, opción B)
+  id, user_id → users, provider (google | microsoft), access_token_enc, refresh_token_enc, expires_at, scopes text[], account_email
 
 audit_log
   id, user_id, action (view_document | download_document | view_psych_report | export), entity_type, entity_id, ip, created_at
@@ -349,14 +349,14 @@ El detalle operativo de cada servicio, llave, tarea de IA y tarea de la cola est
 
 ### 4.2 API de Anthropic (Claude)
 
-- SDK `@anthropic-ai/sdk`. Modelo por defecto `claude-opus-5`; thinking adaptativo (por defecto); `output_config.effort` como palanca de costo: `low` o `medium` para respuestas de WhatsApp y verificación de documentos, `high` para análisis de entrevista, generación de perfil e insights semanales. Streaming para salidas largas (perfil, insights).
+- SDK `@anthropic-ai/sdk`. Modelo por defecto `claude-opus-5-5` (desde el 19 oct 2026; antes `claude-opus-5`, misma familia y más barato); thinking adaptativo (siempre encendido en este modelo); `output_config.effort` como palanca de costo: `low` o `medium` para respuestas de WhatsApp y verificación de documentos, `high` para análisis de entrevista, generación de perfil e insights semanales. Streaming para salidas largas (perfil, insights).
 - **Salidas estructuradas** con `client.messages.parse()` + esquemas zod. Cada tarea de IA tiene su esquema: perfil generado, score de CV con desglose y razonamiento, hallazgos de entrevista con cita y marca de tiempo, parse de Psicotest, verificación de documento.
 - **PDF e imágenes:** CV y PDF de Psicotest se mandan como bloques `document` en base64 (Claude los lee directo, sin extracción de texto previa; límite 32 MB por request). INE y comprobantes como bloques `image`.
 - **Prompt caching:** el system prompt y el perfil de puesto (D.P. + config de IA) van primero con `cache_control`; lo variable (candidato, transcripción, mensaje) al final. Un prefiltro de 10 turnos reutiliza el mismo prefijo.
 - `fallbacks: "default"` activado para manejar `stop_reason: "refusal"` sin tumbar el flujo.
 - Todo se registra en `ai_runs`. Prompts en `src/lib/ai/prompts/*.ts` con `PROMPT_VERSION`.
 
-Costo estimado con Opus 5 (orden de magnitud, tarifas de lista):
+Costo estimado con Opus 5 (orden de magnitud, tarifas de lista; Opus 5.5 cuesta 20 % menos por token):
 
 | Tarea | Tokens aprox. (entrada / salida) | USD aprox. |
 |---|---|---|
@@ -373,16 +373,23 @@ Con el volumen de Telasist (unos 130 postulantes al mes, 10 que llegan a expedie
 ### 4.3 Fireflies
 
 - GraphQL en `https://api.fireflies.ai/graphql`, `Authorization: Bearer <API key>` de la cuenta de Prime.
-- **Que se una a la llamada:** invitar `fred@fireflies.ai` al evento de Calendar (auto-join) o mutation `addToLiveMeeting(meeting_link)` al momento de la cita. Recomendación: invitación en el evento, con `addToLiveMeeting` como respaldo si no se unió.
+- **Que se una a la llamada:** Fireflies entra a reuniones de Teams igual que a Meet. Invitar `fred@fireflies.ai` al evento de Outlook (auto-join) o mutation `addToLiveMeeting(meeting_link)` al momento de la cita. Recomendación: invitación en el evento, con `addToLiveMeeting` como respaldo si no se unió.
 - **Webhook** de transcripción completada configurado en la cuenta de Fireflies hacia `/api/webhooks/fireflies` con `meetingId`. Luego query `transcript(id)` → `sentences {speaker_name, text, start_time}` y `summary` → `interview_transcripts` → tarea `interview_analyze`.
+- **Sala de espera de Teams:** el bot de Fireflies y el candidato son externos a la organización de Prime. Si la política de Teams los manda a la sala de espera, el reclutador tiene que admitirlos; conviene que la reunión deje entrar sin espera (`lobbyBypassSettings`) o ajustar la política de reuniones en el centro de administración de Teams. También tiene que estar permitido que usuarios anónimos se unan a reuniones.
+- **Alternativa sin Fireflies:** Teams transcribe solo y Graph expone la transcripción (`/onlineMeetings/{id}/transcripts`, permiso `OnlineMeetingTranscript.Read.All`). Si la licencia de Prime lo incluye y se puede activar al crear la reunión, se ahorra Fireflies. Se decide con el spike de la semana 1.
 - Verificar en semana 1: firma del webhook (Fireflies admite secret), idioma español en la cuenta, cómo empatar `meetingId` con nuestra `interviews.meeting_url` (por título del evento o por `fireflies_meeting_id` guardado al agendar).
 
-### 4.4 Google Calendar y Meet
+### 4.4 Microsoft 365: Outlook y Teams (Microsoft Graph)
 
-- OAuth 2.0 con scope `calendar.events`, conectado por cada reclutador desde su perfil ("Conectar mi Google Calendar"). Tokens cifrados en `user_integrations`.
-- Crear evento con `conferenceData.createRequest` → `hangoutLink` = `meeting_url`. Invitados: candidato (si tiene correo), Fireflies. Reagendar y cancelar = `update`/`delete` del evento.
-- Alternativa con menos fricción si Prime usa Google Workspace: cuenta de servicio con delegación de dominio. Requiere que un admin de Workspace la autorice.
-- Zoom: fuera del MVP.
+Decisión del 19 oct 2026: Prime usa Outlook (clásico y nuevo) y Teams. Da igual qué Outlook use cada quien: los dos leen el mismo buzón de Exchange Online. Requisito: que el correo de Prime esté en Microsoft 365, no en un Exchange propio ni en POP/IMAP.
+
+- **Registro de la app** en Microsoft Entra ID (lo hace el admin de Microsoft 365 de Prime): una app de un solo inquilino con secreto de cliente. Variables `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`. El secreto vence (máximo 24 meses): anotar la fecha para renovarlo.
+- **Conexión, opción A (recomendada): permiso de aplicación.** `Calendars.ReadWrite` de tipo aplicación con consentimiento del admin, acotado con RBAC for Applications de Exchange (o `New-ApplicationAccessPolicy`) a un grupo de seguridad "Reclutadores Prime". Nadie conecta nada; un reclutador nuevo solo se agrega al grupo. Token con client credentials, sin tokens por usuario.
+- **Opción B: cada reclutador conecta su cuenta** (OAuth delegado, `Calendars.ReadWrite` + `offline_access`), tokens cifrados en `user_integrations`. Solo si TI no autoriza la opción A.
+- **Crear:** `POST /users/{correo del reclutador}/events` con `isOnlineMeeting: true` y `onlineMeetingProvider: "teamsForBusiness"` → `onlineMeeting.joinUrl` = `meeting_url`, `id` = `calendar_event_id`. Invitados: candidato (si tiene correo) y `fred@fireflies.ai`. Exchange manda la invitación desde el buzón del reclutador. Sin correo del candidato, el enlace le llega por WhatsApp (template `prime_confirmacion_entrevista`).
+- **Mover:** `PATCH /users/{correo}/events/{id}`. **Cancelar:** `POST /users/{correo}/events/{id}/cancel` (manda el aviso a los invitados).
+- **Correos automáticos (opcional):** podrían salir de un buzón de Prime con `Mail.Send` en lugar de Resend; se decide con Prime (§4.5).
+- Zoom y Google Meet: fuera del MVP.
 
 ### 4.5 Resend (correo)
 
@@ -442,7 +449,7 @@ src/
       prompts/*.ts                  # versionados
       tasks/{generate-profile,score-cv,prefilter-reply,analyze-interview,parse-psych,check-document,weekly-insights}.ts
     integrations/
-      whaapy.ts  fireflies.ts  google-calendar.ts  resend.ts  crypto.ts
+      whaapy.ts  fireflies.ts  microsoft-graph.ts  resend.ts  crypto.ts
     tasks/                          # ejecutores de scheduled_tasks
       registry.ts  handlers/*.ts
     format.ts                       # fechas es-MX, moneda, iniciales
@@ -476,7 +483,7 @@ Dependencias a instalar:
 ```
 @supabase/supabase-js @supabase/ssr @anthropic-ai/sdk zod lucide-react recharts
 resend react-email @react-email/components @react-pdf/renderer
-googleapis date-fns date-fns-tz
+date-fns date-fns-tz             # Microsoft Graph con fetch y client credentials, sin SDK
 -D supabase vitest @testing-library/react
 ```
 
@@ -494,7 +501,7 @@ googleapis date-fns date-fns-tz
 
 ### 6.2 Entrevista Prime
 
-1. Reclutador elige fecha en el drawer → Server Action crea evento en Google Calendar (Meet), invita a Fireflies, crea `interviews`, manda template de confirmación por WhatsApp, agenda `interview_confirm` para el día anterior.
+1. Reclutador elige fecha en el drawer → Server Action crea el evento en el Outlook del reclutador con reunión de Teams, invita a Fireflies, crea `interviews`, manda template de confirmación por WhatsApp, agenda `interview_confirm` para el día anterior.
 2. Termina la llamada → webhook de Fireflies → `fireflies_fetch_transcript` → `interview_transcripts` → `interview_analyze` (hallazgos con cita, score) → etapa `psychometric` si el reclutador confirma.
 
 ### 6.3 Psicométrico
@@ -529,7 +536,7 @@ googleapis date-fns date-fns-tz
 - [ ] API key de Anthropic con límite de gasto mensual configurado.
 - [ ] Número de WhatsApp de Prime dado de alta en Whaapy, API key `wha_…`, IA nativa apagada en ese número. Templates enviados a aprobación de Meta.
 - [ ] Cuenta Fireflies de Prime (plan con API) y API key. Webhook apuntando a la URL de preview.
-- [ ] Proyecto en Google Cloud con Calendar API habilitada, pantalla de consentimiento y credenciales OAuth (o cuenta de servicio con delegación).
+- [ ] App registrada en Microsoft Entra ID por el admin de Microsoft 365 de Prime, con `Calendars.ReadWrite` (aplicación) acotado al grupo de reclutadores (§4.4).
 - [ ] Resend: dominio de Prime verificado (SPF, DKIM, DMARC).
 - [ ] Psicotest: confirmar si hay API. Tres o cuatro PDFs reales para calibrar el parser.
 
@@ -546,7 +553,7 @@ googleapis date-fns date-fns-tz
 **Spikes de la semana 1 (medio día cada uno, antes de programar módulos)**
 
 - [ ] Whaapy: recibir `message.received` firmado en un handler de Next, contestar con `POST /messages/v1`, descargar un `media_url` a Storage.
-- [ ] Meet + Fireflies: crear un evento con Meet desde la API, que Fireflies se una, recibir el webhook y traer la transcripción.
+- [ ] Teams + Fireflies: crear un evento de Outlook con Teams desde Graph, que Fireflies se una (sala de espera incluida), recibir el webhook y traer la transcripción. Probar también la transcripción nativa de Teams.
 - [ ] Claude: score de un CV real en PDF y parse de un PDF de Psicotest real con `messages.parse()`; validar que los campos salen bien.
 
 **Decisiones que hay que cerrar con Prime**
@@ -554,7 +561,7 @@ googleapis date-fns date-fns-tz
 - [ ] Cómo entran hoy los postulantes de Pandape (correo con CV adjunto, exportación, panel).
 - [ ] Edad y sexo: alerta o bloqueo.
 - [ ] Qué ve el cliente del psicométrico y del expediente.
-- [ ] Meet solo, o también Zoom.
+- [x] Videollamada: Teams con Outlook (19 oct 2026).
 - [ ] Texto del aviso de privacidad y plazo de conservación de datos de descartados.
 - [ ] Quién contesta desde el inbox de Whaapy cuando el agente escala.
 
@@ -567,7 +574,7 @@ googleapis date-fns date-fns-tz
 | 0. Base | 0 | Repo, Supabase con migraciones y seed, auth con 3 roles, layout y navegación, primitivas de UI, spikes de integración | Andrea, Roberto y Verónica entran con su rol y ven la navegación de la demo con datos semilla. Los tres spikes pasaron. |
 | 1. Clientes, perfiles y levantamiento | 1 y 2 | Alta de clientes, levantamiento (secciones I a VI), generación del D.P. y de la config de IA con Claude, vista de perfil con sus tres pestañas | Se levanta Diseñador Industrial desde el formulario y sale el perfil completo con reglas, pesos, preguntas y mínimos. Se cargan las tres vacantes de Telasist. |
 | 2. Candidatos, agente y CV | 3 a 5 | Alta manual y masiva de candidatos, pipeline kanban y lista, drawer con Resumen y WhatsApp, agente de prefiltro en producción con el número de Prime, score de CV, "Requiere tu atención" | Un postulante real recibe el template, contesta las 7 preguntas, queda evaluado y aparece en la etapa correcta sin intervención. El reclutador resuelve una excepción desde el drawer. |
-| 3. Entrevistas, psicométrico y expediente | 6 a 8 | Agenda con Meet + Fireflies, análisis de entrevista, envío y lectura de Psicotest, captura y validación de documentos por WhatsApp, hoja de confirmación | Una entrevista real queda transcrita y analizada en la ficha. Un PDF real de Psicotest da veredicto. Un candidato completa sus 10 documentos por WhatsApp. |
+| 3. Entrevistas, psicométrico y expediente | 6 a 8 | Agenda con Teams + Fireflies, análisis de entrevista, envío y lectura de Psicotest, captura y validación de documentos por WhatsApp, hoja de confirmación | Una entrevista real queda transcrita y analizada en la ficha. Un PDF real de Psicotest da veredicto. Un candidato completa sus 10 documentos por WhatsApp. |
 | 4. Reportes, inteligencia y portal | 9 y 10 | Tres correos automáticos, PDF semanal, inteligencia interna con insights de Claude, portal del cliente con Vo.Bo., capacitación, salida a productivo | Telasist recibe su correo diario y semanal sin que nadie lo arme. Verónica da un Vo.Bo. desde el portal y Prime lo ve al instante. |
 
 Cada fase se despliega a producción y Prime la usa con Telasist antes de arrancar la siguiente.
@@ -587,9 +594,9 @@ WHAAPY_WEBHOOK_SECRET
 WHAAPY_PHONE_E164
 FIREFLIES_API_KEY
 FIREFLIES_WEBHOOK_SECRET
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
-GOOGLE_REDIRECT_URI
+MICROSOFT_TENANT_ID
+MICROSOFT_CLIENT_ID
+MICROSOFT_CLIENT_SECRET
 RESEND_API_KEY
 RESEND_FROM
 CRON_SECRET
@@ -605,7 +612,7 @@ APP_TIMEZONE=America/Mexico_City
 |---|---|---|
 | Templates de Meta rechazados o tardíos | Sin primer contacto no hay agente | Enviar en semana 1 con textos neutros; tener template genérico de respaldo |
 | Candidato sin teléfono válido o sin WhatsApp | Se cae el prefiltro | Validar E.164 al capturar; tarea `wa_first_contact` marca `message.failed` y el candidato entra a "Requiere tu atención" para llamada manual |
-| Fireflies no se une o transcribe mal en español | Sin análisis de entrevista | `addToLiveMeeting` como respaldo; permitir subir transcripción o grabación a mano; el reclutador puede capturar hallazgos |
+| Fireflies no se une o transcribe mal en español | Sin análisis de entrevista | Sala de espera de Teams sin espera para externos; `addToLiveMeeting` como respaldo; transcripción nativa de Teams como alternativa; permitir subir transcripción o grabación a mano; el reclutador puede capturar hallazgos |
 | Psicotest cambia el formato del PDF | Parser falla | Esquema zod con campos opcionales; `psych_status = failed` visible; fixtures de 3 o 4 PDFs reales en tests |
 | Dos agentes contestando (Whaapy nativo + nuestro) | Conversaciones duplicadas | IA nativa apagada en el número; verificación en el spike |
 | Reglas de edad/sexo como bloqueo | Riesgo legal para Prime | Modo alerta por defecto; registro de quién decide |
@@ -617,7 +624,7 @@ APP_TIMEZONE=America/Mexico_City
 ## 11. Fuera del alcance del MVP (queda anotado)
 
 - Publicación automática en Pandape, Facebook y LinkedIn.
-- Zoom.
+- Zoom y Google Meet.
 - Firma electrónica del contrato y nómina u Odoo.
 - Multi-organización (segunda vertiente de Prime). El modelo actual es una sola organización con muchos clientes; si se necesita, se agrega `org_id` a `clients` y `users` sin rehacer el resto.
 - Agente conversacional libre (preguntas fuera del guion). Con la opción B de Whaapy se puede sumar después.
@@ -691,3 +698,23 @@ Lo que salió al probar con Telasist en la base hospedada, y cómo quedó:
 - **Tablero arrastrable.** Las tarjetas del kanban se arrastran entre columnas, hacia adelante o hacia atrás (HTML5 nativo, sin dependencias, con `useOptimistic`); usa la misma acción `setStage`, así que queda en la línea de tiempo y RLS decide. Descartar sigue en la ficha (pide motivo) y un contratado no se arrastra.
 - **Regresar de etapa.** Botón "Regresar a (etapa anterior)" en la ficha; el motivo queda registrado.
 - **Cancelar contratación (0018).** Botón en la ficha, con motivo obligatorio, que regresa a Entrevista cliente. El trigger limpia `hired_at`, `start_date` y la decisión del cliente (puede volver a decidir) y borra los seguimientos pendientes; la línea de tiempo conserva el Vo.Bo. y el regreso. Contratado → Descartado no limpia nada: eso es "se fue", no "se canceló". La columna Contratado del kanban no participa del arrastre en ningún sentido. Archivo `supabase/manual/07_cancelar_contratacion.sql`.
+
+### 12.5 IA: wrapper, evaluación de la vacante y score de CV (19 de octubre de 2026)
+
+Sin migración: todo cabe en las columnas que ya existían (`job_profile_ai_configs`, `applications.cv_*`, `ai_runs`).
+
+- **Wrapper** (`src/lib/ai/client.ts`, `run.ts`). `runAi(task, input)` es la única puerta a Claude: `beta.messages.parse()` con el esquema zod de la tarea, prompt del sistema con `cache_control`, `thinking` adaptativo, `effort` por tarea y `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) para que un rechazo por política se reintente en otro modelo. Registra cada llamada en `ai_runs` con service role (tokens, costo en USD según el modelo que contestó, latencia, error o rechazo). Nunca lanza: devuelve `ok: false` con un mensaje para la pantalla. Sin `ANTHROPIC_API_KEY` la IA queda apagada y los botones lo dicen.
+- **Esquemas sin enums ni rangos** (`src/lib/ai/schemas.ts`). El SDK manda los `z.enum` como texto libre, y un valor fuera de lista tumbaría toda la respuesta. Claude devuelve la forma; `src/lib/domain/scoring.ts` acota y normaliza. Pruebas en `scripts/domain/scoring.test.mjs` (`npm run test:domain`, Node con `--experimental-strip-types`, sin dependencias).
+- **`profile_generation`** (`tasks/generate-profile.ts`, prompt `prompts/profile-generation.ts`). Botón "Generar con IA" en la pestaña Evaluación IA de la vacante (admin o reclutador asignado; RLS decide al guardar). Lee el descriptivo de la vacante, no el levantamiento, porque el descriptivo es lo que se edita después. Propone de 4 a 6 criterios del CV con pesos y una guía (`hint`) de qué da puntaje completo o parcial, el umbral, las reglas del prefiltro, de 4 a 7 preguntas para WhatsApp, mínimos psicométricos y lo que faltó en el descriptivo (se muestra al terminar). El código fuerza: pesos enteros que suman 100, `age_is_blocking = false` siempre, rangos válidos, una sola escala bloqueante. Regenerar reemplaza la configuración (pide confirmar) y sube `version`. Por ahora no reescribe el descriptivo: solo la configuración de evaluación.
+- **Edición a mano de pesos y umbral** en la misma pestaña (`saveCvWeights`): solo guarda si los pesos suman 100; sube `version` y marca la configuración como manual.
+- **`cv_score`** (`tasks/score-cv.ts`). Corre con la sesión del usuario: si RLS no le deja leer la postulación, no se califica. Manda la vacante (requisitos, actividades y criterios con su guía) en caché y el CV como documento PDF (Claude lee tablas y columnas); si el PDF no se puede bajar, usa el texto extraído en el alta. Claude devuelve puntos, evidencia y nota por criterio, un resumen y alertas; `buildCvScore` acota cada criterio a su peso y suma. Se guarda en `cv_score`, `cv_score_breakdown` (con `evidence` y `note`), `cv_score_version`, `cv_scored_at`, `cv_ai_rationale` (resumen) y `ai_note` ("Revisar: …" con las alertas). No mueve de etapa ni descarta.
+- **Cuándo corre:** al dar de alta un candidato con CV, en segundo plano con `after()` (el reclutador ya está en la ficha); y con "Calificar CV" o "Recalificar" en la pestaña Resumen. Si la vacante cambió sus pesos después de calificar, la ficha avisa y ofrece recalificar. Cuando exista la cola, el alta encola `cv_score` en lugar de usar `after()`, con la misma función.
+- **Sin probar contra la API**: falta la llave. Lo siguiente es correr la generación sobre la vacante de Telasist y dos o tres CV reales, y ajustar los prompts (subiendo `PROMPT_VERSION`).
+
+### 12.6 Videollamadas por Teams y Outlook (19 de octubre de 2026)
+
+Prime usa Microsoft 365 (Outlook clásico y New Outlook, Teams). Sustituye a Google Calendar y Meet en §0.5, §4.3, §4.4, §6.2, §7, §8 y §9.
+
+- Las entrevistas se crean en el calendario de Outlook del reclutador con reunión de Teams, vía Microsoft Graph. Las pantallas no cambian: entra en los tres puntos `INTEGRACIÓN` de `actions/interviews.ts`.
+- Fireflies se mantiene (entra a Teams igual que a Meet), con la transcripción nativa de Teams como alternativa a probar.
+- Pendiente: migración que agrega `teams` a `meeting_platform` (y lo deja como valor por defecto al agendar) y `microsoft` a `integration_provider` y `webhook_source`; opciones de plataforma en el formulario de entrevista; registro de la app en Entra ID por el admin de Prime. Lista completa en `tasks.md` §6.

@@ -16,9 +16,11 @@
     "db:rls-check": "node --env-file=.env.local scripts/rls-check.mjs",
     "db:rls-lite": "node scripts/rls-lite/assignments.test.mjs && node scripts/rls-lite/candidates.test.mjs && node scripts/rls-lite/manual-capture.test.mjs && node scripts/rls-lite/manual-sql.test.mjs",
     "smoke": "node --env-file=.env.local scripts/smoke.mjs",
-    "smoke:pages": "node --env-file=.env.local scripts/smoke-pages.mjs"
+    "smoke:pages": "node --env-file=.env.local scripts/smoke-pages.mjs",
+    "test:domain": "node --experimental-strip-types --no-warnings --test scripts/domain/scoring.test.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "lucide-react": "^1.46.0",

@@ -1,10 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { Bar } from "@/components/ui/bar";
-import { EmptyState } from "@/components/ui/empty-state";
 import { fmtDate, fmtMoney, fmtMonths } from "@/lib/format";
 import { asArray, type CvWeight, type PrefilterQuestion, type PsychMinimum } from "@/lib/domain/json";
 import type { AiConfig } from "@/lib/queries/types";
+import { DEFAULT_CV_THRESHOLD } from "@/lib/domain/scoring";
+import { CvWeightsForm, GenerateEvaluationForm } from "./evaluacion-ia-forms";
 
 const ANSWER_TYPES: Record<string, string> = {
   text: "Texto libre",
@@ -15,9 +16,22 @@ const ANSWER_TYPES: Record<string, string> = {
 };
 
 /** Pestaña "Evaluación IA": reglas de prefiltro, pesos del CV, preguntas y mínimos psicométricos. */
-export function EvaluacionIA({ config }: { config: AiConfig | null }) {
+export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | null; profileId: string; aiOn: boolean }) {
+  const generate = (
+    <Card title="Evaluación automática" subtitle="Pesos y umbral del CV, reglas y preguntas del prefiltro y mínimos psicométricos" className="lg:col-span-2">
+      <GenerateEvaluationForm profileId={profileId} hasConfig={config !== null} aiOn={aiOn} />
+    </Card>
+  );
+
   if (!config) {
-    return <EmptyState title="Sin configuración de IA" hint="Genera el perfil desde el levantamiento para crear reglas, pesos y preguntas." />;
+    return (
+      <div className="grid gap-5 lg:grid-cols-2">
+        {generate}
+        <Card title="Pesos del CV" subtitle="O captúralos a mano: criterios que suman 100 y el umbral para avanzar">
+          <CvWeightsForm profileId={profileId} weights={[]} threshold={DEFAULT_CV_THRESHOLD} />
+        </Card>
+      </div>
+    );
   }
 
   const weights = asArray<CvWeight>(config.cv_weights);
@@ -42,6 +56,7 @@ export function EvaluacionIA({ config }: { config: AiConfig | null }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {generate}
       <Card
         title="Reglas de prefiltro"
         subtitle="Lo que Vale valida en WhatsApp antes de pasar al CV"
@@ -82,13 +97,22 @@ export function EvaluacionIA({ config }: { config: AiConfig | null }) {
         ) : (
           <div className="space-y-3">
             {weights.map((w) => (
-              <Bar key={w.key} label={w.label} value={w.weight} max={100} tone="forest" />
+              <div key={w.key}>
+                <Bar label={w.label} value={w.weight} max={100} tone="forest" />
+                {w.hint && <p className="mt-1 text-xs text-ink-faint">{w.hint}</p>}
+              </div>
             ))}
           </div>
         )}
         <div className="mt-4 border-t border-line pt-3">
           <Bar label="Umbral mínimo" value={config.cv_threshold} max={100} tone="leaf" />
         </div>
+        <details className="mt-4 border-t border-line pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-forest">Editar pesos y umbral</summary>
+          <div className="mt-3">
+            <CvWeightsForm key={config.version} profileId={profileId} weights={weights} threshold={config.cv_threshold} />
+          </div>
+        </details>
       </Card>
 
       <Card title="Preguntas del prefiltro" subtitle="En el orden en que las hace el agente">

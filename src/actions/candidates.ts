@@ -3,12 +3,15 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { assertStaff, UnauthorizedError } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { extractCv } from "@/lib/cv/extract";
+import { aiEnabled } from "@/lib/ai/client";
+import { scoreApplicationCv } from "@/lib/ai/tasks/score-cv";
 import type { CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
 import { CHANNEL_LABELS } from "@/lib/labels";
@@ -175,6 +178,15 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
   if (Object.keys(patch).length > 0) {
     const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
     if (error) return { error: `El candidato quedó postulado, pero no se guardaron su CV o sus datos: ${error.message}` };
+  }
+
+  // Score del CV después de responder (10 a 20 s de Claude): el reclutador ya está en la ficha.
+  // Corre con su sesión, así que RLS decide igual que en el alta. Si falla, se califica desde la ficha.
+  if (d.cv_path && aiEnabled()) {
+    after(async () => {
+      const result = await scoreApplicationCv(await createClient(), application.id);
+      if (!result.ok) console.error("cv_score", application.id, result.error);
+    });
   }
 
   revalidatePath("/candidatos");

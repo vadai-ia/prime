@@ -8,13 +8,18 @@ import { Card } from "@/components/ui/card";
 import { Bar } from "@/components/ui/bar";
 import { Ring } from "@/components/ui/ring";
 import { StagePill } from "@/components/ui/pill";
+import { aiEnabled } from "@/lib/ai/client";
+import { ScoreCvButton } from "./score-cv-button";
 
 export function Resumen({ detail }: { detail: ApplicationDetail }) {
-  const { application: a, pipeline: p, events } = detail;
+  const { application: a, pipeline: p, events, candidate, aiConfig } = detail;
   const breakdown = asArray<CvBreakdownItem>(a.cv_score_breakdown);
   const prefilter = asArray<PrefilterResultItem>(a.prefilter_result);
   const threshold = p.cv_threshold;
   const cvTone = a.cv_score !== null && threshold !== null ? (a.cv_score >= threshold ? "leaf" : "amber") : "neutral";
+  // Calificado con otros pesos: la vacante cambió su evaluación después
+  const stale = a.cv_score !== null && aiConfig !== null && a.cv_score_version !== null && a.cv_score_version !== aiConfig.version;
+  const canScore = aiEnabled() && Boolean(candidate.cv_file_path || candidate.cv_text);
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
@@ -26,9 +31,25 @@ export function Resumen({ detail }: { detail: ApplicationDetail }) {
           </div>
         )}
 
-        <Card title="Score de CV" subtitle={threshold !== null ? `Umbral de la vacante: ${threshold}` : undefined}>
+        <Card
+          title="Score de CV"
+          subtitle={threshold !== null ? `Umbral de la vacante: ${threshold}` : undefined}
+          action={canScore && a.cv_score !== null ? <ScoreCvButton applicationId={a.id} scored /> : undefined}
+        >
+          {stale && (
+            <p className="mb-4 rounded-lg bg-amber-soft px-3 py-2 text-xs text-amber">
+              Calificado con los pesos v{a.cv_score_version}; la vacante ya va en la v{aiConfig?.version}. Recalifica para usar los vigentes.
+            </p>
+          )}
           {a.cv_score === null ? (
-            <p className="text-sm text-ink-muted">Todavía no se califica el CV.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-ink-muted">
+                {!candidate.cv_file_path && !candidate.cv_text
+                  ? "Todavía no se califica el CV: el candidato no tiene CV adjunto."
+                  : "Todavía no se califica el CV. Si acabas de darlo de alta, la IA tarda unos segundos: recarga la página."}
+              </p>
+              {canScore && <ScoreCvButton applicationId={a.id} scored={false} />}
+            </div>
           ) : (
             <div className="flex flex-col gap-5 sm:flex-row">
               <div className="flex shrink-0 flex-col items-center gap-2">
@@ -41,7 +62,15 @@ export function Resumen({ detail }: { detail: ApplicationDetail }) {
               </div>
               <div className="min-w-0 flex-1 space-y-3">
                 {breakdown.map((item) => (
-                  <Bar key={item.key} value={item.score} max={item.weight} label={`${item.label} (peso ${item.weight})`} tone={item.score >= item.weight * 0.7 ? "leaf" : "amber"} />
+                  <div key={item.key}>
+                    <Bar value={item.score} max={item.weight} label={`${item.label} (peso ${item.weight})`} tone={item.score >= item.weight * 0.7 ? "leaf" : "amber"} />
+                    {(item.note || item.evidence) && (
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {item.note}
+                        {item.evidence && <span className="text-ink-faint"> · «{item.evidence}»</span>}
+                      </p>
+                    )}
+                  </div>
                 ))}
                 {a.cv_ai_rationale && <p className="pt-1 text-sm text-ink-muted">{a.cv_ai_rationale}</p>}
               </div>

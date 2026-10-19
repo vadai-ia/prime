@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/dal";
 import { can } from "@/lib/auth/permissions";
+import { aiEnabled } from "@/lib/ai/client";
 import { getProfile } from "@/lib/queries/profiles";
 import { getProfileRecruiters } from "@/lib/queries/assignments";
 import { listPipeline } from "@/lib/queries/pipeline";
@@ -74,7 +75,7 @@ export default async function PerfilDetailPage(props: PageProps<"/perfiles/[prof
       <Tabs
         items={[
           { key: "descriptivo", label: "Descriptivo", content: <Descriptivo profile={profile} channels={channels} /> },
-          { key: "ia", label: "Evaluación IA", badge: profile.ai_config ? `v${profile.ai_config.version}` : "sin config", content: <EvaluacionIA config={profile.ai_config} /> },
+          { key: "ia", label: "Evaluación IA", badge: profile.ai_config ? `v${profile.ai_config.version}` : "sin config", content: <EvaluacionIA config={profile.ai_config} profileId={profile.id} aiOn={aiEnabled()} /> },
           { key: "levantamiento", label: "Levantamiento", badge: profile.intake ? (profile.intake.status === "generated" ? "generado" : "borrador") : undefined, content: <Levantamiento intake={profile.intake} /> },
           ...(team ? [{ key: "reclutadores", label: "Reclutadores", badge: assignedCount > 0 ? assignedCount : "sin asignar", content: <Reclutadores profileId={profile.id} data={team} /> }] : []),
         ]}
