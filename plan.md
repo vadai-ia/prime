@@ -34,7 +34,7 @@ Pandape / Facebook / LinkedIn ──(carga manual · CSV · correo)──▶ Nex
 Whaapy (WhatsApp)  ◀── webhooks + REST ─────────────────────────────┤──▶ Supabase: Postgres + Auth + Storage
 Fireflies          ◀── webhook + GraphQL ───────────────────────────┤──▶ Anthropic API (Claude Opus 5.5)
 Microsoft Graph    ◀── Entra ID + REST (Outlook, Teams) ────────────┤──▶ Resend (correo saliente)
-Vercel Cron        ── /api/cron/tick cada minuto ───────────────────┘
+Vercel Cron        ── /api/cron/tick diario 8:00 ──────────────────┘
 ```
 
 Principios:
@@ -303,7 +303,7 @@ scheduled_tasks             -- cola simple sobre Postgres
   last_error, created_at, finished_at
   índice (status, run_at)
 
-user_integrations           -- tokens OAuth cifrados; solo si se elige la conexión por reclutador (§4.4, opción B)
+user_integrations           -- tokens OAuth cifrados (Outlook de cada reclutador, §4.4 opción B)
   id, user_id → users, provider (google | microsoft), access_token_enc, refresh_token_enc, expires_at, scopes text[], account_email
 
 audit_log
@@ -384,10 +384,13 @@ Con el volumen de Telasist (unos 130 postulantes al mes, 10 que llegan a expedie
 Decisión del 19 oct 2026: Prime usa Outlook (clásico y nuevo) y Teams. Da igual qué Outlook use cada quien: los dos leen el mismo buzón de Exchange Online. Requisito: que el correo de Prime esté en Microsoft 365, no en un Exchange propio ni en POP/IMAP.
 
 - **Registro de la app** en Microsoft Entra ID (lo hace el admin de Microsoft 365 de Prime): una app de un solo inquilino con secreto de cliente. Variables `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`. El secreto vence (máximo 24 meses): anotar la fecha para renovarlo.
-- **Conexión, opción A (recomendada): permiso de aplicación.** `Calendars.ReadWrite` de tipo aplicación con consentimiento del admin, acotado con RBAC for Applications de Exchange (o `New-ApplicationAccessPolicy`) a un grupo de seguridad "Reclutadores Prime". Nadie conecta nada; un reclutador nuevo solo se agrega al grupo. Token con client credentials, sin tokens por usuario.
-- **Opción B: cada reclutador conecta su cuenta** (OAuth delegado, `Calendars.ReadWrite` + `offline_access`), tokens cifrados en `user_integrations`. Solo si TI no autoriza la opción A.
-- **Crear:** `POST /users/{correo del reclutador}/events` con `isOnlineMeeting: true` y `onlineMeetingProvider: "teamsForBusiness"` → `onlineMeeting.joinUrl` = `meeting_url`, `id` = `calendar_event_id`. Invitados: candidato (si tiene correo) y `fred@fireflies.ai`. Exchange manda la invitación desde el buzón del reclutador. Sin correo del candidato, el enlace le llega por WhatsApp (template `prime_confirmacion_entrevista`).
-- **Mover:** `PATCH /users/{correo}/events/{id}`. **Cancelar:** `POST /users/{correo}/events/{id}/cancel` (manda el aviso a los invitados).
+- **Conexión elegida (20 oct 2026): opción B, cada reclutador conecta su cuenta.** OAuth delegado con PKCE (`openid email offline_access User.Read Calendars.ReadWrite`) desde **Mi cuenta → Conectar Outlook** (`/api/integrations/microsoft/connect` y `/callback`). Tokens cifrados con AES-256-GCM (`src/lib/crypto.ts`, `ENCRYPTION_KEY`) en `user_integrations` con `provider = 'microsoft'`; la fila la escribe el propio usuario (RLS "cada quien la suya"). El token se refresca solo; si Microsoft lo revoca, la app pide reconectar. Quien no conecte sigue pegando el enlace de Teams a mano.
+- **Service role para tokens:** leer y refrescar el token del dueño del calendario (`interviews.calendar_owner_id`) se hace con service role en `src/lib/integrations/microsoft-graph.ts`, porque quien mueve o cancela puede ser otra persona (un admin). Solo toca `user_integrations`, nunca datos de candidatos.
+- **Lo que pone Prime:** registrar la app en su Entra ID (permisos delegados, URI de redirección `https://<dominio>/api/integrations/microsoft/callback` y `http://localhost:3000/...` para pruebas) y dar el **consentimiento del administrador** una vez; si no, a cada reclutador le sale "Se necesita aprobación del administrador". Cada reclutador necesita licencia con Teams y buzón de Exchange Online.
+- *Opción A (descartada por ahora):* permiso de aplicación con client credentials, acotado con RBAC for Applications a un grupo. Nadie conecta nada, pero pide más trabajo al admin de Prime. El código de Graph cambiaría solo en cómo se obtiene el token.
+- **Crear:** `POST /me/events` con el token de quien agenda con `isOnlineMeeting: true` y `onlineMeetingProvider: "teamsForBusiness"` → `onlineMeeting.joinUrl` = `meeting_url`, `id` = `calendar_event_id`. Invitados: candidato (si tiene correo) y `fred@fireflies.ai`. Exchange manda la invitación desde el buzón del reclutador. Sin correo del candidato, el enlace le llega por WhatsApp (template `prime_confirmacion_entrevista`).
+- **Mover:** `PATCH /me/events/{id}` con el token del dueño del calendario; si el evento ya no existe (se canceló), se crea otro. **Cancelar:** `POST /me/events/{id}/cancel` (manda el aviso a los invitados). `transactionId` = id de la entrevista para que un reintento no duplique el evento.
+- **Sin Outlook conectado** el enlace se pega a mano. Si Outlook falla, el reclutador puede desconectarlo en Mi cuenta y agendar a mano.
 - **Correos automáticos (opcional):** podrían salir de un buzón de Prime con `Mail.Send` en lugar de Resend; se decide con Prime (§4.5).
 - Zoom y Google Meet: fuera del MVP.
 
@@ -718,3 +721,34 @@ Prime usa Microsoft 365 (Outlook clásico y New Outlook, Teams). Sustituye a Goo
 - Las entrevistas se crean en el calendario de Outlook del reclutador con reunión de Teams, vía Microsoft Graph. Las pantallas no cambian: entra en los tres puntos `INTEGRACIÓN` de `actions/interviews.ts`.
 - Fireflies se mantiene (entra a Teams igual que a Meet), con la transcripción nativa de Teams como alternativa a probar.
 - Pendiente: migración que agrega `teams` a `meeting_platform` (y lo deja como valor por defecto al agendar) y `microsoft` a `integration_provider` y `webhook_source`; opciones de plataforma en el formulario de entrevista; registro de la app en Entra ID por el admin de Prime. Lista completa en `tasks.md` §6.
+
+
+### 12.7 Teams y Outlook por reclutador, migraciones 0019 y 0020 (20 de octubre de 2026)
+
+- **Decisión:** opción B de §4.4. Cada reclutador conecta su Outlook en **Mi cuenta** (`/mi-cuenta`, enlace en su nombre abajo del menú). Meet y Zoom salen de la app: el formulario de entrevista ya no pregunta plataforma, todo es Teams, y las entrevistas viejas de Meet o Zoom pasan a Teams (0020; el enlace guardado no cambia).
+- **Con Outlook conectado el evento siempre se crea** en su calendario y `fred@fireflies.ai` siempre va invitado; el campo de enlace ni aparece. Sin Outlook conectado, el enlace se pega a mano y el formulario invita a conectar.
+- **0019** agrega `teams` a `meeting_platform` y `microsoft` a `integration_provider` y `webhook_source`; **0020** deja `teams` por defecto en `interviews.platform` y pasa a Teams las entrevistas de Meet o Zoom (en otra transacción: Postgres no usa un valor de enum en la transacción que lo crea). Archivo manual `08_microsoft_teams.sql`, en dos transacciones. `meet`, `zoom` y `google` se quedan en los enums por las filas viejas.
+- **Código:** `src/lib/crypto.ts`, `src/lib/integrations/microsoft-graph.ts` (OAuth, refresh, crear, mover y cancelar), rutas `/api/integrations/microsoft/connect` y `/callback`, `actions/integrations.ts` (desconectar) y los tres puntos de `actions/interviews.ts`. Configuración → Integraciones muestra "Outlook y Teams" en lugar de Google.
+- **Invitados:** el candidato si tiene correo, el entrevistador Prime si no es quien agenda, y siempre `fred@fireflies.ai` (para que entre, el reclutador que organiza tiene que estar en la cuenta de Fireflies de Prime). Al cliente no se le invita (no tenemos su correo): el reclutador le reenvía el evento. Sin correo del candidato, el enlace se le manda por WhatsApp cuando exista `interview_confirm`.
+- **Sin probar contra Microsoft:** falta que Prime registre la app. Recorrido en `pendientes_revision.md` §5.
+- **Pendiente:** sala de espera de Teams (`lobbyBypassSettings` pide `OnlineMeetings.ReadWrite`; por ahora se ajusta en la política de Teams de Prime), y que el admin vea en Configuración quién ya conectó su Outlook.
+
+### 12.8 Lista negra, migración 0021 (20 de octubre de 2026)
+
+- **Solo admin** (`view_blacklist`): la ve, agrega y quita. El reclutador y el cliente no ven la lista ni el motivo.
+- **Tabla `candidate_blacklist`**: candidato, copia de nombre, teléfono, CURP y correo (por si cambian o se borra el candidato), motivo (`blacklist_reason`: robo o faltante, abandono sin aviso, documentos falsos, mala conducta, otro), nota, quién y cuándo; al quitarla, `removed_at`, quién y por qué. RLS: solo lectura para admin; se escribe solo con las RPC `blacklist_candidate` y `unblacklist_candidate`.
+- **La base impide postularla:** trigger `applications_block_blacklisted` rechaza cualquier postulación nueva (alta manual, carga masiva, WhatsApp, service role) si coincide candidato, teléfono, CURP o correo. Error `candidate_blacklisted`.
+- **Al agregarla** se descartan sus postulaciones abiertas con motivo neutro "Descartado por administración"; las contrataciones no se tocan. Quitarla no reabre nada.
+- **Alta de candidato:** `is_blacklisted(teléfono, correo)` responde sí o no antes de crear nada. Al reclutador: "No se puede registrar a esta persona. Consulta con tu administrador."; al admin le dice que está en la lista.
+- **Pantallas:** Candidatos → **Lista negra** (vigentes y, con `?historial=1`, las quitadas) y en la ficha del candidato, para admin, "Agregar a lista negra" o el aviso con motivo y "Quitar de la lista negra".
+- Pruebas en `scripts/rls-lite/blacklist.test.mjs`; archivo manual `09_lista_negra.sql`.
+- **Pendiente:** avisar al admin cuando alguien intenta registrar a una persona de la lista; que el agente de WhatsApp no la contacte (cuando exista).
+
+### 12.9 Cola de tareas y cron, migración 0022 (20 de octubre de 2026)
+
+- **Ejecutor:** `GET /api/cron/tick` (Vercel Cron una vez al día, `0 14 * * *` UTC = 8:00 en México, `vercel.json`; Vercel Hobby no permite más seguido. Decidido el 21 oct 2026. El primer intento de cada tarea corre al momento con `after()`; el cron solo hace reintentos y lo diario. Si algún día hace falta más seguido: Pro o un cron externo contra la misma ruta, `CRON_SECRET` como Bearer, `maxDuration` 60 s). Encola las tareas diarias que ya tocan (`src/lib/queue/recurring.ts`, una por día con llave `tipo:fecha` buscada en toda la cola) y corre la cola de 4 en 4 hasta 45 s (`src/lib/queue/run.ts`). Sin lógica de negocio en la ruta.
+- **Handlers** en `src/lib/queue/handlers.ts`: payload validado con zod, `maxAttempts` por tipo, y `retry: false` cuando reintentar no sirve. Un tipo desconocido falla sin reintentar. Corren con service role (no hay sesión).
+- **0022:** `claim_scheduled_tasks` recupera tareas colgadas en `running` más de 10 minutos y acepta `p_only` (correr una tarea concreta); `finish_scheduled_task` acepta `p_retry` y, al fallar del todo, avisa a los admins (`task_failed`, enlace a Configuración → Tareas automáticas); `retry_scheduled_task` y `cancel_scheduled_task` (solo admin); `notify_followups_due` y `placement_followups.notified_at`; `followup_due` en `notification_kind`. Archivo manual `10_cola_de_tareas.sql`; pruebas en `scripts/rls-lite/queue.test.mjs`.
+- **Tareas hechas:** `cv_score` (el alta la encola y la corre con `after()` sin esperar al cron; 3 intentos; sin CV o sin pesos no reintenta) y `followups_due` (diario 8:00: avisa al reclutador y a los admins cuando vence un corte de permanencia, una vez por corte).
+- **Configuración → Tareas automáticas:** pendientes, corriendo, fallidas, terminadas en 24 h, aviso si el cron no está llegando, y Reintentar / Cancelar.
+- **Siguientes tipos** (con su integración): `wa_*`, `interview_confirm`, `fireflies_fetch_transcript`, `interview_analyze`, `psych_parse`, `doc_check`, los tres correos y `weekly_insights`.

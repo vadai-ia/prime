@@ -94,6 +94,38 @@ export const INTERVIEW_TYPE_LABELS: Record<Enums<"interview_type">, string> = {
   client: "Entrevista con cliente",
 };
 
+// Prime solo usa Teams (20 oct 2026): 'meet' y 'zoom' quedan en el enum, pero la migración 0020 pasó todo a Teams.
+export const PLATFORM_LABELS: Record<Enums<"meeting_platform">, string> = {
+  teams: "Teams",
+  meet: "Teams",
+  zoom: "Teams",
+};
+
+// Lista negra (solo admin). El reclutador nunca ve el motivo.
+export const BLACKLIST_REASON_LABELS: Record<Enums<"blacklist_reason">, string> = {
+  theft: "Robo o faltante",
+  abandonment: "Abandono sin aviso",
+  fake_documents: "Documentos falsos",
+  misconduct: "Mala conducta",
+  other: "Otro",
+};
+
+export const TASK_STATUS_LABELS: Record<Enums<"task_status">, string> = {
+  pending: "Pendiente",
+  running: "Corriendo",
+  done: "Terminada",
+  failed: "Fallida",
+  cancelled: "Cancelada",
+};
+
+export const TASK_STATUS_TONES: Record<Enums<"task_status">, Tone> = {
+  pending: "neutral",
+  running: "info",
+  done: "mint",
+  failed: "danger",
+  cancelled: "neutral",
+};
+
 export const PSYCH_STATUS_LABELS: Record<Enums<"psych_status">, string> = {
   pending: "Sin enviar",
   sent: "Enviado",

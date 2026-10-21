@@ -116,7 +116,7 @@ export type InterviewRow = Interview & {
 export type UserRow = User & { client_name: string | null };
 
 export type IntegrationStatus = {
-  key: "supabase" | "anthropic" | "whaapy" | "fireflies" | "google" | "resend";
+  key: "supabase" | "anthropic" | "whaapy" | "fireflies" | "microsoft" | "resend" | "cron";
   label: string;
   configured: boolean;
   detail: string;

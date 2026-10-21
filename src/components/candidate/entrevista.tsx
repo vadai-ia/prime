@@ -2,7 +2,7 @@ import { Check, ExternalLink, X } from "lucide-react";
 import type { ApplicationDetail, Interview } from "@/lib/queries/types";
 import { asArray } from "@/lib/domain/json";
 import type { InterviewFinding } from "@/lib/domain/json";
-import { INTERVIEW_STATUS_LABELS, INTERVIEW_STATUS_TONES as STATUS_TONE, INTERVIEW_TYPE_LABELS } from "@/lib/labels";
+import { INTERVIEW_STATUS_LABELS, INTERVIEW_STATUS_TONES as STATUS_TONE, INTERVIEW_TYPE_LABELS, PLATFORM_LABELS } from "@/lib/labels";
 import { fmtDateTime } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { utcIsoToZoned } from "@/lib/domain/time";
 import { InterviewActions, ScheduleInterviewForm, type StaffOption } from "./interview-forms";
 
-export function Entrevista({ detail, staff, currentUserId }: { detail: ApplicationDetail; staff: StaffOption[]; currentUserId: string }) {
+export function Entrevista({ detail, staff, currentUserId, outlookConnected }: { detail: ApplicationDetail; staff: StaffOption[]; currentUserId: string; outlookConnected: boolean }) {
   const { application, interviews } = detail;
   const closed = application.stage === "discarded" || application.stage === "hired";
   // pasada la entrevista Prime, lo siguiente que se agenda es la del cliente
@@ -19,8 +19,8 @@ export function Entrevista({ detail, staff, currentUserId }: { detail: Applicati
 
   return (
     <div className="space-y-5">
-      {!closed && <ScheduleInterviewForm applicationId={application.id} staff={staff} currentUserId={currentUserId} defaultType={defaultType} open={interviews.length === 0} />}
-      {interviews.length === 0 && <EmptyState title="Sin entrevistas" hint="Agéndala aquí arriba. El enlace se pega a mano mientras no esté conectado Google Calendar." />}
+      {!closed && <ScheduleInterviewForm applicationId={application.id} staff={staff} currentUserId={currentUserId} defaultType={defaultType} open={interviews.length === 0} outlookConnected={outlookConnected} />}
+      {interviews.length === 0 && <EmptyState title="Sin entrevistas" hint="Agéndala aquí arriba. Con tu Outlook conectado se crea el evento en tu calendario con Teams y Fireflies." />}
       {interviews
         .slice()
         .reverse()
@@ -45,7 +45,7 @@ function InterviewCard({ interview: iv, applicationId, staff }: { interview: Int
     >
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
         <Field label="Duración" value={`${iv.duration_min} min`} />
-        <Field label="Plataforma" value={iv.platform === "meet" ? "Google Meet" : "Zoom"} />
+        <Field label="Plataforma" value={PLATFORM_LABELS[iv.platform]} />
         <Field label={iv.type === "client" ? "Entrevista" : "Entrevistador"} value={iv.client_interviewer_name ?? (iv.interviewer_user_id ? (staff.find((u) => u.id === iv.interviewer_user_id)?.full_name ?? "Reclutador Prime") : "—")} />
         <div>
           <dt className="text-xs text-ink-muted">Enlace</dt>

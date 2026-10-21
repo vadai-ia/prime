@@ -2,7 +2,7 @@
 // entrevistas y vacantes ya leídas y devuelven lo que pinta cada plantilla. La vista previa en
 // Reportes las llama con la sesión del usuario; el cron las llamará con service role filtrando por
 // la misma regla (CLAUDE.md, service role).
-import { CHANNEL_LABELS, INTERVIEW_TYPE_LABELS, PIPELINE_STAGES, STAGE_LABELS, type Stage } from "@/lib/labels";
+import { CHANNEL_LABELS, INTERVIEW_TYPE_LABELS, PIPELINE_STAGES, PLATFORM_LABELS, STAGE_LABELS, type Stage } from "@/lib/labels";
 import type { Enums } from "@/lib/db/types";
 import type { Client, InterviewRow, PipelineRow, ProfileSummary, SourceChannel, StageCounts } from "@/lib/queries/types";
 import { attentionReason, needsAttention } from "@/lib/attention";
@@ -12,7 +12,6 @@ import { DONE_INTERVIEW, IN_PROCESS, STAGE_ORDER, countStages, dayIndex, isActiv
 export const CLIENT_DAILY_STAGES: Stage[] = ["psychometric", "documents", "client_interview"];
 const CLIENT_VISIBLE_FROM = STAGE_ORDER.get("psychometric")!;
 
-const PLATFORM_LABELS: Record<Enums<"meeting_platform">, string> = { meet: "Google Meet", zoom: "Zoom" };
 
 // ─── Resumen diario interno ───────────────────────────────────────────────
 

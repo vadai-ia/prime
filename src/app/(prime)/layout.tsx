@@ -3,6 +3,7 @@ import { listMyNotifications } from "@/lib/queries/notifications";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { signOut } from "@/actions/auth";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import Link from "next/link";
 import { NavLink } from "@/components/layout/nav-link";
 
 const NAV = [
@@ -50,8 +51,10 @@ export default async function PrimeLayout({ children }: LayoutProps<"/">) {
           )}
         </nav>
         <div className="mt-auto border-t border-white/15 px-2 pt-4">
-          <p className="truncate text-sm font-medium">{user.full_name || user.email}</p>
-          <p className="text-xs text-white/60">{ROLE_LABELS[session.role]}</p>
+          <Link href="/mi-cuenta" className="block rounded-lg hover:text-white/90" title="Mi cuenta: contraseña y conexión con Outlook">
+            <p className="truncate text-sm font-medium">{user.full_name || user.email}</p>
+            <p className="text-xs text-white/60">{ROLE_LABELS[session.role]} · Mi cuenta</p>
+          </Link>
           <form action={signOut}>
             <button type="submit" className="mt-3 text-xs text-white/70 underline-offset-2 hover:text-white hover:underline">
               Cerrar sesión

@@ -1,6 +1,6 @@
 # Servicios, llaves y tareas · Sistema de reclutamiento Prime HR Innovation
 
-Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qué llave necesita, qué tarea del sistema lo llama, qué está hecho y qué falta. Actualizado el 19 de octubre de 2026.
+Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qué llave necesita, qué tarea del sistema lo llama, qué está hecho y qué falta. Actualizado el 20 de octubre de 2026.
 
 ---
 
@@ -21,7 +21,7 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 - **Para qué lo usamos:** sirve la app, ejecuta los webhooks y los dos crons.
 - **Qué necesita:** proyecto ligado al repo, dominio, variables de entorno.
 - **Variables:** todas las de este documento.
-- **Costo:** plan Pro, 20 USD al mes. El cron cada minuto no existe en el plan gratuito.
+- **Costo:** plan Hobby (gratis). El cron corre una vez al día (8:00); los reintentos esperan a esa corrida. Pro (20 USD al mes) solo si hace falta cron más seguido.
 - **Quién contrata:** Prime o VADAI.
 
 ### Anthropic (Claude)
@@ -55,8 +55,8 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 
 - **Qué es:** el correo, calendario y videollamada que ya usa Prime (Outlook clásico, New Outlook y Teams). Sustituye a Google Calendar y Meet (decisión del 19 oct 2026, plan §4.4).
 - **Para qué lo usamos:** crear el evento de la entrevista en el calendario de Outlook del reclutador con reunión de Teams, invitar al candidato y a Fireflies, reagendar y cancelar. Opcional: mandar los correos automáticos desde un buzón de Prime.
-- **Qué necesita:** que el correo de Prime esté en Microsoft 365 (Exchange Online) y una app registrada en Microsoft Entra ID por su admin. Detalle en §6.
-- **Variables:** `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`.
+- **Qué necesita:** que el correo de Prime esté en Microsoft 365 (Exchange Online), una app registrada en Microsoft Entra ID por su admin con consentimiento, y que cada reclutador conecte su Outlook en Mi cuenta. Detalle en §6.
+- **Variables:** `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `ENCRYPTION_KEY`.
 - **Costo:** sin costo extra con las licencias de Microsoft 365 que Prime ya paga.
 - **Quién contrata:** Prime (ya lo tiene).
 
@@ -92,8 +92,8 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 ### Variables internas, sin servicio detrás
 
 - `NEXT_PUBLIC_APP_URL`: dominio de la app.
-- `CRON_SECRET`: protege las rutas de cron.
-- `ENCRYPTION_KEY`: cifra tokens en `user_integrations` (solo si se usa la conexión por reclutador).
+- `CRON_SECRET`: protege `/api/cron/tick`. Cualquier texto largo; el mismo en Vercel y en `.env.local`.
+- `ENCRYPTION_KEY`: cifra los tokens de Outlook de cada reclutador en `user_integrations`. 32 bytes en base64 (`openssl rand -base64 32`). Si cambia, todos tienen que reconectar.
 - `APP_TIMEZONE`: `America/Mexico_City`.
 - `MOCK_DATA`: solo desarrollo; con `1` las vistas muestran datos de demo y no se puede guardar nada.
 
@@ -160,14 +160,16 @@ Cada uso pasa por `runAi()` (`src/lib/ai/run.ts`): esquema zod de salida, prompt
 
 ---
 
-## 3. Tareas de la cola (`scheduled_tasks.type`) · pendiente
+## 3. Tareas de la cola (`scheduled_tasks.type`) · ejecutor listo (20 oct)
 
-La cola vive en Postgres y ya existe en la base (`enqueue_task`, `claim_scheduled_tasks`, `finish_scheduled_task`); falta el ejecutor `/api/cron/tick`. Cada tarea reintenta con espera de 2^intentos minutos hasta `max_attempts`.
+La cola vive en Postgres (`enqueue_task`, `claim_scheduled_tasks`, `finish_scheduled_task`) y el ejecutor es `/api/cron/tick` (plan §12.9). Cada tarea reintenta con espera de 2^intentos minutos hasta `max_attempts`; una que falla porque falta un dato no se reintenta; al fallar del todo se avisa a los admins. Cada tipo se programa en `src/lib/queue/handlers.ts`; los diarios, en `src/lib/queue/recurring.ts`. Se ven, reintentan y cancelan en Configuración → Tareas automáticas.
+
+- **`followups_due`** · **hecho.** Diario a las 8:00: avisa al reclutador y a los admins cuando vence un corte de permanencia (30, 90 o 180 días), una sola vez por corte.
 
 - **`wa_first_contact`.** Template de primer contacto con el aviso de privacidad; abre `wa_conversations` en flujo `prefilter`. Toca Whaapy.
 - **`wa_send`.** Manda un texto, template o botones; si la ventana de 24 horas cerró, cambia a template. Toca Whaapy.
 - **`wa_reminder`.** Recordatorio a las 12 horas (psicométrico) o 24 horas (documentos); segundo a las 48 horas. Toca Whaapy.
-- **`cv_score`.** Hoy corre con `after()` al dar de alta; con la cola, el alta la encola con la misma función. Toca Anthropic y Storage.
+- **`cv_score`** · **hecho.** El alta la encola y la corre en cuanto responde; si falla, el cron la reintenta (3 intentos). Toca Anthropic y Storage.
 - **`interview_confirm`.** Un día antes manda el template de confirmación con fecha, hora y enlace de Teams. Toca Whaapy.
 - **`fireflies_fetch_transcript`.** Descarga la transcripción, la guarda en `interview_transcripts` y encola `interview_analyze`. Toca Fireflies (o Graph, si se usa la transcripción de Teams).
 - **`interview_analyze`.** Corre la tarea de IA `interview_analysis`. Toca Anthropic.
@@ -184,8 +186,8 @@ Lo que no va por la cola porque corre al momento: generar la evaluación de la v
 
 - **`POST /api/webhooks/whaapy`.** Eventos de mensajes y conversación. Firma HMAC-SHA256 en `X-Webhook-Signature`; `X-Webhook-ID` para no procesar dos veces.
 - **`POST /api/webhooks/fireflies`.** Transcripción terminada, con el `meetingId`. Se valida con `FIREFLIES_WEBHOOK_SECRET`.
-- **`GET /api/cron/tick`.** Vercel Cron cada minuto. Ejecuta la cola. Protegido con `CRON_SECRET`.
-- **`GET /api/cron/schedule-reports`.** Vercel Cron cada hora. Encola los correos según la configuración de cada cliente.
+- **`GET /api/cron/tick`** · **hecho.** Vercel Cron diario 8:00 (`vercel.json`, plan Hobby). Encola las tareas diarias y ejecuta la cola. Protegido con `CRON_SECRET`. En local: `npm run queue:tick` (`--watch` para cada minuto).
+- **Correos programados.** Ya no hace falta otro cron: se agregan a `recurring.ts` y el tick los encola a su hora.
 - **`GET /auth/callback`.** Ya existe: invitación y recuperación de contraseña de Supabase Auth.
 
 Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la firma, guarda el evento en `webhook_events` y encola. Todo lo que escriben webhooks y crons usa el service role.
@@ -211,6 +213,10 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 - [x] Edición a mano de pesos del CV y umbral (solo guarda si suman 100).
 - [x] Score del CV al dar de alta y con "Calificar CV" / "Recalificar" en la ficha, con evidencia por criterio, alertas y aviso cuando los pesos cambiaron.
 
+**Lista negra (20 oct 2026, plan §12.8):**
+
+- [x] Solo admin: agregar desde la ficha, ver y quitar en Candidatos → Lista negra. La base impide que la persona vuelva a postularse (teléfono, CURP o correo).
+
 **Otros (19 oct 2026):**
 
 - [x] Los seis templates de WhatsApp enviados a revisión de Meta.
@@ -222,22 +228,28 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 
 Fireflies sí funciona con Teams: se invita `fred@fireflies.ai` al evento de Outlook y el bot entra a la reunión de Teams como un participante más, igual que en Meet. También existe la opción de conectar el calendario de Outlook del reclutador a Fireflies para que entre solo a todas sus reuniones, pero invitarlo desde el sistema es más controlado (solo entra a entrevistas).
 
-### Lo que tiene que hacer el admin de Microsoft 365 de Prime
+### Opción elegida: cada reclutador conecta su Outlook (20 oct 2026)
 
-1. Confirmar que el correo está en **Microsoft 365 / Exchange Online** (en Outlook: Archivo → Configuración de la cuenta debe decir "Microsoft Exchange" o "Microsoft 365") y qué licencia tienen (Business Basic, Standard o Premium).
-2. En **portal.azure.com → Microsoft Entra ID → Registros de aplicaciones → Nuevo registro**: nombre "Prime HR Reclutamiento", "Solo cuentas de este directorio organizativo".
+Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su correo de Prime. Desde ahí, al agendar, el evento siempre se crea en su calendario con enlace de Teams, se invita a Fireflies y la invitación sale de su buzón. Quien no conecte pega el enlace a mano.
+
+### Lo que tiene que hacer el admin de Microsoft 365 de Prime (una vez, unos 15 minutos)
+
+1. Confirmar que el correo está en **Microsoft 365 / Exchange Online** (en Outlook: Archivo → Configuración de la cuenta debe decir "Microsoft Exchange" o "Microsoft 365") y que cada reclutador tiene licencia **con Teams**.
+2. En **portal.azure.com → Microsoft Entra ID → Registros de aplicaciones → Nuevo registro**: nombre "Prime HR Reclutamiento", "Solo cuentas de este directorio organizativo", URI de redirección tipo **Web**: `https://<dominio de la app>/api/integrations/microsoft/callback` (y `http://localhost:3000/api/integrations/microsoft/callback` para pruebas).
 3. En **Certificados y secretos**, crear un secreto de cliente y anotar su fecha de vencimiento.
-4. En **Permisos de API → Microsoft Graph → Permisos de aplicación**, agregar `Calendars.ReadWrite`. Si se decide: `Mail.Send` (correos automáticos) y `OnlineMeetingTranscript.Read.All` (transcripción de Teams). Después, **Conceder consentimiento de administrador**.
-5. Crear un grupo de seguridad con correo "Reclutadores Prime" con los buzones de los reclutadores, y acotar la app a ese grupo con RBAC for Applications de Exchange (o `New-ApplicationAccessPolicy` en PowerShell de Exchange Online). Así la app no puede tocar otros calendarios de la empresa.
-6. En el **centro de administración de Teams → Reuniones → Directivas**: permitir que usuarios anónimos se unan a reuniones y que los externos entren sin sala de espera (o que el reclutador los admita). Afecta al candidato y al bot de Fireflies.
-7. Mandarnos por un canal seguro: **Id. de directorio (tenant)**, **Id. de aplicación (client)** y el **secreto**.
+4. En **Permisos de API → Microsoft Graph → Permisos delegados**: `openid`, `email`, `offline_access`, `User.Read`, `Calendars.ReadWrite`. Después, **Conceder consentimiento de administrador para Prime** (si no, a cada reclutador le sale "Se necesita aprobación del administrador").
+5. En el **centro de administración de Teams → Reuniones → Directivas**: permitir que usuarios anónimos se unan y que los externos entren sin sala de espera (o que el reclutador los admita). Afecta al candidato y al bot de Fireflies.
+6. Mandarnos por un canal seguro: **Id. de directorio (tenant)**, **Id. de aplicación (client)** y el **secreto**.
 
 ### Lo que hacemos nosotros
 
-- [ ] Migración: `teams` en `meeting_platform` (valor por defecto al agendar), `microsoft` en `integration_provider` y `webhook_source`, con su archivo manual re-ejecutable y su verificación en `db:rls-lite`.
-- [ ] Formulario de entrevista: Teams como plataforma por defecto; quitar Meet de las opciones.
-- [ ] `src/lib/integrations/microsoft-graph.ts`: token con client credentials, crear, mover y cancelar el evento con reunión de Teams.
-- [ ] Conectar los tres puntos `INTEGRACIÓN` de `src/actions/interviews.ts`. Si el candidato no tiene correo, el enlace de Teams se le manda por WhatsApp.
+- [x] Migraciones 0019 y 0020 (`teams`, `microsoft`, Teams por defecto, entrevistas viejas de Meet o Zoom pasan a Teams) con su archivo manual `08_microsoft_teams.sql` y su verificación en `db:rls-lite` (20 oct).
+- [x] Formulario de entrevista: solo Teams; Meet y Zoom fuera de la app (20 oct).
+- [x] `src/lib/integrations/microsoft-graph.ts`: OAuth por reclutador, refresh, crear, mover y cancelar el evento con reunión de Teams (20 oct, sin probar).
+- [x] Mi cuenta → Conectar / Desconectar Outlook, y los tres puntos de `src/actions/interviews.ts`. Con Outlook conectado el evento siempre se crea y Fireflies siempre va invitado (20 oct, sin probar).
+- [ ] Pegar `supabase/manual/08_microsoft_teams.sql` y `09_lista_negra.sql` en el SQL Editor.
+- [ ] Si el candidato no tiene correo, mandarle el enlace de Teams por WhatsApp (con `interview_confirm`).
+- [ ] Que el admin vea en Configuración quién ya conectó su Outlook.
 - [ ] Spike de medio día: evento con Teams desde Graph → Fireflies entra → webhook → transcripción. Probar también la transcripción nativa de Teams para decidir si se queda Fireflies.
 - [ ] Webhook de Fireflies y tarea `interview_analysis`.
 - [ ] Actualizar `plan.md` con lo que salga del spike.
@@ -281,13 +293,13 @@ Fireflies sí funciona con Teams: se invita `fred@fireflies.ai` al evento de Out
 
 1. **Probar y calibrar la IA** (§7).
 2. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas y veredicto. Necesita 3 o 4 PDF reales.
-3. **Cola de tareas y crons** (`/api/cron/tick`, `schedule-reports`). Base de todo lo automático.
+3. ~~Cola de tareas y cron~~ (hecho el 20 oct; falta `CRON_SECRET` y el cron en Vercel).
 4. **Correos**: los tres correos automáticos, por Resend o por un buzón de Prime con Graph; PDF del reporte semanal; SMTP de Auth.
 5. **Outlook y Teams + Fireflies** (§6) y `interview_analysis`.
 6. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
 7. **Weekly insights** y la pestaña de inteligencia interna con historia.
 
-Sin dependencias externas, para meter entre bloques: lista negra e inactivos (solo admin), exportar a Excel con `log_audit('export')`, carga masiva de CVs, detección de duplicados, importación del Excel histórico, pantalla de permanencia a 30, 90 y 180 días, más notificaciones (candidato asignado, entrevista agendada, documento subido), `last_seen_at`, ajustes para celular.
+Sin dependencias externas, para meter entre bloques: inactivos (solo admin; la lista negra ya está, 20 oct), exportar a Excel con `log_audit('export')`, carga masiva de CVs, detección de duplicados, importación del Excel histórico, pantalla de permanencia a 30, 90 y 180 días, más notificaciones (candidato asignado, entrevista agendada, documento subido), `last_seen_at`, ajustes para celular.
 
 Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase Auth (Site URL, redirect URLs, templates, SMTP), colores reales en `src/app/globals.css`.
 
@@ -304,7 +316,7 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 
 **Decisiones:**
 
-- [ ] Opción A (permiso de la empresa) o B (cada reclutador conecta su Outlook). Recomendada: A.
+- [x] Cada reclutador conecta su Outlook (opción B, 20 oct 2026).
 - [ ] Fireflies o transcripción de Teams (después del spike).
 - [ ] Correos automáticos por Resend o desde un buzón de Prime.
 - [ ] Texto del aviso de privacidad y plazo de conservación de datos de descartados.

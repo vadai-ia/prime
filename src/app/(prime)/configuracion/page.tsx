@@ -7,27 +7,32 @@ import { Avatar } from "@/components/ui/avatar";
 import { listUsers } from "@/lib/queries/users";
 import { listClients } from "@/lib/queries/clients";
 import { getIntegrationsStatus } from "@/lib/queries/settings";
+import { getQueueOverview } from "@/lib/queries/tasks";
+import { taskLabel } from "@/lib/queue/handlers";
+import { TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { ROLE_LABELS } from "@/lib/auth/roles";
-import { timeAgo } from "@/lib/format";
+import { fmtDateTime, timeAgo } from "@/lib/format";
 import type { IntegrationStatus } from "@/lib/queries/types";
 import { SimpleTable } from "../reportes/simple-table";
 import { InviteForm } from "./invite-form";
 import { UserRowActions } from "./user-row-actions";
+import { TaskRowActions } from "./task-row-actions";
 
 export const metadata: Metadata = { title: "Configuración · Prime HR Innovation" };
 
 const NEEDS: Record<IntegrationStatus["key"], string> = {
   supabase: "URL y llave pública del proyecto; la llave secreta solo para invitaciones, webhooks y cron.",
-  anthropic: "API key con límite de gasto mensual. Modelo por defecto claude-opus-5.",
+  anthropic: "API key con límite de gasto mensual. Modelo por defecto claude-opus-5-5.",
   whaapy: "API key del número de Prime, secret del webhook y la IA nativa apagada en ese número. Templates enviados a aprobación de Meta.",
   fireflies: "API key de la cuenta de Prime y webhook de transcripción apuntando a /api/webhooks/fireflies.",
-  google: "Proyecto en Google Cloud con Calendar API, pantalla de consentimiento y credenciales OAuth. Cada reclutador conecta su calendario.",
+  microsoft: "Falta que el admin de Microsoft 365 de Prime registre la app y nos pase tres datos (tenant, client id y secreto; pasos en tasks.md §6). Con eso, cada reclutador da clic en Conectar Outlook en Mi cuenta.",
+  cron: "CRON_SECRET (cualquier texto largo) en Vercel y en .env.local, y el cron diario de vercel.json. En local se corre con npm run queue:tick.",
   resend: "Dominio de Prime verificado (SPF, DKIM, DMARC) y remitente configurado.",
 };
 
 export default async function ConfiguracionPage() {
   const session = await requireAdmin();
-  const [users, clients, integrations] = await Promise.all([listUsers(), listClients({ includeInactive: true }), getIntegrationsStatus()]);
+  const [users, clients, integrations, queue] = await Promise.all([listUsers(), listClients({ includeInactive: true }), getIntegrationsStatus(), getQueueOverview()]);
 
   const usersSection = (
     <div className="grid gap-5 lg:grid-cols-3">
@@ -79,6 +84,40 @@ export default async function ConfiguracionPage() {
               <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">{NEEDS[i.key]}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section id="tareas" className="mt-10 scroll-mt-6">
+        <h2 className="text-lg font-medium text-ink">Tareas automáticas</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          La cola corre una vez al día, 8:00 (/api/cron/tick). {queue.pending} pendientes · {queue.running} corriendo · {queue.failed} fallidas · {queue.doneLastDay} terminadas en 24 h
+          {queue.lastFinishedAt ? ` · última ${timeAgo(queue.lastFinishedAt)}` : ""}.
+        </p>
+        {queue.cronStale && (
+          <p className="mt-3 rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber">
+            Hay tareas que ya tocaban y no han corrido: el cron no está llegando. Revisa CRON_SECRET y el cron en Vercel (en local: npm run queue:tick).
+          </p>
+        )}
+        <div className="mt-3">
+          <SimpleTable
+            headers={["Tarea", "Estado", "Intentos", "Cuándo", "Error", ""]}
+            align={["left", "left", "center", "left", "left", "right"]}
+            empty="Nada pendiente ni fallido."
+            rows={queue.open.map((t) => [
+              taskLabel(t.type),
+              <Pill key={`${t.id}-s`} tone={TASK_STATUS_TONES[t.status]}>
+                {TASK_STATUS_LABELS[t.status]}
+              </Pill>,
+              `${t.attempts}/${t.max_attempts}`,
+              <span key={`${t.id}-w`} className="text-xs text-ink-muted">
+                {t.status === "pending" ? `Corre ${fmtDateTime(t.run_at)}` : t.finished_at ? fmtDateTime(t.finished_at) : `Desde ${fmtDateTime(t.run_at)}`}
+              </span>,
+              <span key={`${t.id}-e`} className="line-clamp-2 max-w-md text-xs text-danger">
+                {t.last_error ?? ""}
+              </span>,
+              <TaskRowActions key={`${t.id}-x`} taskId={t.id} status={t.status} />,
+            ])}
+          />
         </div>
       </section>
     </div>

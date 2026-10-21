@@ -1,0 +1,170 @@
+# Pendientes de revisión · lo que hay que probar cuando llegue cada llave
+
+Lista viva. Cada función que se programe sin poder probarla agrega aquí su recorrido; al probarla se marca y se anota qué se ajustó. Creado el 20 oct 2026.
+
+---
+
+## 0. Antes de empezar (una vez)
+
+- [ ] Crédito en console.anthropic.com (10 a 20 USD alcanzan para calibrar) y límite de gasto mensual.
+- [ ] `ANTHROPIC_API_KEY=` en `.env.local` y reiniciar `npm run dev`.
+- [ ] `MOCK_DATA` vacío en `.env.local` (en modo demo los botones no guardan).
+- [ ] Entrar como **admin** (o como reclutador asignado a la vacante de prueba).
+- [ ] Tener abierto Supabase → SQL Editor con esta consulta, para revisar después de cada paso:
+
+```sql
+select kind, status, model, cost_usd, latency_ms, error, created_at
+from ai_runs order by created_at desc limit 20;
+```
+
+Si la primera llamada falla con error de forma de petición, esquema o `fallbacks`, el problema está en `src/lib/ai/run.ts`, no en el prompt. Copiar el `error` de `ai_runs` y corregir ahí primero.
+
+---
+
+## 1. Generar la evaluación de la vacante (`profile_generation`) · programado, sin probar
+
+**Necesita:** API key y la vacante de Telasist con el descriptivo completo (requisitos, actividades, condiciones con sueldo y horario, competencias).
+
+- [x] Vacante → pestaña **Evaluación IA** → **Generar con IA**. Debe tardar de 20 a 60 s y mostrar "Evaluación generada (vN)". *21 oct: 28 s, vacante Full Stack Engineer de prueba.*
+- [ ] Salen de 4 a 6 criterios del CV, con pesos que suman 100 y una guía por criterio.
+- [ ] Ningún criterio habla de edad, sexo, estado civil ni apariencia.
+- [ ] La edad aparece como alerta, nunca como bloqueo (`age_is_blocking = false`).
+- [ ] El umbral es razonable para el puesto (ni 20 ni 95).
+- [ ] Las preguntas del prefiltro (4 a 7) se entienden por WhatsApp y cada una tiene su regla.
+- [ ] La lista de "datos que faltaban" coincide con lo que de verdad no dice el descriptivo.
+- [ ] Regenerar pide confirmar y sube la versión.
+- [ ] **Editar pesos y umbral**: no guarda si no suman 100; guarda si suman 100 y sube la versión.
+- [x] En `ai_runs`: `kind = profile_generation`, `status` ok, costo entre 0.10 y 0.20 USD. *21 oct: 0.074 USD (904 in / 2,849 out), por debajo de lo estimado.*
+
+**Anotar:** qué criterio sobró o faltó, si los pesos tienen sentido para Prime, qué pregunta suena rara.
+
+---
+
+## 2. Score del CV (`cv_score`) · programado, sin probar
+
+**Necesita:** API key, la vacante del paso 1 ya con evaluación, y **2 o 3 CV reales en PDF**: uno bueno, uno regular y uno que no cumpla (sirven escaneados).
+
+- [x] **Agregar candidato** con el CV bueno en esa vacante. Al llegar a la ficha, esperar unos segundos y recargar: aparece el score con evidencia por criterio.
+- [ ] Repetir con el regular y con el malo.
+- [ ] El bueno queda **arriba** del umbral; el malo **abajo** y cae en "Requiere tu atención" (no se descarta solo).
+- [ ] La evidencia es texto que de verdad está en el CV (abrir el PDF y buscarlo).
+- [ ] Las alertas ("requisito no demostrado", "hueco laboral") tienen sentido.
+- [ ] Con un CV escaneado (imagen), también lo lee.
+- [ ] En un candidato existente con CV: **Calificar CV** funciona.
+- [ ] Cambiar un peso en la vacante → la ficha avisa que los pesos cambiaron y ofrece **Recalificar**.
+- [ ] Como reclutador **no asignado** a la vacante: no puede calificar (RLS).
+- [x] En `ai_runs`: `kind = cv_score`, costo cerca de 0.06 USD por CV. *21 oct: 0.057 USD, 19 s. Score 56/75 en un CV real; falta probar con un CV fuerte y uno débil.*
+
+**Comparar con el criterio del reclutador:** pedirle a alguien de Prime que ordene los 3 CV a mano y ver si la IA coincide.
+
+---
+
+## 3. Ajuste de prompts (después de 1 y 2)
+
+- [ ] Anotar cada error de la IA (criterio mal, evidencia inventada, score inflado).
+- [ ] Ajustar `src/lib/ai/prompts/profile-generation.ts` y `cv-score.ts` y subir `PROMPT_VERSION`.
+- [ ] Volver a correr los mismos CV y comparar con la versión anterior.
+- [ ] Si el costo sale muy arriba de lo estimado, revisar `effort` por tarea antes de cambiar de modelo.
+
+---
+
+## 4. Lectura del psicométrico (`psych_parse`) · por programar
+
+**Necesita:** API key y **3 o 4 PDF reales de Psicotest** (de puestos distintos si se puede).
+
+Se llena cuando esté programado. Lo esperado:
+
+- [ ] Subir el PDF en la pestaña Psicométrico → se llenan las escalas solas.
+- [ ] Los valores coinciden con el PDF (revisar escala por escala).
+- [ ] El veredicto y el % de ajuste contra los mínimos de la vacante son correctos (eso lo calcula el código, no la IA).
+- [ ] Un PDF que no es de Psicotest da un error claro, no escalas inventadas.
+- [ ] Costo cerca de 0.16 USD por reporte.
+
+---
+
+## 5. Outlook y Teams (cada reclutador conecta el suyo) · programado el 20 oct, sin probar
+
+**Ya se puede probar sin Microsoft (hoy):**
+
+- [x] Pegar `supabase/manual/08_microsoft_teams.sql` en el SQL Editor (20 oct).
+- [ ] Las entrevistas viejas ya dicen **Teams** en la ficha y en Entrevistas (ninguna dice Meet ni Zoom). Su enlace no cambió.
+- [ ] Agendar una entrevista sin Outlook conectado: pide pegar el enlace de Teams y ofrece ir a Mi cuenta para conectar.
+- [ ] Menú → tu nombre abajo → **Mi cuenta**: dice "Sin conectar" y que falta configurar la app de Microsoft.
+- [ ] Configuración → Integraciones: aparece "Outlook y Teams" como pendiente (ya no Google).
+
+**Necesita:** que el admin de Microsoft 365 de Prime registre la app (pasos en `tasks.md` §6) y nos pase tenant, client id y secreto. Después:
+
+- [ ] En `.env.local`: `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` y `ENCRYPTION_KEY` (`openssl rand -base64 32`). Reiniciar `npm run dev`.
+- [ ] Mi cuenta → **Conectar Outlook** → entrar con el correo de Prime → regresa con "Outlook conectado" y el correo de la cuenta.
+- [ ] Si sale "Se necesita aprobación del administrador": falta el consentimiento del admin (paso 4 de `tasks.md` §6).
+- [ ] Con Outlook conectado, el formulario ya no pide enlace. Agendar → aparece en el Outlook del reclutador con enlace de Teams, y la ficha muestra el enlace.
+- [ ] El candidato (con correo) recibe la invitación desde el correo del reclutador. Revisar que el asunto y el texto no muestren nada interno.
+- [ ] Entrevista Prime con otro entrevistador: él también recibe la invitación.
+- [ ] **Reagendar** → el evento se mueve en Outlook y el candidato recibe la actualización.
+- [ ] **Cancelar** → el evento desaparece del calendario y el candidato recibe la cancelación.
+- [ ] Reagendar una entrevista cancelada → se crea un evento nuevo con enlace nuevo.
+- [ ] Un admin reagenda la entrevista de un reclutador → se mueve en el calendario del reclutador (no en el del admin).
+- [ ] Borrar el evento a mano desde Outlook y luego cancelar en la app → se cancela sin error.
+- [ ] **Desconectar** en Mi cuenta y agendar → vuelve a pedir el enlace (agenda manual).
+- [ ] Esperar más de una hora y agendar otra vez → funciona (el token se refresca solo).
+- [ ] Candidato sin correo: la entrevista se crea, pero hoy nadie le manda el enlace (llega con WhatsApp, `interview_confirm`).
+
+**Fireflies** (siempre va invitado):
+
+- [ ] El evento lleva a `fred@fireflies.ai` como invitado.
+- [ ] El reclutador que organiza está dado de alta en la cuenta de Fireflies de Prime (si no, el bot no entra).
+- [ ] El bot entra a la reunión sin quedarse en la sala de espera.
+- [ ] Llega el webhook de Fireflies y aparece la transcripción (por programar).
+- [ ] Probar la transcripción nativa de Teams para decidir si se queda Fireflies.
+
+---
+
+## 6. Lista negra · programada el 20 oct; se prueba hoy, sin llaves
+
+- [x] Pegar `supabase/manual/09_lista_negra.sql` en el SQL Editor: 5 "ok" (20 oct).
+- [ ] Como **admin**, en la ficha de un candidato de prueba: **Agregar a lista negra** → elegir motivo y nota. Sale el aviso rojo con motivo, quién y cuándo.
+- [ ] Sus postulaciones abiertas quedan **Descartadas** con "Descartado por administración"; si tenía una contratación, sigue igual.
+- [ ] Con motivo "Otro" y sin nota, no deja guardar.
+- [ ] Candidatos → **Lista negra**: aparece con teléfono, correo, motivo y quién lo agregó.
+- [ ] Como **reclutador**: no ve el botón "Lista negra" en Candidatos, ni el aviso en la ficha; si abre `/candidatos/lista-negra` lo regresa a su inicio.
+- [ ] Como reclutador, **Nuevo candidato** con el teléfono de esa persona → "No se puede registrar a esta persona. Consulta con tu administrador." (sin motivo).
+- [ ] Igual con otro teléfono pero el mismo correo.
+- [ ] Como admin, el mismo intento dice que está en la lista negra.
+- [ ] **Quitar** desde la lista (pide confirmar) o desde la ficha (con nota) → ya se puede registrar otra vez. Sus postulaciones descartadas no se reabren.
+- [ ] "Ver también las que se quitaron" muestra el historial con quién la quitó y por qué.
+
+---
+
+## 7. Cola de tareas y cron · programada el 20 oct; se prueba hoy, sin llaves
+
+**Preparar:**
+
+- [ ] Pegar `supabase/manual/10_cola_de_tareas.sql` en el SQL Editor: checklist con 5 "ok". Correrlo dos veces no falla.
+- [ ] En `.env.local`: `CRON_SECRET=` con cualquier texto largo. Reiniciar `npm run dev`.
+
+**Probar en local (con `npm run dev` corriendo, en otra terminal):**
+
+- [ ] `npm run queue:tick` → "encoladas 1 · corridas 1 · fallidas 0" la primera vez del día después de las 8:00 (los avisos de permanencia). La segunda vez: "encoladas 0 · corridas 0".
+- [ ] Configuración → **Tareas automáticas**: aparece "La cola corre una vez al día…" y los contadores; "Tareas automáticas (cron)" sale como configurada en Integraciones.
+- [ ] Un contratado con ingreso de hace más de 30 días: al correr el tick sale el aviso "Seguimiento de 30 días: ¿sigue …?" en la campana del reclutador y del admin, y no se repite.
+- [ ] Abrir `/api/cron/tick` en el navegador sin el secreto → "No autorizado".
+
+**Con la API key de Anthropic:**
+
+- [ ] Agregar candidato con CV → la tarea "Score del CV" corre sola en segundos (no hace falta el tick) y la ficha muestra el score.
+- [ ] Agregar candidato con CV en una vacante **sin pesos** → la tarea queda **Fallida** sin reintentar, con el error claro, y el admin recibe el aviso en la campana.
+- [ ] **Reintentar** desde Configuración (después de poner los pesos) → corre en el siguiente tick.
+
+**En Vercel (cuando se despliegue):**
+
+- [ ] `CRON_SECRET` en las variables del proyecto (plan Hobby: cron diario).
+- [ ] En Vercel → Settings → Cron Jobs aparece `/api/cron/tick` diario (0 14 * * *) y sus ejecuciones responden 200.
+- [ ] Si Configuración avisa que "el cron no está llegando", revisar el secreto y los logs del cron.
+
+---
+
+## 8. WhatsApp · esperando a Meta
+
+- [ ] Revisar en Whaapy si Meta aprobó los seis templates (enviados el 19 oct 2026).
+- [ ] Si rechazó alguno, anotar el motivo y corregir el texto.
+- [ ] Cuando Prime dé el número definitivo: volver a enviarlos.

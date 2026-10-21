@@ -1,60 +1,58 @@
 # Próxima sesión · Prime HR Innovation
 
-Escrito el 19 de octubre de 2026 al cierre del día. **Léelo primero.** Después: `tasks.md` (qué está hecho, qué falta y qué pedir a Prime), `plan.md` §12.5 y §12.6 (detalle de lo de hoy) y `CLAUDE.md` (reglas).
+Escrito el 20 de octubre de 2026. **Léelo primero.** Después: `pendientes_revision.md` (qué probar cuando llegue cada llave), `tasks.md` (qué está hecho, qué falta y qué pedir a Prime), `plan.md` §12.5 a §12.9 (detalle) y `CLAUDE.md` (reglas).
+
+**No se commitea ni se pushea**: lo hace el usuario.
 
 ## Dónde quedamos
 
-- **Base hospedada en la migración 0018.** Archivos `supabase/manual/01` a `07` aplicados. Lo de hoy no lleva SQL.
-- **IA programada, sin probar contra la API** (plan §12.5):
-  - wrapper `runAi()` en `src/lib/ai/` (salida con zod, caché, `fallbacks`, registro en `ai_runs`), modelo `claude-opus-5-5`;
-  - "Generar con IA" y edición a mano de pesos y umbral en la pestaña Evaluación IA de la vacante;
-  - score del CV al dar de alta (en segundo plano con `after()`) y con "Calificar CV" / "Recalificar" en la ficha.
-  - Reglas puras en `src/lib/domain/scoring.ts` con 9 pruebas (`npm run test:domain`).
-- **Templates de WhatsApp** enviados a revisión de Meta el 19 oct (cuenta y número de prueba del usuario; con el número definitivo hay que mandarlos otra vez).
-- **Decisión:** entrevistas por **Teams con Outlook**; ya no Google Meet (plan §4.4 y §12.6). Fireflies se mantiene y entra a Teams; la transcripción nativa de Teams es la alternativa a probar.
-- **Verificado:** `tsc`, `eslint src scripts`, `npm run test:domain`, `npm run db:rls-lite` y `next build`.
-- **Sin commit.** Todo lo de hoy está en el árbol de trabajo; se commitea cuando el usuario lo decida.
+- **Base hospedada:** archivos manuales `01` a `09` aplicados (08 Teams y 09 lista negra el 20 oct). **Falta pegar `10_cola_de_tareas.sql`.**
+- **IA programada, sin probar contra la API** (plan §12.5): `runAi()`, "Generar con IA" en la vacante, score del CV. Falta la API key.
+- **Teams con Outlook por reclutador** (plan §12.7, opción B): Mi cuenta → Conectar Outlook (OAuth con PKCE, tokens cifrados en `user_integrations`). Con Outlook conectado el evento siempre se crea en su calendario con Teams e invita al candidato, al entrevistador y a Fireflies; sin conectar se pega el enlace. Meet y Zoom fuera de la app; las entrevistas viejas pasaron a Teams. Sin probar: falta que Prime registre la app en Entra ID.
+- **Lista negra** (plan §12.8): solo admin. Se agrega desde la ficha, se ve y se quita en Candidatos → Lista negra. La base bloquea cualquier postulación nueva de la persona (teléfono, CURP o correo); al reclutador no se le dice el motivo. Se puede probar ya.
+- **Cola de tareas y cron** (plan §12.9): `/api/cron/tick` una vez al día a las 8:00 (`vercel.json`, Vercel Hobby; decidido el 21 oct), handlers en `src/lib/queue/`, `cv_score` por la cola con reintentos, avisos de permanencia diarios (`followups_due`), Configuración → Tareas automáticas con reintentar/cancelar. En local: `npm run queue:tick`.
+- **Verificado:** `tsc`, `eslint src scripts`, `test:domain`, `db:rls-lite` (6 suites, incluidas `blacklist` y `queue`) y `next build`. La ruta del cron responde 401 sin el secreto.
 
 ## Siguiente sesión, en este orden
 
-1. **Probar la IA** con la llave puesta (`tasks.md` §7):
-   - "Generar con IA" en la vacante de Telasist: revisar criterios, pesos, umbral, preguntas y datos faltantes.
-   - Calificar dos o tres CV reales (bueno, regular, malo) y comparar contra el criterio del reclutador.
-   - Revisar `ai_runs` (costo, latencia, errores).
-   - Ajustar prompts en `src/lib/ai/prompts/` subiendo `PROMPT_VERSION`.
-   - Si algo falla contra la API real (forma de la petición, `fallbacks`, esquema), corregir en `src/lib/ai/run.ts`.
-2. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas, `fit_rows`, `fit_pct` y veredicto con el mismo wrapper. Necesita 3 o 4 PDF reales.
-3. **Teams sin depender de Prime todavía**: migración con `teams` en `meeting_platform` (por defecto al agendar) y `microsoft` en `integration_provider` y `webhook_source`, con su archivo manual 08, verificación en `db:rls-lite` y el formulario de entrevista con Teams.
-4. Cuando el admin de Microsoft 365 de Prime registre la app (`tasks.md` §6): `src/lib/integrations/microsoft-graph.ts` y los tres puntos `INTEGRACIÓN` de `src/actions/interviews.ts`; spike con Fireflies y con la transcripción de Teams.
+1. Que el usuario pegue `10_cola_de_tareas.sql`, ponga `CRON_SECRET` y pruebe `pendientes_revision.md` §6 (lista negra) y §7 (cola).
+2. **`psych_parse`** como tarea de la cola: prompt, esquema y cálculo de `fit_rows`, `fit_pct` y veredicto con pruebas en `test:domain`. Se calibra con PDF reales.
+3. **Pantalla de permanencia** (30, 90 y 180 días): lista de cortes por vencer y vencidos con Sigue / Se fue / No se sabe. Los avisos ya salen.
+4. Con la API key: `pendientes_revision.md` §1 a §3.
+5. Cuando Prime registre la app de Microsoft: §5.
 
-Si sobra tiempo: cola de tareas (`/api/cron/tick`), o algo sin dependencias de `tasks.md` §8.
+Después (pedido el 21 oct): apartado **"Logs técnicos"** para el admin (ai_runs, cola, errores). Si sobra: inactivos (solo admin), exportar a Excel con `log_audit('export')`, que el admin vea quién conectó su Outlook, aviso al admin cuando alguien intenta registrar a alguien de la lista negra.
 
 ## Lo que el usuario tiene pendiente
 
-- Poner `ANTHROPIC_API_KEY` en `.env.local` (y en Vercel) con crédito en la cuenta.
-- Conseguir CV reales y PDF de Psicotest.
-- Preguntar a Prime quién es el admin de Microsoft 365 y pasarle los pasos de `tasks.md` §6.
-- El resto de lo que hay que pedir a Prime está en `tasks.md` §9.
+- Pegar `supabase/manual/10_cola_de_tareas.sql` y poner `CRON_SECRET` en `.env.local`.
+- `ANTHROPIC_API_KEY` con crédito; CV reales y PDF de Psicotest.
+- Pedir al admin de Microsoft 365 de Prime los pasos de `tasks.md` §6 (registro de la app, consentimiento, política de Teams) y los tres datos.
+- Dar de alta a los reclutadores en la cuenta de Fireflies de Prime.
+- El resto en `tasks.md` §9.
 
 ## Cómo se trabaja el SQL aquí
 
-- Cada migración nueva en `supabase/migrations/` lleva su archivo en `supabase/manual/NN_*.sql`, generado con `python scripts/build-manual.py`. Es re-ejecutable, va en una transacción y termina con un checklist de ok / FALTA.
-- Antes de pegar algo en el SQL Editor: `npm run db:rls-lite`. Corre en PGlite (Postgres en WASM), sin Docker. Revisar el código de salida de cada suite, no solo la última línea.
-- `src/lib/db/types.ts` se edita a mano cuando la migración agrega columnas, enums o RPC.
-- Un dato sin el que una pantalla no funciona (catálogos) va en migración, no en `seed.sql`.
+- Cada migración nueva en `supabase/migrations/` lleva su archivo en `supabase/manual/NN_*.sql`, generado con `python scripts/build-manual.py` (un target por archivo, con `expected` de cuántas sentencias convierte). Re-ejecutable, en transacción, con checklist ok / FALTA. Un valor de enum nuevo no se puede usar en la misma transacción: `"separate": True` parte el archivo.
+- Cada archivo manual nuevo se agrega a `MANUAL_AFTER_0013` en `scripts/rls-lite/harness.mjs` y lleva su caso "dos veces" en `manual-sql.test.mjs`. Una política o RPC nueva lleva su suite en `scripts/rls-lite/` y se agrega a `db:rls-lite`.
+- `src/lib/db/types.ts` se edita a mano.
 
 ## Comandos útiles
 
 - `npm run dev`: app en http://localhost:3000.
+- `npm run queue:tick` (con `--watch`, cada minuto): corre el cron local.
+- `npx next typegen`: regenera los tipos de rutas (`PageProps<"/ruta">`) al crear una página.
 - Antes de cerrar: `npm run typecheck`, `npx eslint src scripts`, `npm run test:domain`, `npm run db:rls-lite`, `npm run build`.
-- `npm run db:rls-check`, `npm run smoke`, `npm run smoke:pages`: solo con el stack local (Docker), que no se usa aquí.
 
 ## Gotchas
 
-- `SUPABASE_SERVICE_ROLE_KEY` con dos llaves pegadas dio "Invalid API key" e "Invalid Compact JWS". Revisar la forma de la llave sin imprimirla.
+- El Bash de esta máquina falla con heredocs largos que traen `$$` o comillas: escribir el archivo con Write (o un .py en el scratchpad) y correrlo.
+- Al editar docs con scripts, comprobar que el archivo conserva su largo (una vez se truncó `tasks.md`; se recuperó desde el commit).
+- `route.ts` solo puede exportar handlers y config: constantes compartidas van en `src/lib`.
+- La regla `react-hooks/purity` no deja usar `Date.now()` al renderizar: calcularlo en la query.
 - Los archivos manuales tienen que poder correrse dos veces: el SQL Editor no lleva historial.
-- El SDK de Anthropic manda los `z.enum` como texto libre: en los esquemas de salida de IA se usa `z.string()` y el código normaliza (plan §12.5).
-- `next` de este repo es 16.3: leer `node_modules/next/dist/docs/` antes de usar una API (por ejemplo `after()`).
+- El SDK de Anthropic manda los `z.enum` como texto libre: en los esquemas de salida de IA se usa `z.string()` y el código normaliza.
+- `next` es 16.3: leer `node_modules/next/dist/docs/` antes de usar una API.
 
 ## Decisiones vigentes
 
@@ -63,4 +61,6 @@ Si sobra tiempo: cola de tareas (`/api/cron/tick`), o algo sin dependencias de `
 - Claude lee y extrae; el código decide. Ningún descarte automático sale de la IA. Edad como alerta, no bloqueo.
 - El cliente ve a los candidatos desde la etapa Psicométrico.
 - Contratado → Descartado es "se fue"; "Cancelar contratación" limpia la contratación.
-- Videollamadas por Teams con Outlook (Microsoft Graph); Zoom y Meet fuera del MVP.
+- Videollamadas solo por Teams; cada reclutador conecta su Outlook (opción B). Fireflies siempre invitado.
+- Lista negra: solo admin; bloquea, no solo avisa.
+- Trabajo en segundo plano por la cola, no con `after()` suelto.

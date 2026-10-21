@@ -7,8 +7,10 @@ import { can } from "@/lib/auth/permissions";
 import { getApplicationDetail, getCandidateHistory } from "@/lib/queries/pipeline";
 import { listProfileTeam } from "@/lib/queries/assignments";
 import { listStaff } from "@/lib/queries/users";
+import { getBlacklistEntry } from "@/lib/queries/blacklist";
+import { getMyOutlook } from "@/lib/queries/integrations";
 import { CHANNEL_LABELS } from "@/lib/labels";
-import { fmtDate, fmtPhone } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtPhone } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
 import { StagePill } from "@/components/ui/pill";
 import { Tabs } from "@/components/ui/tabs";
@@ -20,6 +22,7 @@ import { WhatsApp } from "@/components/candidate/whatsapp";
 import { Entrevista } from "@/components/candidate/entrevista";
 import { Psicometrico } from "@/components/candidate/psicometrico";
 import { Expediente } from "@/components/candidate/expediente";
+import { BlacklistPanel } from "@/components/candidate/blacklist-panel";
 
 export async function generateMetadata(props: PageProps<"/candidatos/[applicationId]">): Promise<Metadata> {
   const { applicationId } = await props.params;
@@ -35,11 +38,14 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
 
   const { candidate: c, application: a, pipeline: p } = detail;
   // El reclutador solo llega aquí si el candidato es suyo; quién lo lleva y reasignarlo es cosa del admin.
-  const [team, staff, history, query] = await Promise.all([
+  const canBlacklist = can(session.role, "view_blacklist");
+  const [team, staff, history, query, blacklisted, outlook] = await Promise.all([
     can(session.role, "manage_assignments") ? listProfileTeam(a.profile_id) : null,
     listStaff(),
     getCandidateHistory(c.phone_e164),
     props.searchParams,
+    canBlacklist ? getBlacklistEntry(c.id) : null,
+    getMyOutlook(),
   ]);
   const tab = typeof query.tab === "string" ? query.tab : undefined;
   const docsDone = p.docs_validated ?? 0;
@@ -83,6 +89,16 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
         <StageActions applicationId={a.id} stage={a.stage} discardedFrom={a.discarded_from_stage} />
       </div>
 
+      {canBlacklist && (
+        <div className="mt-5">
+          <BlacklistPanel
+            candidateId={c.id}
+            applicationId={a.id}
+            entry={blacklisted && { id: blacklisted.id, reason_key: blacklisted.reason_key, reason_note: blacklisted.reason_note, added_by_name: blacklisted.added_by_name, added_at_label: fmtDateTime(blacklisted.added_at) }}
+          />
+        </div>
+      )}
+
       <div className="mt-6">
         <CandidateHistory rows={history} currentApplicationId={a.id} />
       </div>
@@ -93,7 +109,7 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
           items={[
             { key: "resumen", label: "Resumen", content: <Resumen detail={detail} /> },
             { key: "whatsapp", label: "WhatsApp", badge: detail.conversation?.messages.length, content: <WhatsApp detail={detail} /> },
-            { key: "entrevista", label: "Entrevista", badge: detail.interviews.length || undefined, content: <Entrevista detail={detail} staff={staff.map((u) => ({ id: u.id, full_name: u.full_name || u.email }))} currentUserId={session.userId} /> },
+            { key: "entrevista", label: "Entrevista", badge: detail.interviews.length || undefined, content: <Entrevista detail={detail} staff={staff.map((u) => ({ id: u.id, full_name: u.full_name || u.email }))} currentUserId={session.userId} outlookConnected={!!outlook} /> },
             { key: "psicometrico", label: "Psicométrico", badge: p.psych_fit_pct !== null ? `${p.psych_fit_pct}%` : undefined, content: <Psicometrico detail={detail} /> },
             { key: "expediente", label: "Expediente", badge: docsDone > 0 || a.stage === "documents" ? `${docsDone}/${docsTotal}` : undefined, content: <Expediente detail={detail} /> },
           ]}

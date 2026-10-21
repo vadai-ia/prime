@@ -10,13 +10,15 @@ import { PROMPT_VERSION, SYSTEM } from "../prompts/cv-score";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-export type CvScoreResult = { ok: true; score: number } | { ok: false; error: string };
+/** `permanent`: reintentar no sirve (falta el CV o los pesos); la cola no lo vuelve a intentar. */
+export type CvScoreResult = { ok: true; score: number } | { ok: false; error: string; permanent?: boolean };
 
 /**
  * Califica el CV de una postulación contra los pesos de su vacante y guarda el resultado.
  *
- * `supabase` es el cliente con la sesión del usuario: si RLS no le deja leer la postulación,
- * no se califica (plan §2.3). El service role se usa solo para descargar el PDF de Storage.
+ * Desde la ficha, `supabase` es el cliente con la sesión del usuario: si RLS no le deja leer la
+ * postulación, no se califica (plan §2.3). Desde la cola (tarea cv_score, encolada en el alta ya
+ * autorizada) es el service role. El PDF siempre se baja de Storage con service role.
  * Nada aquí mueve de etapa ni descarta: abajo del umbral, la postulación cae en
  * "Requiere tu atención" cuando llega a revisión de CV (`lib/attention.ts`).
  */
@@ -27,19 +29,19 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
     .eq("id", applicationId)
     .maybeSingle();
   if (error) return { ok: false, error: error.message };
-  if (!app) return { ok: false, error: "Postulación no encontrada o no la tienes asignada" };
+  if (!app) return { ok: false, error: "Postulación no encontrada o no la tienes asignada", permanent: true };
 
   const candidate = app.candidates;
   const profile = app.job_profiles;
   const config = profile?.job_profile_ai_configs ?? null;
   const weights = asArray<CvWeight>(config?.cv_weights);
-  if (!candidate || !profile) return { ok: false, error: "Postulación incompleta" };
+  if (!candidate || !profile) return { ok: false, error: "Postulación incompleta", permanent: true };
   if (!config || weights.length === 0 || weightsTotal(weights) !== 100) {
-    return { ok: false, error: "La vacante no tiene pesos del CV que sumen 100. Genera o captura la evaluación en la vacante." };
+    return { ok: false, error: "La vacante no tiene pesos del CV que sumen 100. Genera o captura la evaluación en la vacante.", permanent: true };
   }
 
   const cv = await cvBlock(candidate.cv_file_path, candidate.cv_text);
-  if (!cv) return { ok: false, error: "El candidato no tiene CV adjunto." };
+  if (!cv) return { ok: false, error: "El candidato no tiene CV adjunto.", permanent: true };
 
   const vacante = {
     puesto: profile.title,

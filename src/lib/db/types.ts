@@ -455,6 +455,82 @@ export type Database = {
           },
         ]
       }
+      candidate_blacklist: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          candidate_id: string | null
+          created_at: string
+          curp: string | null
+          email: string | null
+          full_name: string
+          id: string
+          phone_e164: string | null
+          reason_key: Database["public"]["Enums"]["blacklist_reason"]
+          reason_note: string | null
+          removed_at: string | null
+          removed_by: string | null
+          removed_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          curp?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          phone_e164?: string | null
+          reason_key: Database["public"]["Enums"]["blacklist_reason"]
+          reason_note?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          curp?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          phone_e164?: string | null
+          reason_key?: Database["public"]["Enums"]["blacklist_reason"]
+          reason_note?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_blacklist_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_blacklist_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_blacklist_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_documents: {
         Row: {
           ai_check: Json | null
@@ -1522,6 +1598,7 @@ export type Database = {
           left_at: string | null
           left_reason: string | null
           notes: string | null
+          notified_at: string | null
           outcome: Database["public"]["Enums"]["followup_outcome"]
           recorded_at: string | null
           recorded_by: string | null
@@ -1536,6 +1613,7 @@ export type Database = {
           left_at?: string | null
           left_reason?: string | null
           notes?: string | null
+          notified_at?: string | null
           outcome?: Database["public"]["Enums"]["followup_outcome"]
           recorded_at?: string | null
           recorded_by?: string | null
@@ -1550,6 +1628,7 @@ export type Database = {
           left_at?: string | null
           left_reason?: string | null
           notes?: string | null
+          notified_at?: string | null
           outcome?: Database["public"]["Enums"]["followup_outcome"]
           recorded_at?: string | null
           recorded_by?: string | null
@@ -2619,6 +2698,36 @@ export type Database = {
       }
     }
     Functions: {
+      blacklist_candidate: {
+        Args: {
+          p_candidate_id: string
+          p_note?: string
+          p_reason_key: Database["public"]["Enums"]["blacklist_reason"]
+        }
+        Returns: {
+            added_at: string
+            added_by: string | null
+            candidate_id: string | null
+            created_at: string
+            curp: string | null
+            email: string | null
+            full_name: string
+            id: string
+            phone_e164: string | null
+            reason_key: Database["public"]["Enums"]["blacklist_reason"]
+            reason_note: string | null
+            removed_at: string | null
+            removed_by: string | null
+            removed_note: string | null
+            updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "candidate_blacklist"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       candidate_history_by_phone: {
         Args: { p_phone: string }
         Returns: {
@@ -2634,8 +2743,32 @@ export type Database = {
           stage_changed_at: string
         }[]
       }
+      cancel_scheduled_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          attempts: number
+          created_at: string
+          dedupe_key: string | null
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          run_at: string
+          status: Database["public"]["Enums"]["task_status"]
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "scheduled_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       claim_scheduled_tasks: {
-        Args: { p_limit?: number; p_worker?: string }
+        Args: { p_limit?: number; p_only?: string; p_worker?: string }
         Returns: {
           attempts: number
           created_at: string
@@ -2676,8 +2809,9 @@ export type Database = {
         Returns: string
       }
       find_candidate_by_phone: { Args: { p_phone: string }; Returns: string }
+      is_blacklisted: { Args: { p_email?: string; p_phone: string }; Returns: boolean }
       finish_scheduled_task: {
-        Args: { p_error?: string; p_ok: boolean; p_task_id: string }
+        Args: { p_error?: string; p_ok: boolean; p_retry?: boolean; p_task_id: string }
         Returns: {
           attempts: number
           created_at: string
@@ -2711,6 +2845,7 @@ export type Database = {
         Returns: undefined
       }
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
+      notify_followups_due: { Args: never; Returns: number }
       notify_staff: {
         Args: {
           p_body?: string
@@ -2725,6 +2860,56 @@ export type Database = {
       set_profile_recruiters: {
         Args: { p_profile_id: string; p_recruiter_ids: string[] }
         Returns: number
+      }
+      unblacklist_candidate: {
+        Args: { p_entry_id: string; p_note?: string }
+        Returns: {
+            added_at: string
+            added_by: string | null
+            candidate_id: string | null
+            created_at: string
+            curp: string | null
+            email: string | null
+            full_name: string
+            id: string
+            phone_e164: string | null
+            reason_key: Database["public"]["Enums"]["blacklist_reason"]
+            reason_note: string | null
+            removed_at: string | null
+            removed_by: string | null
+            removed_note: string | null
+            updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "candidate_blacklist"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      retry_scheduled_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          attempts: number
+          created_at: string
+          dedupe_key: string | null
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          run_at: string
+          status: Database["public"]["Enums"]["task_status"]
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "scheduled_tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_application_stage: {
         Args: {
@@ -2811,6 +2996,12 @@ export type Database = {
         | "discarded"
       assignment_action: "assigned" | "unassigned"
       assignment_source: "manual" | "user_deactivated" | "role_changed"
+      blacklist_reason:
+        | "theft"
+        | "abandonment"
+        | "fake_documents"
+        | "misconduct"
+        | "other"
       audit_action:
         | "view_cv"
         | "view_document"
@@ -2843,7 +3034,7 @@ export type Database = {
       followup_outcome: "pending" | "active" | "left" | "unknown"
       import_status: "pending" | "processing" | "done" | "failed"
       intake_status: "draft" | "generated"
-      integration_provider: "google"
+      integration_provider: "google" | "microsoft"
       interview_status:
         | "scheduled"
         | "confirmed"
@@ -2854,7 +3045,7 @@ export type Database = {
         | "transcribed"
         | "analyzed"
       interview_type: "prime" | "client"
-      meeting_platform: "meet" | "zoom"
+      meeting_platform: "meet" | "zoom" | "teams"
       notification_kind:
         | "client_decision"
         | "prefilter_exception"
@@ -2864,6 +3055,7 @@ export type Database = {
         | "candidate_hired"
         | "task_failed"
         | "other"
+        | "followup_due"
       prefilter_status:
         | "pending"
         | "in_progress"
@@ -2915,7 +3107,7 @@ export type Database = {
         | "docs_request"
         | "reminder"
         | "courtesy_close"
-      webhook_source: "whaapy" | "fireflies" | "resend" | "google"
+      webhook_source: "whaapy" | "fireflies" | "resend" | "google" | "microsoft"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3067,6 +3259,13 @@ export const Constants = {
       ],
       assignment_action: ["assigned", "unassigned"],
       assignment_source: ["manual", "user_deactivated", "role_changed"],
+      blacklist_reason: [
+        "theft",
+        "abandonment",
+        "fake_documents",
+        "misconduct",
+        "other",
+      ],
       audit_action: [
         "view_cv",
         "view_document",
@@ -3096,7 +3295,7 @@ export const Constants = {
       followup_outcome: ["pending", "active", "left", "unknown"],
       import_status: ["pending", "processing", "done", "failed"],
       intake_status: ["draft", "generated"],
-      integration_provider: ["google"],
+      integration_provider: ["google", "microsoft"],
       interview_status: [
         "scheduled",
         "confirmed",
@@ -3108,7 +3307,7 @@ export const Constants = {
         "analyzed",
       ],
       interview_type: ["prime", "client"],
-      meeting_platform: ["meet", "zoom"],
+      meeting_platform: ["meet", "zoom", "teams"],
       notification_kind: [
         "client_decision",
         "prefilter_exception",
@@ -3118,6 +3317,7 @@ export const Constants = {
         "candidate_hired",
         "task_failed",
         "other",
+        "followup_due",
       ],
       prefilter_status: [
         "pending",
@@ -3176,7 +3376,7 @@ export const Constants = {
         "reminder",
         "courtesy_close",
       ],
-      webhook_source: ["whaapy", "fireflies", "resend", "google"],
+      webhook_source: ["whaapy", "fireflies", "resend", "google", "microsoft"],
     },
   },
 } as const

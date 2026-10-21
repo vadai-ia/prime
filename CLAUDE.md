@@ -14,7 +14,8 @@ Decididas con Prime el 11 sep 2026. Todo módulo nuevo las hereda; no son opcion
 - **Solo un admin cambia asignaciones**: checklist en Perfiles → vacante → Reclutadores (RPC `set_profile_recruiters`) y reasignación de un candidato desde su ficha. El reclutador nunca se asigna solo. Crear vacantes también es de admin. Todo cambio queda en `job_profile_assignment_events`.
 - **Round robin**: cada postulación nueva se asigna por turno entre los reclutadores de la vacante (trigger en `applications`); si la captura un reclutador a mano, es suya. Desactivar a un usuario o quitarlo de una vacante reparte sus candidatos en proceso; si no queda nadie, quedan sin asignar y solo los ve el admin. El código de la app no asigna: inserta la postulación y la base decide.
 - **Solo admin**: exportar o descargar bases (Excel, PDF), ver candidatos inactivos y ver la lista negra. Se consulta `can(role, permiso)` / `requirePermission` / `assertPermission` (`src/lib/auth/permissions.ts`, `src/lib/dal.ts`) en TypeScript y `app.has_permission()` en SQL; los dos mapas van a la par. Todo flujo de exportación registra `log_audit('export')`, que rechaza a quien no sea admin.
-- **Service role** solo en webhooks, cron, jobs y Storage. Con service role no hay RLS: quien lo use para leer candidatos o clientes a nombre de un usuario tiene que filtrar por la misma regla.
+- **Service role** solo en webhooks, cron, jobs, Storage y los tokens de `user_integrations` (`microsoft-graph.ts`). Con service role no hay RLS: quien lo use para leer candidatos o clientes a nombre de un usuario tiene que filtrar por la misma regla.
+- **Lista negra** (0021): la base rechaza cualquier postulación de una persona marcada (`candidate_blacklisted`). Un flujo nuevo que dé de alta candidatos (WhatsApp, carga masiva) pregunta antes `is_blacklisted()` y nunca le muestra el motivo a quien no sea admin.
 - Avisos sobre un candidato: `app.notify_application()` (admins y su reclutador). `notify_staff()` es para avisos generales del sistema y solo lo llama el service role.
 
 ## Cómo se trabaja aquí
@@ -24,6 +25,7 @@ Decididas con Prime el 11 sep 2026. Todo módulo nuevo las hereda; no son opcion
 - `npm run db:rls-lite` prueba las políticas en un Postgres en WASM (PGlite) con las migraciones del repo, sin Docker. Una política nueva lleva su verificación ahí. `db:rls-check` es la misma idea contra Supabase real (necesita el stack local).
 - `src/lib/db/types.ts` se regenera con `db:types` (stack local); si no hay, se edita a mano con lo que agregue la migración.
 - Archivos (CV, documentos, psicométricos): buckets privados sin políticas. Subir y abrir pasa por `src/lib/uploads.ts`: primero se lee la fila con la sesión del usuario (RLS decide), después se usa service role solo para Storage, y abrir un archivo se registra con `log_audit`.
+- **Trabajo en segundo plano va por la cola** (`src/lib/queue/`): un tipo nuevo se registra en `handlers.ts` (payload con zod, `retry: false` si reintentar no sirve) y se encola con `enqueue()`; lo diario va en `recurring.ts`. Nada de `after()` suelto para trabajo que deba reintentarse.
 - Mientras una integración no exista, su dato se captura a mano en la misma pantalla (entrevistas, psicométrico, expediente). Al conectar la integración se reutiliza esa acción, no se hace otra pantalla.
 - `MOCK_DATA` (`src/lib/mock`) sirve datos de demo; el modo demo no aplica la visibilidad por reclutador.
 - Antes de cerrar: `npm run typecheck`, `npx eslint src`, `npm run db:rls-lite`, `npm run build`.

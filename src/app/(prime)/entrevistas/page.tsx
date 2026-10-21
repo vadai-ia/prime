@@ -9,7 +9,7 @@ import { listStaff } from "@/lib/queries/users";
 import { DONE_INTERVIEW, dayIndex, dayToIso } from "@/lib/metrics";
 import { RecruiterFilter } from "@/components/filters/recruiter-filter";
 import type { InterviewRow } from "@/lib/queries/types";
-import { INTERVIEW_STATUS_LABELS, INTERVIEW_STATUS_TONES as STATUS_TONE, INTERVIEW_TYPE_LABELS } from "@/lib/labels";
+import { INTERVIEW_STATUS_LABELS, INTERVIEW_STATUS_TONES as STATUS_TONE, INTERVIEW_TYPE_LABELS, PLATFORM_LABELS } from "@/lib/labels";
 import { fmtDate, fmtDateTime, fmtTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Stat } from "@/components/ui/stat";
@@ -118,7 +118,7 @@ export default async function EntrevistasPage(props: { searchParams: Promise<Sea
                       <span className="text-xs text-ink-muted">{iv.client_interviewer_name ?? iv.interviewer_name ?? "—"}</span>
                       {iv.meeting_url && (
                         <a href={iv.meeting_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-forest hover:underline">
-                          {iv.platform === "zoom" ? "Zoom" : "Meet"} <ExternalLink className="h-3.5 w-3.5" />
+                          {PLATFORM_LABELS[iv.platform]} <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       )}
                       <Link href={`/candidatos/${iv.application_id}?tab=entrevista`} className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-ink-muted transition hover:bg-canvas hover:text-ink">

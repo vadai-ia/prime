@@ -10,8 +10,8 @@ export type StaffOption = { id: string; full_name: string };
 
 const smallButton = "rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-canvas disabled:opacity-60";
 
-/** Agendar entrevista Prime o con cliente. Hoy el enlace se pega a mano; con Google Calendar conectado lo generará el sistema. */
-export function ScheduleInterviewForm({ applicationId, staff, currentUserId, defaultType, open = false }: { applicationId: string; staff: StaffOption[]; currentUserId: string; defaultType: Enums<"interview_type">; open?: boolean }) {
+/** Agendar entrevista Prime o con cliente, siempre por Teams. Con Outlook conectado (Mi cuenta) el enlace lo genera el sistema; si no, se pega a mano. */
+export function ScheduleInterviewForm({ applicationId, staff, currentUserId, defaultType, open = false, outlookConnected }: { applicationId: string; staff: StaffOption[]; currentUserId: string; defaultType: Enums<"interview_type">; open?: boolean; outlookConnected: boolean }) {
   const [state, action, pending] = useActionState(scheduleInterview, undefined);
   const [type, setType] = useState<Enums<"interview_type">>(defaultType);
 
@@ -41,17 +41,23 @@ export function ScheduleInterviewForm({ applicationId, staff, currentUserId, def
           Duración (min)
           <input name="duration_min" type="number" min={10} max={240} step={5} defaultValue={30} className={inputClass} />
         </label>
-        <label className={labelClass}>
-          Plataforma
-          <select name="platform" defaultValue="meet" className={inputClass}>
-            <option value="meet">Google Meet</option>
-            <option value="zoom">Zoom</option>
-          </select>
-        </label>
-        <label className={`${labelClass} sm:col-span-1 lg:col-span-2`}>
-          Enlace de la reunión
-          <input name="meeting_url" type="url" placeholder="https://meet.google.com/…" className={inputClass} />
-        </label>
+        {outlookConnected ? (
+          <p className="rounded-lg bg-mint px-3 py-2 text-sm text-forest sm:col-span-2 lg:col-span-3">
+            Se crea en tu Outlook con enlace de Teams, se invita al candidato (si tiene correo) y a Fireflies para grabarla.
+          </p>
+        ) : (
+          <label className={`${labelClass} sm:col-span-2 lg:col-span-3`}>
+            Enlace de Teams
+            <input name="meeting_url" type="url" placeholder="https://teams.microsoft.com/…" className={inputClass} />
+            <span className="mt-1 block text-xs font-normal text-ink-faint">
+              Conecta tu Outlook en{" "}
+              <a href="/mi-cuenta" className="font-medium text-forest hover:underline">
+                Mi cuenta
+              </a>{" "}
+              y el evento, el enlace y la invitación a Fireflies salen solos.
+            </span>
+          </label>
+        )}
         {type === "prime" ? (
           <label className={labelClass}>
             Entrevistador
@@ -196,6 +202,11 @@ export function InterviewActions({ applicationId, interview: iv }: { application
       {(reState?.error || stState?.error) && (
         <p role="alert" className={alertErrorClass}>
           {reState?.error ?? stState?.error}
+        </p>
+      )}
+      {(reState?.warning || stState?.warning) && (
+        <p role="status" className="rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber">
+          {reState?.warning ?? stState?.warning}
         </p>
       )}
     </div>

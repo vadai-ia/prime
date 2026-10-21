@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireStaff } from "@/lib/dal";
+import { can } from "@/lib/auth/permissions";
 import { listPipeline } from "@/lib/queries/pipeline";
 import { listProfiles } from "@/lib/queries/profiles";
 import { listClients } from "@/lib/queries/clients";
@@ -15,6 +17,7 @@ export const metadata: Metadata = { title: "Candidatos · Prime HR Innovation" }
 const str = (v: string | string[] | undefined) => (typeof v === "string" && v ? v : undefined);
 
 export default async function CandidatosPage(props: PageProps<"/candidatos">) {
+  const session = await requireStaff();
   const sp = await props.searchParams;
   const profileId = str(sp.profile);
   const clientId = str(sp.client);
@@ -62,6 +65,11 @@ export default async function CandidatosPage(props: PageProps<"/candidatos">) {
               {toggle("kanban", "Kanban")}
               {toggle("lista", "Lista")}
             </div>
+            {can(session.role, "view_blacklist") && (
+              <ButtonLink href="/candidatos/lista-negra" variant="ghost">
+                Lista negra
+              </ButtonLink>
+            )}
             <ButtonLink href={profileId ? `/candidatos/nuevo?profile=${profileId}` : "/candidatos/nuevo"}>Nuevo candidato</ButtonLink>
           </>
         }

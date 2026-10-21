@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { extractCv } from "@/lib/cv/extract";
 import { aiEnabled } from "@/lib/ai/client";
-import { scoreApplicationCv } from "@/lib/ai/tasks/score-cv";
+import { enqueue, runTaskNow } from "@/lib/queue/run";
 import type { CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
 import { CHANNEL_LABELS } from "@/lib/labels";
@@ -104,6 +104,12 @@ const schema = z.object({
   cv_path: z.string(),
 });
 
+function blacklistMessage(role: string) {
+  return role === "admin"
+    ? "Esta persona está en la lista negra (por teléfono, CURP o correo). Quítala de la lista en Candidatos → Lista negra para registrarla."
+    : "No se puede registrar a esta persona. Consulta con tu administrador.";
+}
+
 /** Alta individual: crea (o reutiliza por teléfono) al candidato, lo postula a la vacante en etapa Nuevo y adjunta el CV. */
 export async function createCandidate(_prev: CandidateFormState, formData: FormData): Promise<CandidateFormState> {
   let session;
@@ -137,6 +143,10 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
     notes: d.notes || null,
   };
 
+  // Lista negra (solo admin la ve): al reclutador no se le dice el motivo. La base lo impide igual.
+  const { data: blocked } = await supabase.rpc("is_blacklisted", { p_phone: phone, p_email: d.email || undefined });
+  if (blocked) return { error: blacklistMessage(session.role) };
+
   // El teléfono es la identidad del candidato: si ya existe se reutiliza. El reclutador no ve candidatos
   // ajenos (plan §2.3), así que el id se resuelve con una RPC que solo devuelve eso.
   const { data: existingId, error: findError } = await supabase.rpc("find_candidate_by_phone", { p_phone: phone });
@@ -161,6 +171,7 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
     if (appError.code === "23505") {
       return { error: session.role === "admin" ? "Este teléfono ya está postulado a esta vacante." : "Este teléfono ya está postulado a esta vacante. Si no lo ves en tu lista, lo lleva otro reclutador." };
     }
+    if (appError.message === "candidate_blacklisted") return { error: blacklistMessage(session.role) };
     return { error: appError.code === "42501" ? "No tienes asignada esta vacante." : appError.message };
   }
 
@@ -180,13 +191,16 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
     if (error) return { error: `El candidato quedó postulado, pero no se guardaron su CV o sus datos: ${error.message}` };
   }
 
-  // Score del CV después de responder (10 a 20 s de Claude): el reclutador ya está en la ficha.
-  // Corre con su sesión, así que RLS decide igual que en el alta. Si falla, se califica desde la ficha.
+  // Score del CV por la cola (tasks.md §3): se encola ya autorizado el alta y se corre en cuanto se
+  // responde (10 a 20 s de Claude; el reclutador ya está en la ficha). Si falla, el cron lo reintenta
+  // y, si no se puede (falta el CV o los pesos), se califica desde la ficha.
   if (d.cv_path && aiEnabled()) {
-    after(async () => {
-      const result = await scoreApplicationCv(await createClient(), application.id);
-      if (!result.ok) console.error("cv_score", application.id, result.error);
-    });
+    try {
+      const taskId = await enqueue("cv_score", { application_id: application.id }, { dedupeKey: `cv_score:${application.id}` });
+      after(() => runTaskNow(taskId).then(() => undefined, (e) => console.error("cv_score", application.id, e)));
+    } catch (e) {
+      console.error("cv_score", application.id, e);
+    }
   }
 
   revalidatePath("/candidatos");

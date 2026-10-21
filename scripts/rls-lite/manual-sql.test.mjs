@@ -7,6 +7,9 @@ const MANUAL = readFileSync(new URL("../../supabase/manual/04_asignacion_recluta
 const MANUAL_05 = readFileSync(new URL("../../supabase/manual/05_captura_manual.sql", import.meta.url), "utf8");
 const MANUAL_06 = readFileSync(new URL("../../supabase/manual/06_catalogos.sql", import.meta.url), "utf8");
 const MANUAL_07 = readFileSync(new URL("../../supabase/manual/07_cancelar_contratacion.sql", import.meta.url), "utf8");
+const MANUAL_08 = readFileSync(new URL("../../supabase/manual/08_microsoft_teams.sql", import.meta.url), "utf8");
+const MANUAL_09 = readFileSync(new URL("../../supabase/manual/09_lista_negra.sql", import.meta.url), "utf8");
+const MANUAL_10 = readFileSync(new URL("../../supabase/manual/10_cola_de_tareas.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -130,6 +133,59 @@ if (OLD && existsSync(OLD)) {
   check("F · 07: checklist completo", allOk(first, 2), missing(first));
   const again = await errorOf(() => runManual(db, MANUAL_07));
   check("F · 07 por segunda vez no falla", !again, again ?? "");
+}
+
+// --- G. archivo 08 (Teams y Microsoft): dos veces, y la entrevista nueva sale en Teams
+{
+  const db = await fresh();
+  await runManual(db);
+  await runManual(db, MANUAL_05);
+  await runManual(db, MANUAL_06);
+  await runManual(db, MANUAL_07);
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164) values ('c0000000-0000-4000-8000-000000000001', 'Ana', '+524493000001');
+    insert into public.applications (id, candidate_id, profile_id) values ('d0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001', '${PX}');
+    insert into public.interviews (application_id, type) values ('d0000000-0000-4000-8000-000000000001', 'prime');
+  `);
+  const first = await runManual(db, MANUAL_08);
+  check("G · 08: checklist completo", allOk(first, 4), missing(first));
+  const again = await errorOf(() => runManual(db, MANUAL_08));
+  check("G · 08 por segunda vez no falla", !again, again ?? "");
+  await db.exec(`insert into public.interviews (application_id, type) values ('d0000000-0000-4000-8000-000000000001', 'client')`);
+  const platforms = await db.query(`select string_agg(platform::text, ',' order by created_at, type) as p from public.interviews`);
+  check("G · la entrevista vieja de Meet pasa a Teams y la nueva sale en Teams", platforms.rows[0].p === "teams,teams", platforms.rows[0].p);
+  const user = await createUser(db, { email: "r@t", role: "recruiter", full_name: "R" });
+  const saved = await errorOf(() => db.query(`insert into public.user_integrations (user_id, provider, access_token_enc) values ($1, 'microsoft', 'x')`, [user.id]));
+  check("G · user_integrations acepta microsoft", !saved, saved ?? "");
+}
+
+// --- H. archivo 09 (lista negra): dos veces, con un registro de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_09);
+  check("H · 09: checklist completo", allOk(first, 5), missing(first));
+  const admin = await createUser(db, { email: "admin9@t", role: "admin", full_name: "Admin" });
+  const [c] = (await db.query(`insert into public.candidates (full_name, phone_e164) values ('Vetada', '+524493000009') returning id`)).rows;
+  await as(db, admin, () => db.query(`select public.blacklist_candidate($1, 'other')`, [c.id]));
+  const again = await errorOf(() => runManual(db, MANUAL_09));
+  check("H · 09 por segunda vez no falla", !again, again ?? "");
+  const kept = await db.query(`select count(*)::int as n from public.candidate_blacklist where removed_at is null`);
+  check("H · 09 por segunda vez conserva la lista", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- I. archivo 10 (cola de tareas): dos veces, con tareas en la cola de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09]) await runManual(db, sql);
+  await db.exec(`insert into public.scheduled_tasks (type) values ('cv_score'), ('followups_due')`);
+  const first = await runManual(db, MANUAL_10);
+  check("I · 10: checklist completo", allOk(first, 5), missing(first));
+  const again = await errorOf(() => runManual(db, MANUAL_10));
+  check("I · 10 por segunda vez no falla", !again, again ?? "");
+  check("I · 10 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_10), 5));
+  const kept = await db.query(`select count(*)::int as n from public.scheduled_tasks where status = 'pending'`);
+  check("I · las tareas que ya estaban se quedan", kept.rows[0].n === 2, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

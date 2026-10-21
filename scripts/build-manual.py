@@ -238,6 +238,148 @@ from checks
 order by orden;
 """
 
+HEAD_08 = """-- Prime HR · migraciones 0019 y 0020 para pegar en el SQL Editor (después de 07_*.sql).
+-- Microsoft 365: 'teams' como plataforma de entrevista (y valor por defecto al agendar),
+-- 'microsoft' como integración (cada reclutador conecta su Outlook) y como origen de webhooks.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Va en DOS transacciones: Postgres no deja usar
+-- un valor de enum en la misma transacción en que se agrega. Al final sale un checklist: todo "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0019 y 0020.
+
+begin;
+
+"""
+
+TAIL_08 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0019', 'microsoft_enums'),
+  ('0020', 'teams_default')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  enum_has (typ, val) as (
+    select t.typname::text, e.enumlabel::text from pg_enum e join pg_type t on t.oid = e.enumtypid
+  ),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'meeting_platform incluye teams',
+          exists (select 1 from enum_has where typ = 'meeting_platform' and val = 'teams')),
+      (2, 'integration_provider incluye microsoft',
+          exists (select 1 from enum_has where typ = 'integration_provider' and val = 'microsoft')),
+      (3, 'webhook_source incluye microsoft',
+          exists (select 1 from enum_has where typ = 'webhook_source' and val = 'microsoft')),
+      (4, 'interviews.platform es teams por defecto',
+          coalesce((select column_default from information_schema.columns
+            where table_schema = 'public' and table_name = 'interviews' and column_name = 'platform'), '') like '%teams%')
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+HEAD_09 = """-- Prime HR · migración 0021 para pegar en el SQL Editor (después de 08_*.sql).
+-- Lista negra: solo el admin la ve y la maneja. Una persona marcada no puede volver a postularse
+-- (lo impide la base, venga del alta manual, la carga masiva o WhatsApp).
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Va en una transacción.
+-- Al final sale un checklist: todo debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0021.
+
+begin;
+
+"""
+
+TAIL_09 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values ('0021', 'blacklist')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  fn as (select n.nspname || '.' || p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'enum blacklist_reason',
+          to_regtype('public.blacklist_reason') is not null),
+      (2, 'tabla candidate_blacklist con RLS',
+          coalesce((select relrowsecurity from pg_class where oid = to_regclass('public.candidate_blacklist')), false)),
+      (3, 'política: solo admin la lee',
+          exists (select 1 from pg_policies where tablename = 'candidate_blacklist' and policyname = 'candidate_blacklist_select_admin')),
+      (4, 'trigger que bloquea postulaciones de la lista negra',
+          exists (select 1 from pg_trigger where tgname = 'applications_block_blacklisted' and not tgisinternal)),
+      (5, 'RPC blacklist_candidate, unblacklist_candidate e is_blacklisted',
+          (select count(*) from fn where name in ('public.blacklist_candidate', 'public.unblacklist_candidate', 'public.is_blacklisted')) = 3)
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+HEAD_10 = """-- Prime HR · migración 0022 para pegar en el SQL Editor (después de 09_*.sql).
+-- Cola de tareas: recuperar tareas colgadas, correr una tarea al encolarla, fallar sin reintentar,
+-- avisar a los admins cuando una tarea falla, reintentar o cancelar desde Configuración, y los
+-- avisos de permanencia (30, 90 y 180 días).
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos (las tareas que ya estén en la cola se quedan).
+-- Va en una transacción. Al final sale un checklist: todo debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0022.
+
+begin;
+
+"""
+
+TAIL_10 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values ('0022', 'task_queue')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  fn as (select n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as sig, p.proname as name
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'notification_kind incluye followup_due',
+          exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'notification_kind' and e.enumlabel = 'followup_due')),
+      (2, 'columna placement_followups.notified_at',
+          exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'placement_followups' and column_name = 'notified_at')),
+      (3, 'claim_scheduled_tasks con p_only (y sin la versión vieja)',
+          (select count(*) from fn where name = 'claim_scheduled_tasks') = 1
+          and exists (select 1 from fn where sig like 'public.claim_scheduled_tasks(%p_only uuid)')),
+      (4, 'finish_scheduled_task con p_retry (y sin la versión vieja)',
+          (select count(*) from fn where name = 'finish_scheduled_task') = 1
+          and exists (select 1 from fn where sig like 'public.finish_scheduled_task(%p_retry boolean)')),
+      (5, 'RPC retry_scheduled_task, cancel_scheduled_task y notify_followups_due',
+          (select count(*) from fn where name in ('retry_scheduled_task', 'cancel_scheduled_task', 'notify_followups_due')) = 3)
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+# Entre migraciones que van en transacciones separadas ("separate": True).
+BETWEEN = "\ncommit;\n\nbegin;\n\n"
+
 TARGETS = [
     {
         "out": "04_asignacion_reclutadores_y_alcance.sql",
@@ -267,15 +409,38 @@ TARGETS = [
         "tail": TAIL_07,
         "expected": {"trigger": 1},
     },
+    {
+        "out": "08_microsoft_teams.sql",
+        "migrations": ["0019_microsoft_enums.sql", "0020_teams_default.sql"],
+        "head": HEAD_08,
+        "tail": TAIL_08,
+        "expected": {},  # alter type ... add value if not exists y set default: ya es re-ejecutable
+        "separate": True,
+    },
+    {
+        "out": "09_lista_negra.sql",
+        "migrations": ["0021_blacklist.sql"],
+        "head": HEAD_09,
+        "tail": TAIL_09,
+        "expected": {"type": 1, "table": 1, "index": 3, "trigger": 2, "policy": 1},
+    },
+    {
+        "out": "10_cola_de_tareas.sql",
+        "migrations": ["0022_task_queue.sql"],
+        "head": HEAD_10,
+        "tail": TAIL_10,
+        "expected": {"column": 1},
+    },
 ]
 
 
 def main():
     for t in TARGETS:
-        body = ""
+        parts = []
         for name in t["migrations"]:
             with io.open(os.path.join(ROOT, "supabase", "migrations", name), encoding="utf-8") as f:
-                body += f.read().replace("\r\n", "\n") + "\n"
+                parts.append(f.read().replace("\r\n", "\n") + "\n")
+        body = (BETWEEN if t.get("separate") else "").join(parts)
         out = os.path.join(ROOT, "supabase", "manual", t["out"])
         with io.open(out, "w", encoding="utf-8", newline="\n") as f:
             f.write(t["head"] + idempotent(body, t["expected"]) + t["tail"])

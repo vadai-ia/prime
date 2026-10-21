@@ -15,6 +15,7 @@ const KIND_DOT: Record<NotificationRow["kind"], string> = {
   interview_analyzed: "bg-info",
   psych_parsed: "bg-info",
   task_failed: "bg-danger",
+  followup_due: "bg-amber",
   other: "bg-ink-faint",
 };
 
