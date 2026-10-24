@@ -3,6 +3,7 @@ import { signOut } from "@/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/layout/nav-link";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const navClass = "border-b-2 pb-0.5 transition";
 const navActive = "border-forest font-medium text-forest";
@@ -25,7 +26,7 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4">
           <div className="flex items-center gap-3">
-            <span className="inline-flex size-10 items-center justify-center rounded-lg bg-forest text-lg font-bold text-white">{(client?.name ?? "C").charAt(0).toUpperCase()}</span>
+            <span className="inline-flex size-10 items-center justify-center rounded-lg bg-forest text-lg font-bold text-on-forest">{(client?.name ?? "C").charAt(0).toUpperCase()}</span>
             <div>
               <p className="text-sm font-semibold text-forest">{client?.name ?? "Cliente"} · Portal de reclutamiento</p>
               <p className="inline-flex items-center gap-1 text-xs text-ink-muted">
@@ -51,6 +52,7 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
                 Salir
               </button>
             </form>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

@@ -1,20 +1,20 @@
-// Mismos valores que los tokens provisionales de globals.css (recharts no lee variables CSS en SVG con fiabilidad).
+// Los tokens de globals.css como variables CSS: recharts las pasa a fill/stroke del SVG y siguen el tema claro/oscuro.
 export const CHART = {
-  forest: "#0e4632",
-  leaf: "#1e8a57",
-  mint: "#ddf2e6",
-  amber: "#b7791f",
-  danger: "#b93a32",
-  info: "#2c5fa8",
-  line: "#d8e4dc",
-  muted: "#5d6d63",
-  canvas: "#f5f8f6",
+  forest: "var(--forest)",
+  leaf: "var(--leaf)",
+  mint: "var(--mint)",
+  amber: "var(--amber)",
+  danger: "var(--danger)",
+  info: "var(--info)",
+  line: "var(--line)",
+  muted: "var(--ink-muted)",
+  canvas: "var(--canvas)",
 };
 
 export const AXIS_TICK = { fontSize: 12, fill: CHART.muted, fontFamily: "inherit" };
 
 export const TOOLTIP_STYLE = {
-  contentStyle: { borderRadius: 10, border: `1px solid ${CHART.line}`, fontSize: 12, fontFamily: "inherit", boxShadow: "0 4px 16px rgba(24,32,28,0.08)" },
-  labelStyle: { color: "#152019", fontWeight: 600 },
-  cursor: { fill: "rgba(14,70,50,0.06)" },
+  contentStyle: { borderRadius: 10, border: `1px solid ${CHART.line}`, background: "var(--surface)", color: "var(--ink)", fontSize: 12, fontFamily: "inherit", boxShadow: "0 4px 16px rgba(0,0,0,0.12)" },
+  labelStyle: { color: "var(--ink)", fontWeight: 600 },
+  cursor: { fill: "var(--line)", fillOpacity: 0.4 },
 };

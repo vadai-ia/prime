@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { STAGE_LABELS, STAGE_TONES, type Stage, type Tone } from "@/lib/labels";
 
 const TONES: Record<Tone, string> = {
-  forest: "bg-forest text-white",
+  forest: "bg-forest text-on-forest",
   mint: "bg-mint text-forest",
-  leaf: "bg-leaf text-white",
+  leaf: "bg-leaf text-on-forest",
   amber: "bg-amber-soft text-amber",
   danger: "bg-danger-soft text-danger",
   info: "bg-info-soft text-info",

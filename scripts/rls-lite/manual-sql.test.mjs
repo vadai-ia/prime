@@ -10,6 +10,7 @@ const MANUAL_07 = readFileSync(new URL("../../supabase/manual/07_cancelar_contra
 const MANUAL_08 = readFileSync(new URL("../../supabase/manual/08_microsoft_teams.sql", import.meta.url), "utf8");
 const MANUAL_09 = readFileSync(new URL("../../supabase/manual/09_lista_negra.sql", import.meta.url), "utf8");
 const MANUAL_10 = readFileSync(new URL("../../supabase/manual/10_cola_de_tareas.sql", import.meta.url), "utf8");
+const MANUAL_11 = readFileSync(new URL("../../supabase/manual/11_permanencia_inactivos_avisos.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -186,6 +187,23 @@ if (OLD && existsSync(OLD)) {
   check("I · 10 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_10), 5));
   const kept = await db.query(`select count(*)::int as n from public.scheduled_tasks where status = 'pending'`);
   check("I · las tareas que ya estaban se quedan", kept.rows[0].n === 2, `${kept.rows[0].n}`);
+}
+
+// --- J. archivo 11 (permanencia, inactivos y avisos): dos veces, con un seguimiento capturado de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_11);
+  check("J · 11: checklist completo", allOk(first, 5), missing(first));
+  const [c] = (await db.query(`insert into public.candidates (full_name, phone_e164) values ('Contratada', '+524493000011') returning id`)).rows;
+  const [a] = (await db.query(`insert into public.applications (candidate_id, profile_id) values ($1, $2) returning id`, [c.id, PX])).rows;
+  await db.query(`update public.applications set stage = 'hired', hired_at = now() where id = $1`, [a.id]);
+  await db.query(`update public.placement_followups set outcome = 'active', notes = 'sigue' where application_id = $1 and checkpoint_days = 30`, [a.id]);
+  const again = await errorOf(() => runManual(db, MANUAL_11));
+  check("J · 11 por segunda vez no falla", !again, again ?? "");
+  check("J · 11 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_11), 5));
+  const kept = await db.query(`select outcome, notes from public.placement_followups where application_id = $1 and checkpoint_days = 30`, [a.id]);
+  check("J · el seguimiento capturado se queda", kept.rows[0]?.outcome === "active" && kept.rows[0]?.notes === "sigue", JSON.stringify(kept.rows));
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

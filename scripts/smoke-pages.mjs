@@ -32,11 +32,14 @@ const STAFF_ROUTES = [
   "/candidatos/app-10",
   "/candidatos/app-13",
   "/candidatos/app-24",
+  "/candidatos/permanencia",
+  "/candidatos/permanencia?vista=proximos",
+  "/candidatos/permanencia?vista=capturados",
   "/entrevistas",
   "/reportes",
   "/reportes?client=a0000000-0000-4000-8000-000000000001&profile=p-cobranza",
 ];
-const ADMIN_ROUTES = ["/configuracion", "/clientes/nuevo"];
+const ADMIN_ROUTES = ["/configuracion", "/clientes/nuevo", "/configuracion/logs", "/configuracion/logs?tab=tareas&errores=1", "/configuracion/logs?tab=auditoria", "/candidatos/inactivos", "/candidatos/inactivos?meses=0&q=ana", "/candidatos/lista-negra"];
 const CLIENT_ROUTES = ["/portal", "/portal/candidatos", "/portal/candidatos?stage=hired", "/portal/candidatos/app-02", "/portal/candidatos/app-01", "/portal/candidatos/app-04", "/portal/semanal"];
 
 // Solo en respuestas 200: el payload RSC de toda página incluye el texto del not-found boundary, así que no sirve como marcador.

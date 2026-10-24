@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 const VARIANTS = {
-  primary: "bg-forest text-white hover:bg-forest-deep",
+  primary: "bg-forest text-on-forest hover:bg-forest-deep",
   secondary: "border border-line bg-surface text-ink hover:bg-canvas",
   danger: "bg-danger-soft text-danger hover:bg-danger hover:text-white",
   ghost: "text-ink-muted hover:bg-canvas hover:text-ink",

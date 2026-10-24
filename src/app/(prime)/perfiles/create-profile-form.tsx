@@ -24,7 +24,7 @@ export function CreateProfileForm({ intakeId, hasClient, clients }: { intakeId: 
           ))}
         </select>
       )}
-      <button type="submit" disabled={pending} className="rounded-lg bg-forest px-3 py-1.5 text-xs font-medium text-white transition hover:bg-forest-deep disabled:opacity-60">
+      <button type="submit" disabled={pending} className="rounded-lg bg-forest px-3 py-1.5 text-xs font-medium text-on-forest transition hover:bg-forest-deep disabled:opacity-60">
         {pending ? "Creando…" : "Crear vacante"}
       </button>
       {state?.error && (

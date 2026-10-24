@@ -1,39 +1,70 @@
 @import "tailwindcss";
 
 /*
-  Tokens de marca (plan §5: --color-forest, --color-leaf, …).
-  Valores de la demo que Prime aprobó (docs/demo/PropuestaPrime.jsx, objeto T).
-  Solo se cambian aquí; las páginas usan los nombres semánticos (bg-canvas, text-ink…).
-  Las gráficas repiten estos valores en src/components/charts/theme.ts.
+  Tokens de marca Prime HR (24 oct 2026): turquesa brillante #18F5DE, verde turquesa #00B09E,
+  negro #000000, gris oscuro #171717, gris claro #EDEDED y blanco.
+  Solo se cambian aquí; las páginas usan los nombres semánticos (bg-canvas, text-ink…). Los nombres
+  vienen de la paleta anterior: "forest" es el primario (botones, títulos de marca) y "lime" el acento
+  sobre fondo negro. Las gráficas leen estas mismas variables (src/components/charts/theme.ts).
+
+  Tema: <html data-theme="light|dark">, lo pone el script del layout raíz antes de pintar
+  (src/lib/theme.ts) según la preferencia guardada o la del sistema.
 */
 :root {
-  --forest: #0e4632;        /* primario: sidebar, botones, títulos de marca (T.forest) */
-  --forest-2: #145a41;      /* segundo tono del degradado del sidebar (T.forest2) */
-  --forest-deep: #0a3526;   /* hover del primario; la demo no lo trae, es forest oscurecido */
-  --leaf: #1e8a57;          /* acento, éxito, focus (T.leaf) */
-  --lime: #8fd45d;          /* acento claro sobre fondo oscuro (T.lime) */
-  --mint: #ddf2e6;          /* fondo suave verde: pills, avisos positivos (T.leafSoft) */
-  --canvas: #f5f8f6;        /* fondo de página (T.paper) */
+  --forest: #007a6e;        /* primario en claro: #00B09E oscurecido para que el texto blanco encima se lea (5.2:1) */
+  --forest-deep: #00665c;   /* hover del primario */
+  --on-forest: #ffffff;     /* texto sobre primario y sobre leaf */
+  --leaf: #00897b;          /* acento, éxito, focus */
+  --lime: #18f5de;          /* turquesa brillante: acento sobre el negro del menú */
+  --mint: #e3f8f5;          /* fondo suave turquesa: pills, avisos positivos */
+  --chrome: #000000;        /* menú lateral y barra del celular: negro en los dos temas */
+  --chrome-2: #0d1a19;      /* segundo tono del degradado del menú */
+  --canvas: #f5f6f6;        /* fondo de página */
   --surface: #ffffff;       /* tarjetas, inputs, header */
-  --line: #d8e4dc;          /* bordes y divisores (T.line) */
-  --ink: #152019;           /* texto principal (T.ink) */
-  --ink-muted: #5d6d63;     /* texto secundario (T.slate) */
-  --ink-faint: #93a199;     /* placeholders, metadatos; la demo no lo trae, es slate aclarado */
-  --amber: #b7791f;         /* alerta (T.amber) */
+  --line: #e2e5e5;          /* bordes y divisores */
+  --ink: #171717;           /* texto principal (gris oscuro de marca) */
+  --ink-muted: #525252;     /* texto secundario */
+  --ink-faint: #8a8a8a;     /* placeholders, metadatos */
+  --amber: #b7791f;         /* alerta */
   --amber-soft: #fbf1dc;
-  --danger: #b93a32;        /* error, descarte (T.red) */
+  --danger: #b93a32;        /* error, descarte */
   --danger-soft: #fbe7e5;
-  --info: #2c5fa8;          /* (T.blue) */
+  --info: #2c5fa8;
   --info-soft: #e4ecf8;
+}
+
+:root[data-theme="dark"] {
+  --forest: #18f5de;        /* en oscuro el primario es el turquesa brillante, con texto negro encima */
+  --forest-deep: #12c9b6;
+  --on-forest: #000000;
+  --leaf: #00b09e;          /* verde turquesa de marca */
+  --lime: #18f5de;
+  --mint: #0b2a27;
+  --chrome: #000000;
+  --chrome-2: #071312;
+  --canvas: #0a0a0a;
+  --surface: #171717;       /* gris oscuro de marca */
+  --line: #2a2a2a;
+  --ink: #ededed;           /* gris claro de marca */
+  --ink-muted: #a3a3a3;
+  --ink-faint: #737373;
+  --amber: #f0b44c;
+  --amber-soft: #2b2110;
+  --danger: #e5534b;
+  --danger-soft: #3a1717;
+  --info: #7aa7ff;
+  --info-soft: #14213a;
 }
 
 @theme inline {
   --color-forest: var(--forest);
-  --color-forest-2: var(--forest-2);
   --color-forest-deep: var(--forest-deep);
+  --color-on-forest: var(--on-forest);
   --color-leaf: var(--leaf);
   --color-lime: var(--lime);
   --color-mint: var(--mint);
+  --color-chrome: var(--chrome);
+  --color-chrome-2: var(--chrome-2);
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-line: var(--line);
@@ -55,6 +86,10 @@
 
 html {
   color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {

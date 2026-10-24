@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), "../../supabase/migrations");
 const MANUAL_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../supabase/manual");
 // lo que se pega en el SQL Editor después de 01 y 03, en orden
-const MANUAL_AFTER_0013 = ["04_asignacion_reclutadores_y_alcance.sql", "05_captura_manual.sql", "06_catalogos.sql", "07_cancelar_contratacion.sql", "08_microsoft_teams.sql", "09_lista_negra.sql", "10_cola_de_tareas.sql"];
+const MANUAL_AFTER_0013 = ["04_asignacion_reclutadores_y_alcance.sql", "05_captura_manual.sql", "06_catalogos.sql", "07_cancelar_contratacion.sql", "08_microsoft_teams.sql", "09_lista_negra.sql", "10_cola_de_tareas.sql", "11_permanencia_inactivos_avisos.sql"];
 
 const STUBS = `
 create role anon nologin;

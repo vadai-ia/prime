@@ -15,9 +15,12 @@ export default async function LevantamientoPage() {
       <PageHeader
         backHref="/perfiles"
         title="Nuevo levantamiento"
-        subtitle="Secciones I a VI del formato con el cliente. Se guarda como borrador; el perfil y la configuración de IA se generan después."
+        subtitle="Secciones I a VII del formato con el cliente. Se guarda como borrador; el perfil y la configuración de IA se generan después."
       />
-      <IntakeForm clients={clients.map((c) => ({ id: c.id, name: c.name }))} canCreateProfile={session.role === "admin"} />
+      <IntakeForm
+        clients={clients.map((c) => ({ id: c.id, name: c.name, city: c.city, contact_name: c.contact_name }))}
+        canCreateProfile={session.role === "admin"}
+      />
     </div>
   );
 }

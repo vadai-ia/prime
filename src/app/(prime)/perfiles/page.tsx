@@ -162,7 +162,7 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
     <Link
       href={href}
       className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-        active ? "bg-forest text-white" : "border border-line bg-surface text-ink-muted hover:text-ink"
+        active ? "bg-forest text-on-forest" : "border border-line bg-surface text-ink-muted hover:text-ink"
       }`}
     >
       {children}

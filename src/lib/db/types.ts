@@ -2451,6 +2451,31 @@ export type Database = {
           },
         ]
       }
+      v_inactive_candidates: {
+        Row: {
+          applications_count: number | null
+          best_cv_score: number | null
+          candidate_id: string | null
+          education_level: string | null
+          email: string | null
+          full_name: string | null
+          last_activity_at: string | null
+          last_application_id: string | null
+          last_client_name: string | null
+          last_discard_reason_key:
+            | Database["public"]["Enums"]["discard_reason_key"]
+            | null
+          last_discarded_from_stage:
+            | Database["public"]["Enums"]["application_stage"]
+            | null
+          last_profile_title: string | null
+          last_stage: Database["public"]["Enums"]["application_stage"] | null
+          municipality: string | null
+          phone_e164: string | null
+          was_hired: boolean | null
+        }
+        Relationships: []
+      }
       v_pipeline: {
         Row: {
           age_reported: number | null
@@ -2810,6 +2835,50 @@ export type Database = {
       }
       find_candidate_by_phone: { Args: { p_phone: string }; Returns: string }
       is_blacklisted: { Args: { p_email?: string; p_phone: string }; Returns: boolean }
+      list_user_integrations: {
+        Args: never
+        Returns: {
+          account_email: string
+          connected_at: string
+          provider: Database["public"]["Enums"]["integration_provider"]
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      record_placement_followup: {
+        Args: {
+          p_followup_id: string
+          p_left_at?: string
+          p_left_reason?: string
+          p_notes?: string
+          p_outcome: Database["public"]["Enums"]["followup_outcome"]
+        }
+        Returns: {
+          application_id: string
+          checkpoint_days: number
+          created_at: string
+          due_at: string
+          id: string
+          left_at: string | null
+          left_reason: string | null
+          notes: string | null
+          notified_at: string | null
+          outcome: Database["public"]["Enums"]["followup_outcome"]
+          recorded_at: string | null
+          recorded_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "placement_followups"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_blacklist_attempt: {
+        Args: { p_email?: string; p_phone: string; p_profile_id?: string }
+        Returns: number
+      }
       finish_scheduled_task: {
         Args: { p_error?: string; p_ok: boolean; p_retry?: boolean; p_task_id: string }
         Returns: {
@@ -2837,7 +2906,7 @@ export type Database = {
       log_audit: {
         Args: {
           p_action: Database["public"]["Enums"]["audit_action"]
-          p_entity_id: string
+          p_entity_id: string | null
           p_entity_type: string
           p_ip?: string
           p_metadata?: Json
@@ -3056,6 +3125,9 @@ export type Database = {
         | "task_failed"
         | "other"
         | "followup_due"
+        | "candidate_assigned"
+        | "interview_scheduled"
+        | "blacklist_attempt"
       prefilter_status:
         | "pending"
         | "in_progress"
@@ -3318,6 +3390,9 @@ export const Constants = {
         "task_failed",
         "other",
         "followup_due",
+        "candidate_assigned",
+        "interview_scheduled",
+        "blacklist_attempt",
       ],
       prefilter_status: [
         "pending",

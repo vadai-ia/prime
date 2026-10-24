@@ -16,6 +16,9 @@ const KIND_DOT: Record<NotificationRow["kind"], string> = {
   psych_parsed: "bg-info",
   task_failed: "bg-danger",
   followup_due: "bg-amber",
+  candidate_assigned: "bg-leaf",
+  interview_scheduled: "bg-info",
+  blacklist_attempt: "bg-danger",
   other: "bg-ink-faint",
 };
 
@@ -44,7 +47,7 @@ export function NotificationBell({ items, unread }: { items: NotificationRow[]; 
       >
         <Bell className="size-5" aria-hidden />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 min-w-4.5 rounded-full bg-lime px-1 text-center text-[10px] font-bold leading-4.5 text-forest">{unread > 9 ? "9+" : unread}</span>
+          <span className="absolute -right-0.5 -top-0.5 min-w-4.5 rounded-full bg-lime px-1 text-center text-[10px] font-bold leading-4.5 text-black">{unread > 9 ? "9+" : unread}</span>
         )}
       </button>
 

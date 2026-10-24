@@ -241,3 +241,47 @@ export const TEMPLATE_PURPOSE_LABELS: Record<Enums<"wa_template_purpose">, strin
 
 /** Días de la semana con 0 = domingo, como clients.weekly_report_dow. */
 export const WEEKDAY_LABELS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+export const FOLLOWUP_OUTCOME_LABELS: Record<Enums<"followup_outcome">, string> = {
+  pending: "Por capturar",
+  active: "Sigue",
+  left: "Se fue",
+  unknown: "No se sabe",
+};
+
+export const FOLLOWUP_OUTCOME_TONES: Record<Enums<"followup_outcome">, Tone> = {
+  pending: "amber",
+  active: "leaf",
+  left: "danger",
+  unknown: "neutral",
+};
+
+export const AI_RUN_KIND_LABELS: Record<Enums<"ai_run_kind">, string> = {
+  profile_generation: "Evaluación de vacante",
+  cv_score: "Score de CV",
+  prefilter_reply: "Prefiltro (WhatsApp)",
+  interview_analysis: "Análisis de entrevista",
+  psych_parse: "Lectura de psicométrico",
+  doc_check: "Revisión de documento",
+  weekly_insights: "Insights semanales",
+};
+
+export const AI_RUN_STATUS_LABELS: Record<Enums<"ai_run_status">, string> = {
+  ok: "Bien",
+  error: "Error",
+  refusal: "Rechazada",
+};
+
+export const AI_RUN_STATUS_TONES: Record<Enums<"ai_run_status">, Tone> = {
+  ok: "leaf",
+  error: "danger",
+  refusal: "amber",
+};
+
+export const AUDIT_ACTION_LABELS: Record<Enums<"audit_action">, string> = {
+  view_cv: "Abrió un CV",
+  view_document: "Abrió un documento",
+  download_document: "Descargó un documento",
+  view_psych_report: "Abrió un psicométrico",
+  export: "Exportó",
+};

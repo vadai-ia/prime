@@ -45,6 +45,12 @@ export default async function CandidatosPage(props: PageProps<"/candidatos">) {
     return `/candidatos?${params.toString()}`;
   };
 
+  // Exporta lo mismo que se ve en pantalla: mismos filtros y, sin etapa elegida, sin los descartados
+  const exportParams = new URLSearchParams(viewHref("lista").split("?")[1]);
+  exportParams.delete("view");
+  exportParams.set("tipo", "candidatos");
+  const exportHref = `/candidatos/exportar?${exportParams.toString()}`;
+
   const toggle = (v: "kanban" | "lista", label: string) => (
     <Link
       href={viewHref(v)}
@@ -65,9 +71,22 @@ export default async function CandidatosPage(props: PageProps<"/candidatos">) {
               {toggle("kanban", "Kanban")}
               {toggle("lista", "Lista")}
             </div>
+            <ButtonLink href="/candidatos/permanencia" variant="ghost">
+              Permanencia
+            </ButtonLink>
+            {can(session.role, "view_inactive_candidates") && (
+              <ButtonLink href="/candidatos/inactivos" variant="ghost">
+                Inactivos
+              </ButtonLink>
+            )}
             {can(session.role, "view_blacklist") && (
               <ButtonLink href="/candidatos/lista-negra" variant="ghost">
                 Lista negra
+              </ButtonLink>
+            )}
+            {can(session.role, "export") && (
+              <ButtonLink href={exportHref} variant="ghost">
+                Exportar a Excel
               </ButtonLink>
             )}
             <ButtonLink href={profileId ? `/candidatos/nuevo?profile=${profileId}` : "/candidatos/nuevo"}>Nuevo candidato</ButtonLink>

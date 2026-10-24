@@ -71,7 +71,7 @@ export function DocumentReview({ applicationId, documentId }: { applicationId: s
         </>
       ) : (
         <div className="flex gap-1.5">
-          <button type="submit" name="decision" value="validate" disabled={pending} className="rounded-lg bg-mint px-2.5 py-1.5 text-xs font-medium text-forest transition hover:bg-forest hover:text-white disabled:opacity-60">
+          <button type="submit" name="decision" value="validate" disabled={pending} className="rounded-lg bg-mint px-2.5 py-1.5 text-xs font-medium text-forest transition hover:bg-forest hover:text-on-forest disabled:opacity-60">
             {pending ? "Guardando…" : "Validar"}
           </button>
           <button type="button" onClick={() => setRejecting(true)} className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-ink-muted transition hover:bg-canvas">

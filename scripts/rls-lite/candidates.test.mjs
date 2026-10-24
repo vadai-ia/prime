@@ -145,7 +145,7 @@ await as(db, cliente, async () => {
   const r = await q(`select public.client_decide_application($1, 'approve', 'Nos gustó') as r`, [ofA.id]);
   check("cliente da Vo.Bo.", r[0].r.stage === "hired");
 });
-const notes = await q(`select u.email from public.notifications n join public.users u on u.id = n.user_id where n.entity_id = $1 order by u.email`, [ofA.id]);
+const notes = await q(`select u.email from public.notifications n join public.users u on u.id = n.user_id where n.entity_id = $1 and n.kind = 'client_decision' order by u.email`, [ofA.id]);
 check("el Vo.Bo. avisa al admin y al reclutador asignado", notes.map((n) => n.email).join() === "a@t,admin@t", notes.map((n) => n.email).join());
 
 // --- quitar a B de X: sus candidatos en proceso pasan a A; desactivar a A: quedan sin asignar

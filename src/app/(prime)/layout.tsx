@@ -5,6 +5,8 @@ import { signOut } from "@/actions/auth";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import Link from "next/link";
 import { NavLink } from "@/components/layout/nav-link";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const NAV = [
   { href: "/tablero", label: "Tablero" },
@@ -16,7 +18,7 @@ const NAV = [
 ];
 
 const navLinkClass = "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition";
-const navActiveClass = "bg-white/15 font-medium text-white shadow-[inset_3px_0_0_0_var(--leaf)]";
+const navActiveClass = "bg-white/15 font-medium text-white shadow-[inset_3px_0_0_0_var(--lime)]";
 const navInactiveClass = "text-white/75 hover:bg-white/10 hover:text-white";
 
 /**
@@ -30,7 +32,7 @@ export default async function PrimeLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <aside className="hidden w-60 shrink-0 flex-col bg-linear-to-b from-forest to-forest-2 px-4 py-6 text-white md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col bg-linear-to-b from-chrome to-chrome-2 px-4 py-6 text-white md:flex">
         <div className="flex items-start justify-between gap-2 px-2">
           <div>
             <p className="text-base font-semibold">Prime HR</p>
@@ -55,14 +57,25 @@ export default async function PrimeLayout({ children }: LayoutProps<"/">) {
             <p className="truncate text-sm font-medium">{user.full_name || user.email}</p>
             <p className="text-xs text-white/60">{ROLE_LABELS[session.role]} · Mi cuenta</p>
           </Link>
-          <form action={signOut}>
-            <button type="submit" className="mt-3 text-xs text-white/70 underline-offset-2 hover:text-white hover:underline">
-              Cerrar sesión
-            </button>
-          </form>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <form action={signOut}>
+              <button type="submit" className="text-xs text-white/70 underline-offset-2 hover:text-white hover:underline">
+                Cerrar sesión
+              </button>
+            </form>
+            <ThemeToggle onChrome />
+          </div>
         </div>
       </aside>
-      <main className="flex-1 px-6 py-8">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileNav
+          items={session.role === "admin" ? [...NAV, { href: "/configuracion", label: "Configuración" }] : NAV}
+          bell={<NotificationBell items={notifications.items} unread={notifications.unread} />}
+          userName={user.full_name || user.email}
+          userRole={ROLE_LABELS[session.role]}
+        />
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
+      </div>
     </div>
   );
 }

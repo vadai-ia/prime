@@ -6,7 +6,7 @@ export const inputClass =
 export const labelClass = "block text-sm font-medium text-ink";
 
 export const buttonPrimaryClass =
-  "mt-2 w-full rounded-lg bg-forest px-4 py-2 text-sm font-medium text-white transition hover:bg-forest-deep disabled:opacity-60";
+  "mt-2 w-full rounded-lg bg-forest px-4 py-2 text-sm font-medium text-on-forest transition hover:bg-forest-deep disabled:opacity-60";
 
 export const alertErrorClass = "rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger";
 

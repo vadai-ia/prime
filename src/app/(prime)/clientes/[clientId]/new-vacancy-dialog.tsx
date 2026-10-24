@@ -14,7 +14,7 @@ export function NewVacancyDialog({ client }: { client: LockedClient }) {
         onClick={() => dialogRef.current?.showModal()}
         aria-label={`Nueva vacante para ${client.name}`}
         title="Nueva vacante"
-        className="flex h-8 w-8 items-center justify-center rounded-lg bg-forest text-lg leading-none text-white transition hover:bg-forest-deep"
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-forest text-lg leading-none text-on-forest transition hover:bg-forest-deep"
       >
         +
       </button>
@@ -28,14 +28,14 @@ export function NewVacancyDialog({ client }: { client: LockedClient }) {
             <h2 id="new-vacancy-title" className="text-base font-semibold text-ink">
               Nueva vacante · {client.name}
             </h2>
-            <p className="text-xs text-ink-muted">Levantamiento, secciones I a VI.</p>
+            <p className="text-xs text-ink-muted">Levantamiento, secciones I a VII.</p>
           </div>
           <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Cerrar" className="rounded-lg px-2 py-1 text-xl leading-none text-ink-muted transition hover:bg-canvas hover:text-ink">
             ×
           </button>
         </div>
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
-          <IntakeForm clients={[{ id: client.id, name: client.name }]} canCreateProfile lockedClient={client} />
+          <IntakeForm clients={[client]} canCreateProfile lockedClient={client} />
         </div>
       </dialog>
     </>

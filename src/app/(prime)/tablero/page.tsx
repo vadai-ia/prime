@@ -15,6 +15,7 @@ import { attentionReason, needsAttention } from "@/lib/attention";
 import { listProfiles } from "@/lib/queries/profiles";
 import { listInterviews } from "@/lib/queries/interviews";
 import { listStaff } from "@/lib/queries/users";
+import { countFollowups } from "@/lib/queries/followups";
 import { INTERVIEW_TYPE_LABELS, PIPELINE_STAGES, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { daysLabel, fmtDate, fmtDateLong, fmtPct, fmtTime } from "@/lib/format";
 import type { InterviewRow, ProfileSummary, StageCounts } from "@/lib/queries/types";
@@ -123,12 +124,13 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
   const sp = await props.searchParams;
   const recruiterParam = isAdmin && typeof sp.reclutador === "string" ? sp.reclutador : "";
 
-  const [user, allRows, allInterviews, profiles, staff] = await Promise.all([
+  const [user, allRows, allInterviews, profiles, staff, followups] = await Promise.all([
     getCurrentUser(),
     listPipeline({ includeDiscarded: true }),
     listInterviews("all"),
     listProfiles({ status: "active" }),
     isAdmin ? listStaff() : Promise.resolve([]),
+    countFollowups(),
   ]);
 
   // El filtro por reclutador es de admin; al reclutador RLS ya le devuelve solo lo suyo.
@@ -172,6 +174,15 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
         subtitle={`${fmtDateLong(now.toISOString())} · ${k.active} ${k.active === 1 ? "candidato" : "candidatos"} en proceso en ${shownProfiles.length} ${shownProfiles.length === 1 ? "vacante activa" : "vacantes activas"}`}
         actions={isAdmin ? <RecruiterFilter action="/tablero" recruiters={recruiters} value={recruiterParam} /> : undefined}
       />
+
+      {followups.vencidos > 0 && (
+        <Link href="/candidatos/permanencia" className="mb-4 flex items-center justify-between gap-3 rounded-card border border-amber/30 bg-amber-soft px-4 py-3 text-sm text-amber transition hover:border-amber">
+          <span>
+            {followups.vencidos === 1 ? "Hay 1 corte de permanencia por capturar" : `Hay ${followups.vencidos} cortes de permanencia por capturar`}: ¿siguen trabajando?
+          </span>
+          <span className="font-medium">Capturar →</span>
+        </Link>
+      )}
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Nuevos hoy" value={k.newToday} hint="Postulaciones recibidas hoy" tone="forest" />

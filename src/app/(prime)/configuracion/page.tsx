@@ -8,6 +8,8 @@ import { listUsers } from "@/lib/queries/users";
 import { listClients } from "@/lib/queries/clients";
 import { getIntegrationsStatus } from "@/lib/queries/settings";
 import { getQueueOverview } from "@/lib/queries/tasks";
+import { listOutlookConnections } from "@/lib/queries/integrations";
+import { ButtonLink } from "@/components/ui/button";
 import { taskLabel } from "@/lib/queue/handlers";
 import { TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { ROLE_LABELS } from "@/lib/auth/roles";
@@ -32,14 +34,20 @@ const NEEDS: Record<IntegrationStatus["key"], string> = {
 
 export default async function ConfiguracionPage() {
   const session = await requireAdmin();
-  const [users, clients, integrations, queue] = await Promise.all([listUsers(), listClients({ includeInactive: true }), getIntegrationsStatus(), getQueueOverview()]);
+  const [users, clients, integrations, queue, outlook] = await Promise.all([
+    listUsers(),
+    listClients({ includeInactive: true }),
+    getIntegrationsStatus(),
+    getQueueOverview(),
+    listOutlookConnections(),
+  ]);
 
   const usersSection = (
     <div className="grid gap-5 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <SimpleTable
-          headers={["Usuario", "Rol", "Empresa", "Estado", "Última vez", ""]}
-          align={["left", "left", "left", "left", "left", "right"]}
+          headers={["Usuario", "Rol", "Empresa", "Estado", "Outlook", "Última vez", ""]}
+          align={["left", "left", "left", "left", "left", "left", "right"]}
           rows={users.map((u) => [
             <div key={u.id} className="flex items-center gap-3">
               <Avatar name={u.full_name || u.email} size="sm" />
@@ -51,6 +59,16 @@ export default async function ConfiguracionPage() {
             ROLE_LABELS[u.role],
             u.client_name ?? <span className="text-ink-faint">—</span>,
             <Pill key={`${u.id}-a`} tone={u.is_active ? "mint" : "neutral"}>{u.is_active ? "Activo" : "Inactivo"}</Pill>,
+            u.role === "client" ? (
+              <span key={`${u.id}-o`} className="text-ink-faint">—</span>
+            ) : outlook.has(u.id) ? (
+              <span key={`${u.id}-o`} className="text-xs" title={`Conectado ${timeAgo(outlook.get(u.id)?.connected_at)}`}>
+                <Pill tone="mint">Conectado</Pill>
+                <span className="mt-0.5 block truncate text-ink-muted">{outlook.get(u.id)?.account_email}</span>
+              </span>
+            ) : (
+              <Pill key={`${u.id}-o`}>Sin conectar</Pill>
+            ),
             <span key={`${u.id}-t`} className="text-xs text-ink-muted">{u.last_seen_at ? timeAgo(u.last_seen_at) : "Nunca"}</span>,
             <UserRowActions key={`${u.id}-x`} userId={u.id} fullName={u.full_name} isActive={u.is_active} isSelf={u.id === session.userId} />,
           ])}
@@ -65,7 +83,15 @@ export default async function ConfiguracionPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="Configuración" subtitle={`${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`} />
+      <PageHeader
+        title="Configuración"
+        subtitle={`${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`}
+        actions={
+          <ButtonLink href="/configuracion/logs" variant="ghost">
+            Logs técnicos
+          </ButtonLink>
+        }
+      />
       {usersSection}
 
       <section className="mt-10">

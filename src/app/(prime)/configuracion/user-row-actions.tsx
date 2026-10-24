@@ -33,7 +33,7 @@ export function UserRowActions({ userId, fullName, isActive, isSelf }: { userId:
           placeholder="Nombre y apellido"
           className="w-44 rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-ink"
         />
-        <button type="submit" disabled={pending} className="rounded-lg bg-forest px-3 py-1.5 text-xs font-medium text-white transition hover:bg-forest-deep disabled:opacity-60">
+        <button type="submit" disabled={pending} className="rounded-lg bg-forest px-3 py-1.5 text-xs font-medium text-on-forest transition hover:bg-forest-deep disabled:opacity-60">
           {pending ? "Guardando…" : "Guardar"}
         </button>
         <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-2 py-1.5 text-xs text-ink-muted hover:bg-canvas">
@@ -63,7 +63,7 @@ export function UserRowActions({ userId, fullName, isActive, isSelf }: { userId:
               })
             }
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
-              isActive ? "bg-danger-soft text-danger hover:bg-danger hover:text-white" : "bg-mint text-forest hover:bg-forest hover:text-white"
+              isActive ? "bg-danger-soft text-danger hover:bg-danger hover:text-white" : "bg-mint text-forest hover:bg-forest hover:text-on-forest"
             }`}
           >
             {pending ? "Guardando…" : isActive ? "Desactivar" : "Activar"}

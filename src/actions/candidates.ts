@@ -110,6 +110,12 @@ function blacklistMessage(role: string) {
     : "No se puede registrar a esta persona. Consulta con tu administrador.";
 }
 
+/** Avisa a los admins que alguien intentó registrar a una persona de la lista negra. Si falla, el alta ya se rechazó igual. */
+async function reportBlacklistAttempt(supabase: Awaited<ReturnType<typeof createClient>>, phone: string, email: string, profileId: string) {
+  const { error } = await supabase.rpc("report_blacklist_attempt", { p_phone: phone, p_email: email || undefined, p_profile_id: profileId });
+  if (error) console.error("report_blacklist_attempt", error.message);
+}
+
 /** Alta individual: crea (o reutiliza por teléfono) al candidato, lo postula a la vacante en etapa Nuevo y adjunta el CV. */
 export async function createCandidate(_prev: CandidateFormState, formData: FormData): Promise<CandidateFormState> {
   let session;
@@ -145,7 +151,10 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
 
   // Lista negra (solo admin la ve): al reclutador no se le dice el motivo. La base lo impide igual.
   const { data: blocked } = await supabase.rpc("is_blacklisted", { p_phone: phone, p_email: d.email || undefined });
-  if (blocked) return { error: blacklistMessage(session.role) };
+  if (blocked) {
+    await reportBlacklistAttempt(supabase, phone, d.email, d.profile_id);
+    return { error: blacklistMessage(session.role) };
+  }
 
   // El teléfono es la identidad del candidato: si ya existe se reutiliza. El reclutador no ve candidatos
   // ajenos (plan §2.3), así que el id se resuelve con una RPC que solo devuelve eso.
@@ -171,7 +180,10 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
     if (appError.code === "23505") {
       return { error: session.role === "admin" ? "Este teléfono ya está postulado a esta vacante." : "Este teléfono ya está postulado a esta vacante. Si no lo ves en tu lista, lo lleva otro reclutador." };
     }
-    if (appError.message === "candidate_blacklisted") return { error: blacklistMessage(session.role) };
+    if (appError.message === "candidate_blacklisted") {
+      await reportBlacklistAttempt(supabase, phone, d.email, d.profile_id);
+      return { error: blacklistMessage(session.role) };
+    }
     return { error: appError.code === "42501" ? "No tienes asignada esta vacante." : appError.message };
   }
 

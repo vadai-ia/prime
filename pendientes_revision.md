@@ -26,12 +26,12 @@ Si la primera llamada falla con error de forma de petición, esquema o `fallback
 **Necesita:** API key y la vacante de Telasist con el descriptivo completo (requisitos, actividades, condiciones con sueldo y horario, competencias).
 
 - [x] Vacante → pestaña **Evaluación IA** → **Generar con IA**. Debe tardar de 20 a 60 s y mostrar "Evaluación generada (vN)". *21 oct: 28 s, vacante Full Stack Engineer de prueba.*
-- [ ] Salen de 4 a 6 criterios del CV, con pesos que suman 100 y una guía por criterio.
-- [ ] Ningún criterio habla de edad, sexo, estado civil ni apariencia.
-- [ ] La edad aparece como alerta, nunca como bloqueo (`age_is_blocking = false`).
-- [ ] El umbral es razonable para el puesto (ni 20 ni 95).
-- [ ] Las preguntas del prefiltro (4 a 7) se entienden por WhatsApp y cada una tiene su regla.
-- [ ] La lista de "datos que faltaban" coincide con lo que de verdad no dice el descriptivo.
+- [x] Salen de 4 a 6 criterios del CV, con pesos que suman 100 y una guía por criterio. *24 oct, Ejecutivo de Cobranza: 6 criterios (cobranza 35, negociación 20, Excel/CRM 15, campo 10, escolaridad 10, estabilidad 10), guía completa/parcial en cada uno.*
+- [x] Ningún criterio habla de edad, sexo, estado civil ni apariencia. *24 oct.*
+- [x] La edad aparece como alerta, nunca como bloqueo (`age_is_blocking = false`). *24 oct. Salió "23 a 43"; el levantamiento de prueba dice 23 a 45: revisar si se capturó así o si la IA lo cambió.*
+- [x] El umbral es razonable para el puesto (ni 20 ni 95). *24 oct: 65.*
+- [x] Las preguntas del prefiltro (4 a 7) se entienden por WhatsApp y cada una tiene su regla. *24 oct: 7 preguntas. Para §3: "¿Qué CRM has usado?" da por hecho que usó uno (mejor "¿Has usado algún CRM…?"); sueldo máximo $11,000 como bloqueo cuando el puesto paga hasta $15,000 con comisiones (la IA misma lo anotó); no hay regla de residencia aunque el levantamiento pide Aguascalientes o conurbados.*
+- [x] La lista de "datos que faltaban" coincide con lo que de verdad no dice el descriptivo. *24 oct: traslado máximo, colonia de la oficina, licencia o vehículo para campo, tiempo de comida; todo cierto.*
 - [ ] Regenerar pide confirmar y sube la versión.
 - [ ] **Editar pesos y umbral**: no guarda si no suman 100; guarda si suman 100 y sube la versión.
 - [x] En `ai_runs`: `kind = profile_generation`, `status` ok, costo entre 0.10 y 0.20 USD. *21 oct: 0.074 USD (904 in / 2,849 out), por debajo de lo estimado.*
@@ -45,10 +45,10 @@ Si la primera llamada falla con error de forma de petición, esquema o `fallback
 **Necesita:** API key, la vacante del paso 1 ya con evaluación, y **2 o 3 CV reales en PDF**: uno bueno, uno regular y uno que no cumpla (sirven escaneados).
 
 - [x] **Agregar candidato** con el CV bueno en esa vacante. Al llegar a la ficha, esperar unos segundos y recargar: aparece el score con evidencia por criterio.
-- [ ] Repetir con el regular y con el malo.
-- [ ] El bueno queda **arriba** del umbral; el malo **abajo** y cae en "Requiere tu atención" (no se descarta solo).
+- [x] Repetir con el regular y con el malo. *24 oct, Ejecutivo de Cobranza con CV generados por IA: bueno 100, medio 44, malo 14 (umbral 65).*
+- [ ] El bueno queda **arriba** del umbral; el malo **abajo** y cae en "Requiere tu atención" (no se descarta solo). *24 oct: el orden y el umbral salen bien. El medio quedó en 44, no "cerca del umbral": el puntaje es defendible (8 meses de cobranza, Excel básico, sin CRM ni campo). "Requiere tu atención" solo cuenta el CV bajo umbral en la etapa Revisión de CV (`lib/attention.ts`): falta mover medio y malo a esa etapa y verlo en el tablero.*
 - [ ] La evidencia es texto que de verdad está en el CV (abrir el PDF y buscarlo).
-- [ ] Las alertas ("requisito no demostrado", "hueco laboral") tienen sentido.
+- [x] Las alertas ("requisito no demostrado", "hueco laboral") tienen sentido. *24 oct: sí, incluido el hueco de 7 meses del medio y los 18 meses del malo. Para §3: un CV sin fechas sale como "CV ilegible o incompleto" en uno y "Fechas inconsistentes" en otro; falta una alerta propia ("Sin fechas de inicio y fin"). La edad (52) y la residencia (León) no salen: el prompt ignora edad y domicilio a propósito; la edad se revisa en el prefiltro.*
 - [ ] Con un CV escaneado (imagen), también lo lee.
 - [ ] En un candidato existente con CV: **Calificar CV** funciona.
 - [ ] Cambiar un peso en la vacante → la ficha avisa que los pesos cambiaron y ofrece **Recalificar**.
@@ -168,3 +168,48 @@ Se llena cuando esté programado. Lo esperado:
 - [ ] Revisar en Whaapy si Meta aprobó los seis templates (enviados el 19 oct 2026).
 - [ ] Si rechazó alguno, anotar el motivo y corregir el texto.
 - [ ] Cuando Prime dé el número definitivo: volver a enviarlos.
+
+---
+
+## 9. Permanencia, inactivos, exportar, logs y avisos · programado el 21 oct; se prueba ya, sin llaves
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/11_permanencia_inactivos_avisos.sql` en el SQL Editor: checklist con 5 "ok". *21 oct: aplicado, 5 ok.*
+- [ ] Reiniciar `npm run dev` (se instaló `exceljs`: correr `npm install` si se bajó el código en otra máquina).
+
+**Permanencia (como reclutador o admin):**
+
+- [ ] Mover un candidato de prueba a **Contratado** → en su ficha aparece el bloque Permanencia con 30, 90 y 180 días.
+- [ ] Candidatos → **Permanencia**: pestañas Por capturar, Próximos 30 días y Capturados.
+- [ ] **Capturar** → Sigue con nota → pasa a Capturados con quién y cuándo.
+- [ ] **Se fue** sin fecha no deja guardar; con fecha y motivo cierra también los cortes siguientes.
+- [ ] Con cortes vencidos, el **Tablero** muestra el aviso "Hay N cortes de permanencia por capturar".
+- [ ] Un reclutador solo ve los cortes de sus candidatos.
+
+**Inactivos y exportar (solo admin):**
+
+- [ ] Candidatos → **Inactivos**: salen los descartados sin otra postulación abierta; cambiar el periodo (Todos, 1, 3, 6 meses, 1 año) y buscar por nombre o teléfono.
+- [ ] Un reclutador no ve los botones Inactivos ni Exportar, y si abre `/candidatos/inactivos` lo regresa al tablero.
+- [ ] **Exportar a Excel** en Candidatos (con y sin filtros), en Inactivos y en Permanencia → baja un `.xlsx` que abre bien en Excel.
+- [ ] Como reclutador, abrir `/candidatos/exportar` → "Solo un administrador puede exportar".
+- [ ] Cada exportación aparece en Configuración → **Logs técnicos** → Accesos y exportaciones, con el número de filas.
+
+**Logs técnicos (solo admin):**
+
+- [ ] Configuración → **Logs técnicos**: el gasto de IA cuadra con la consulta de `ai_runs` (0.074 + 0.057 USD de las pruebas del 21 oct).
+- [ ] Pestañas IA, Tareas automáticas, Webhooks y Accesos; "Solo errores" filtra.
+- [ ] El enlace "Candidato" o "Vacante" de cada llamada abre la ficha correcta.
+
+**Avisos (campana):**
+
+- [ ] Como admin, agregar un candidato en una vacante con reclutadores → al reclutador que le toca le llega "Te asignaron a …". Al admin no.
+- [ ] Como reclutador, agregarlo uno mismo → no se avisa a sí mismo.
+- [ ] Agendar una entrevista → les llega a los admins y al reclutador, menos a quien la agendó.
+- [ ] Subir un documento en el Expediente → aviso "Documento recibido".
+- [ ] Como reclutador, intentar registrar a alguien de la lista negra → al admin le llega "Intentaron registrar a … (lista negra)" con quién y en qué vacante. Repetirlo en la misma hora no repite el aviso.
+
+**Outlook y celular:**
+
+- [ ] Configuración → usuarios: columna Outlook con "Conectado" y el correo, o "Sin conectar".
+- [ ] En el celular (o el navegador angosto): barra verde arriba con el menú, la campana y Cerrar sesión.

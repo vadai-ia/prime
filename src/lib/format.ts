@@ -101,3 +101,14 @@ export function timeAgo(iso: string | null | undefined): string {
   const d = Math.round(h / 24);
   return d === 1 ? "ayer" : `hace ${d} días`;
 }
+
+/** Fecha sin hora de la base ("2026-11-20", columnas date): se formatea tal cual, sin moverla de zona. */
+export function fmtDay(date: string | null | undefined, opts: Intl.DateTimeFormatOptions = {}): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", day: "numeric", month: "short", ...opts }).format(new Date(`${date.slice(0, 10)}T00:00:00Z`));
+}
+
+/** Hoy en la zona de la app, como "2026-10-21". */
+export function todayLocal(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}

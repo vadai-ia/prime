@@ -477,6 +477,7 @@ docs/
 Convenciones de UI:
 
 - Portar los tokens `T` de la demo a variables CSS en `globals.css` con `@theme` de Tailwind 4 (`--color-forest`, `--color-leaf`, …). Fuente IBM Plex Sans con `next/font`.
+- **Colores de marca y tema claro/oscuro (24 oct 2026):** turquesa brillante #18F5DE, verde turquesa #00B09E, negro, gris oscuro #171717, gris claro #EDEDED y blanco, en los mismos tokens de `globals.css` (`forest` = primario). En claro el primario es #007A6E (#00B09E no da contraste con texto blanco); en oscuro es #18F5DE con texto negro (`on-forest`). Menú lateral negro en los dos temas (`chrome`). Selector Claro / Oscuro / Sistema en el menú, la barra del celular y el portal; la preferencia vive en `localStorage` y un script en el layout raíz la aplica antes de pintar (`src/lib/theme.ts`). Las gráficas leen las variables CSS; los correos usan la paleta clara.
 - Componentes primitivos de la demo se reescriben con Tailwind, mismos nombres y props, para que la maqueta sea fiel a lo que Prime ya vio.
 - `'use client'` solo en kanban, drawer, formularios, gráficas y el switch de vista. Todo lo demás es Server Component.
 - Recharts para gráficas, lucide-react para iconos.
@@ -742,7 +743,7 @@ Prime usa Microsoft 365 (Outlook clásico y New Outlook, Teams). Sustituye a Goo
 - **Alta de candidato:** `is_blacklisted(teléfono, correo)` responde sí o no antes de crear nada. Al reclutador: "No se puede registrar a esta persona. Consulta con tu administrador."; al admin le dice que está en la lista.
 - **Pantallas:** Candidatos → **Lista negra** (vigentes y, con `?historial=1`, las quitadas) y en la ficha del candidato, para admin, "Agregar a lista negra" o el aviso con motivo y "Quitar de la lista negra".
 - Pruebas en `scripts/rls-lite/blacklist.test.mjs`; archivo manual `09_lista_negra.sql`.
-- **Pendiente:** avisar al admin cuando alguien intenta registrar a una persona de la lista; que el agente de WhatsApp no la contacte (cuando exista).
+- **Pendiente:** que el agente de WhatsApp no la contacte (cuando exista). El aviso al admin cuando alguien intenta registrarla quedó en §12.10.
 
 ### 12.9 Cola de tareas y cron, migración 0022 (20 de octubre de 2026)
 
@@ -752,3 +753,14 @@ Prime usa Microsoft 365 (Outlook clásico y New Outlook, Teams). Sustituye a Goo
 - **Tareas hechas:** `cv_score` (el alta la encola y la corre con `after()` sin esperar al cron; 3 intentos; sin CV o sin pesos no reintenta) y `followups_due` (diario 8:00: avisa al reclutador y a los admins cuando vence un corte de permanencia, una vez por corte).
 - **Configuración → Tareas automáticas:** pendientes, corriendo, fallidas, terminadas en 24 h, aviso si el cron no está llegando, y Reintentar / Cancelar.
 - **Siguientes tipos** (con su integración): `wa_*`, `interview_confirm`, `fireflies_fetch_transcript`, `interview_analyze`, `psych_parse`, `doc_check`, los tres correos y `weekly_insights`.
+
+### 12.10 Permanencia, inactivos, exportar, logs y avisos, migraciones 0023 y 0024 (21 de octubre de 2026)
+
+- **Permanencia** (Candidatos → Permanencia y en la ficha del contratado): cortes por capturar, próximos 30 días y capturados; Sigue / Se fue / No se sabe con fecha y motivo de salida. RPC `record_placement_followup` con la sesión del usuario (RLS decide): "Se fue" cierra también los cortes siguientes; no cambia la etapa (sigue Contratado). El tablero avisa cuando hay cortes por capturar.
+- **Inactivos** (solo admin, `view_inactive_candidates`): vista `v_inactive_candidates` = sin postulación en proceso y sin trabajar por Prime (contratado con un "Se fue" cuenta como inactivo); sin la lista negra. La pantalla elige el periodo sin movimiento (1, 3, 6, 12 meses o todos) mientras Prime no fije uno. El reclutador sigue viendo los descartados que él llevó; la base completa solo la ve el admin.
+- **Exportar a Excel** (solo admin, `export`): `GET /candidatos/exportar?tipo=candidatos|inactivos|permanencia` con los mismos filtros de la pantalla; `exceljs`. Cada descarga registra `log_audit('export')` con tipo, filtros y filas; sin registro no hay archivo.
+- **Logs técnicos** (Configuración → Logs técnicos, solo admin): gasto de IA (24 h, 7 y 30 días), llamadas a la IA con costo, tokens, tiempo y error; tareas de la cola; webhooks; accesos a datos sensibles y exportaciones (`audit_log`). Filtro "Solo errores".
+- **Avisos nuevos** (0023 + triggers en 0024): candidato asignado (al reclutador que lo recibe, no si se lo asignó él), entrevista agendada y documento recibido (admins y su reclutador). `app.notify_application` ya no avisa a quien hizo el cambio. Intento de registrar a alguien de la lista negra: la app llama `report_blacklist_attempt` después del rechazo y avisa a los admins (uno por persona por hora).
+- **Outlook**: en Configuración → usuarios, columna Outlook (conectado y con qué correo) por la RPC `list_user_integrations` (solo admin, sin tokens).
+- **Celular**: barra superior con menú en pantallas chicas (la lateral solo existe de `md` para arriba).
+- Archivo manual `11_permanencia_inactivos_avisos.sql` (dos transacciones: los valores de enum van solos). Pruebas en `scripts/rls-lite/admin-tools.test.mjs` y caso J de `manual-sql.test.mjs`.

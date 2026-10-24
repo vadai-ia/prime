@@ -92,11 +92,11 @@ function FilterChip({ href, active, label, count }: { href: string; active: bool
     <Link
       href={href}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
-        active ? "border-forest bg-forest text-white" : "border-line bg-surface text-ink-muted hover:text-ink"
+        active ? "border-forest bg-forest text-on-forest" : "border-line bg-surface text-ink-muted hover:text-ink"
       }`}
     >
       {label}
-      <span className={active ? "text-white/70" : "text-ink-faint"}>{count}</span>
+      <span className={active ? "text-on-forest/70" : "text-ink-faint"}>{count}</span>
     </Link>
   );
 }

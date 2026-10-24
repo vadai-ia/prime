@@ -6,17 +6,17 @@ import { PSYCH_VERDICT_LABELS, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { fmtDate, fmtDateLong, fmtMonths, fmtTime } from "@/lib/format";
 import type { DailyClientData, DailyInternalData, WeeklyClientData } from "./data";
 
-// Paleta de marca (globals.css) repetida aquí: los clientes de correo no leen variables CSS.
+// Paleta de marca, tema claro (globals.css) repetida aquí: los clientes de correo no leen variables CSS.
 const C = {
-  forest: "#0e4632",
-  forest2: "#145a41",
-  leaf: "#1e8a57",
-  lime: "#8fd45d",
-  mint: "#ddf2e6",
-  paper: "#f5f8f6",
-  line: "#d8e4dc",
-  ink: "#152019",
-  slate: "#5d6d63",
+  forest: "#007a6e",
+  forest2: "#000000",
+  leaf: "#00897b",
+  lime: "#18f5de",
+  mint: "#e3f8f5",
+  paper: "#f5f6f6",
+  line: "#e2e5e5",
+  ink: "#171717",
+  slate: "#525252",
   amber: "#b7791f",
   amberSoft: "#fbf1dc",
   info: "#2c5fa8",

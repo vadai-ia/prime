@@ -45,7 +45,7 @@ export function Filters({ values, profiles, clients }: { values: PipelineFilterV
         className={`${selectClass} min-w-48 placeholder:text-ink-faint`}
         aria-label="Buscar"
       />
-      <button type="submit" className="rounded-lg bg-forest px-3.5 py-2 text-sm font-medium text-white transition hover:bg-forest-deep">
+      <button type="submit" className="rounded-lg bg-forest px-3.5 py-2 text-sm font-medium text-on-forest transition hover:bg-forest-deep">
         Filtrar
       </button>
       {(values.profileId || values.clientId || values.stage || values.channel || values.search) && (

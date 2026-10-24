@@ -217,6 +217,17 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 
 - [x] Solo admin: agregar desde la ficha, ver y quitar en Candidatos → Lista negra. La base impide que la persona vuelva a postularse (teléfono, CURP o correo).
 
+**Sin dependencias externas (21 oct 2026, plan §12.10):**
+
+- [x] Permanencia a 30, 90 y 180 días: Candidatos → Permanencia y en la ficha; aviso en el tablero.
+- [x] Candidatos inactivos (solo admin) con periodo elegible.
+- [x] Exportar a Excel (solo admin) candidatos, inactivos y permanencia, con `log_audit('export')`.
+- [x] Logs técnicos en Configuración: IA con costos, cola, webhooks, accesos y exportaciones.
+- [x] Avisos: candidato asignado, entrevista agendada, documento recibido e intento de registrar a alguien de la lista negra.
+- [x] El admin ve quién conectó su Outlook (Configuración → usuarios).
+- [x] Menú para celular.
+- [x] Cron diario (Vercel Hobby) y `typecheck` con `next typegen` para que pase en Vercel.
+
 **Otros (19 oct 2026):**
 
 - [x] Los seis templates de WhatsApp enviados a revisión de Meta.
@@ -299,7 +310,7 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 6. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
 7. **Weekly insights** y la pestaña de inteligencia interna con historia.
 
-Sin dependencias externas, para meter entre bloques: inactivos (solo admin; la lista negra ya está, 20 oct), exportar a Excel con `log_audit('export')`, carga masiva de CVs, detección de duplicados, importación del Excel histórico, pantalla de permanencia a 30, 90 y 180 días, más notificaciones (candidato asignado, entrevista agendada, documento subido), `last_seen_at`, ajustes para celular.
+Sin dependencias externas, para meter entre bloques: carga masiva de CVs (sacar nombre y teléfono del PDF sin IA es frágil; mejor con IA) e importación del Excel histórico (falta el archivo de Prime). Hecho el 21 oct: inactivos, exportar a Excel, permanencia, avisos nuevos, logs técnicos, Outlook por usuario y menú para celular (plan §12.10). La detección de duplicados por teléfono ya existía en el alta.
 
 Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase Auth (Site URL, redirect URLs, templates, SMTP), colores reales en `src/app/globals.css`.
 

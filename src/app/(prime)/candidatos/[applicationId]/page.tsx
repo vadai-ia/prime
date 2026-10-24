@@ -9,6 +9,7 @@ import { listProfileTeam } from "@/lib/queries/assignments";
 import { listStaff } from "@/lib/queries/users";
 import { getBlacklistEntry } from "@/lib/queries/blacklist";
 import { getMyOutlook } from "@/lib/queries/integrations";
+import { listApplicationFollowups } from "@/lib/queries/followups";
 import { CHANNEL_LABELS } from "@/lib/labels";
 import { fmtDate, fmtDateTime, fmtPhone } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
@@ -23,6 +24,7 @@ import { Entrevista } from "@/components/candidate/entrevista";
 import { Psicometrico } from "@/components/candidate/psicometrico";
 import { Expediente } from "@/components/candidate/expediente";
 import { BlacklistPanel } from "@/components/candidate/blacklist-panel";
+import { PermanenciaPanel } from "@/components/candidate/permanencia-panel";
 
 export async function generateMetadata(props: PageProps<"/candidatos/[applicationId]">): Promise<Metadata> {
   const { applicationId } = await props.params;
@@ -39,13 +41,14 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
   const { candidate: c, application: a, pipeline: p } = detail;
   // El reclutador solo llega aquí si el candidato es suyo; quién lo lleva y reasignarlo es cosa del admin.
   const canBlacklist = can(session.role, "view_blacklist");
-  const [team, staff, history, query, blacklisted, outlook] = await Promise.all([
+  const [team, staff, history, query, blacklisted, outlook, followups] = await Promise.all([
     can(session.role, "manage_assignments") ? listProfileTeam(a.profile_id) : null,
     listStaff(),
     getCandidateHistory(c.phone_e164),
     props.searchParams,
     canBlacklist ? getBlacklistEntry(c.id) : null,
     getMyOutlook(),
+    a.hired_at ? listApplicationFollowups(a.id) : [],
   ]);
   const tab = typeof query.tab === "string" ? query.tab : undefined;
   const docsDone = p.docs_validated ?? 0;
@@ -96,6 +99,12 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
             applicationId={a.id}
             entry={blacklisted && { id: blacklisted.id, reason_key: blacklisted.reason_key, reason_note: blacklisted.reason_note, added_by_name: blacklisted.added_by_name, added_at_label: fmtDateTime(blacklisted.added_at) }}
           />
+        </div>
+      )}
+
+      {followups.length > 0 && (
+        <div className="mt-5">
+          <PermanenciaPanel applicationId={a.id} rows={followups} />
         </div>
       )}
 

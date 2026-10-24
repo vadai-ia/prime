@@ -377,6 +377,55 @@ from checks
 order by orden;
 """
 
+HEAD_11 = """-- Prime HR · migraciones 0023 y 0024 para pegar en el SQL Editor (después de 10_*.sql).
+-- Permanencia (Sigue / Se fue / No se sabe), base de candidatos inactivos (solo admin), avisos
+-- automáticos (candidato asignado, entrevista agendada, documento recibido, intento de registrar
+-- a alguien de la lista negra) y quién conectó su Outlook.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Va en dos transacciones: los tipos de aviso
+-- nuevos tienen que existir antes de usarse. Al final sale un checklist: todo debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0023 y 0024.
+
+begin;
+
+"""
+
+TAIL_11 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0023', 'notification_kinds'),
+  ('0024', 'admin_tools')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  fn as (select n.nspname || '.' || p.proname as name, p.prosrc as src from pg_proc p join pg_namespace n on n.oid = p.pronamespace),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'notification_kind con candidate_assigned, interview_scheduled y blacklist_attempt',
+          (select count(*) from pg_enum e join pg_type t on t.oid = e.enumtypid
+           where t.typname = 'notification_kind' and e.enumlabel in ('candidate_assigned', 'interview_scheduled', 'blacklist_attempt')) = 3),
+      (2, 'avisos: candidato asignado, entrevista agendada y documento recibido',
+          (select count(*) from pg_trigger where not tgisinternal
+           and tgname in ('applications_notify_assigned', 'interviews_notify_scheduled', 'candidate_documents_notify_received')) = 3),
+      (3, 'los avisos no le llegan a quien hizo el cambio',
+          exists (select 1 from fn where name = 'app.notify_application' and src like '%is distinct from auth.uid()%')),
+      (4, 'RPC report_blacklist_attempt, record_placement_followup y list_user_integrations',
+          (select count(*) from fn where name in ('public.report_blacklist_attempt', 'public.record_placement_followup', 'public.list_user_integrations')) = 3),
+      (5, 'vista v_inactive_candidates',
+          to_regclass('public.v_inactive_candidates') is not null)
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
 # Entre migraciones que van en transacciones separadas ("separate": True).
 BETWEEN = "\ncommit;\n\nbegin;\n\n"
 
@@ -430,6 +479,14 @@ TARGETS = [
         "head": HEAD_10,
         "tail": TAIL_10,
         "expected": {"column": 1},
+    },
+    {
+        "out": "11_permanencia_inactivos_avisos.sql",
+        "migrations": ["0023_notification_kinds.sql", "0024_admin_tools.sql"],
+        "head": HEAD_11,
+        "tail": TAIL_11,
+        "expected": {"trigger": 3},
+        "separate": True,
     },
 ]
 

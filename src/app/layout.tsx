@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -23,7 +24,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-MX" className={`${plexSans.variable} ${plexMono.variable} h-full`}>
+    // data-theme lo corrige el script antes de pintar; suppressHydrationWarning deja ganar al DOM.
+    <html lang="es-MX" data-theme="light" suppressHydrationWarning className={`${plexSans.variable} ${plexMono.variable} h-full`}>
+      <head>
+        {/* Patrón de la guía de Next (preventing-flash-before-hydration): el script solo corre en el HTML del servidor. */}
+        <script type={typeof window === "undefined" ? "text/javascript" : "text/plain"} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );
