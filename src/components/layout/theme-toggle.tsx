@@ -17,8 +17,8 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** Selector Claro / Oscuro / Sistema. `onChrome`: sobre el menú negro; si no, sobre una tarjeta o header. */
-export function ThemeToggle({ onChrome = false }: { onChrome?: boolean }) {
+/** Selector Claro / Oscuro / Sistema. `onChrome`: sobre el menú negro; si no, sobre una tarjeta o header. `vertical`: menú plegado. */
+export function ThemeToggle({ onChrome = false, vertical = false }: { onChrome?: boolean; vertical?: boolean }) {
   const pref = useSyncExternalStore(subscribe, readThemePref, () => "system" as const);
 
   function choose(value: ThemePref) {
@@ -27,7 +27,7 @@ export function ThemeToggle({ onChrome = false }: { onChrome?: boolean }) {
   }
 
   return (
-    <div role="radiogroup" aria-label="Tema" className={`inline-flex rounded-lg p-0.5 ${onChrome ? "bg-white/10" : "border border-line bg-canvas"}`}>
+    <div role="radiogroup" aria-label="Tema" className={`inline-flex rounded-lg p-0.5 ${vertical ? "flex-col" : ""} ${onChrome ? "bg-white/10" : "border border-line bg-canvas"}`}>
       {OPTIONS.map(({ value, label, Icon }) => {
         const active = pref === value;
         return (
