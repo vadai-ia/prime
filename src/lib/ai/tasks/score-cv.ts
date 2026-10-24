@@ -6,7 +6,7 @@ import { asArray, type CvWeight } from "@/lib/domain/json";
 import { buildCvScore, weightsTotal } from "@/lib/domain/scoring";
 import { runAi } from "../run";
 import { CvScoreOutput } from "../schemas";
-import { PROMPT_VERSION, SYSTEM } from "../prompts/cv-score";
+import { EFFORT, PROMPT_VERSION, SYSTEM } from "../prompts/cv-score";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -51,7 +51,7 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
   };
 
   const result = await runAi(
-    { kind: "cv_score", promptVersion: PROMPT_VERSION, effort: "medium", system: SYSTEM, schema: CvScoreOutput },
+    { kind: "cv_score", promptVersion: PROMPT_VERSION, effort: EFFORT, system: SYSTEM, schema: CvScoreOutput },
     {
       entity: { type: "application", id: app.id },
       content: [

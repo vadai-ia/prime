@@ -89,6 +89,9 @@ export default async function CandidatosPage(props: PageProps<"/candidatos">) {
                 Exportar a Excel
               </ButtonLink>
             )}
+            <ButtonLink href={profileId ? `/candidatos/carga-masiva?profile=${profileId}` : "/candidatos/carga-masiva"} variant="ghost">
+              Carga masiva
+            </ButtonLink>
             <ButtonLink href={profileId ? `/candidatos/nuevo?profile=${profileId}` : "/candidatos/nuevo"}>Nuevo candidato</ButtonLink>
           </>
         }

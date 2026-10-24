@@ -11,6 +11,7 @@ const MANUAL_08 = readFileSync(new URL("../../supabase/manual/08_microsoft_teams
 const MANUAL_09 = readFileSync(new URL("../../supabase/manual/09_lista_negra.sql", import.meta.url), "utf8");
 const MANUAL_10 = readFileSync(new URL("../../supabase/manual/10_cola_de_tareas.sql", import.meta.url), "utf8");
 const MANUAL_11 = readFileSync(new URL("../../supabase/manual/11_permanencia_inactivos_avisos.sql", import.meta.url), "utf8");
+const MANUAL_12 = readFileSync(new URL("../../supabase/manual/12_lectura_de_cv.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -204,6 +205,20 @@ if (OLD && existsSync(OLD)) {
   check("J · 11 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_11), 5));
   const kept = await db.query(`select outcome, notes from public.placement_followups where application_id = $1 and checkpoint_days = 30`, [a.id]);
   check("J · el seguimiento capturado se queda", kept.rows[0]?.outcome === "active" && kept.rows[0]?.notes === "sigue", JSON.stringify(kept.rows));
+}
+
+// --- K. archivo 12 (lectura de CV con IA): dos veces, con una llamada registrada de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_12);
+  check("K · 12: checklist completo", allOk(first, 1), missing(first));
+  await db.exec(`insert into public.ai_runs (kind, model, status) values ('cv_extract', 'claude-opus-5-5', 'ok')`);
+  const again = await errorOf(() => runManual(db, MANUAL_12));
+  check("K · 12 por segunda vez no falla", !again, again ?? "");
+  check("K · 12 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_12), 1));
+  const kept = await db.query(`select count(*)::int as n from public.ai_runs where kind = 'cv_extract'`);
+  check("K · la llamada registrada se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

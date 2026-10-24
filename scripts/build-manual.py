@@ -426,6 +426,42 @@ from checks
 order by orden;
 """
 
+HEAD_12 = """-- Prime HR · migración 0025 para pegar en el SQL Editor (después de 11_*.sql).
+-- Tipo de llamada a la IA "cv_extract": la carga masiva de CV lee nombre, teléfono y demás datos
+-- de contacto del PDF y cada lectura queda registrada en ai_runs.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0025.
+
+begin;
+
+"""
+
+TAIL_12 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0025', 'cv_extract_kind')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'ai_run_kind con cv_extract',
+          exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                  where t.typname = 'ai_run_kind' and e.enumlabel = 'cv_extract'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
 # Entre migraciones que van en transacciones separadas ("separate": True).
 BETWEEN = "\ncommit;\n\nbegin;\n\n"
 
@@ -487,6 +523,13 @@ TARGETS = [
         "tail": TAIL_11,
         "expected": {"trigger": 3},
         "separate": True,
+    },
+    {
+        "out": "12_lectura_de_cv.sql",
+        "migrations": ["0025_cv_extract_kind.sql"],
+        "head": HEAD_12,
+        "tail": TAIL_12,
+        "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
     },
 ]
 

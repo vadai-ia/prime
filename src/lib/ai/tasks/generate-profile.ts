@@ -3,7 +3,7 @@ import type { Tables, TablesInsert } from "@/lib/db/types";
 import { clampThreshold, normalizePsychMinimums, normalizeQuestions, normalizeWeights } from "@/lib/domain/scoring";
 import { runAi, type AiResult } from "../run";
 import { ProfileConfigOutput } from "../schemas";
-import { PROMPT_VERSION, SYSTEM } from "../prompts/profile-generation";
+import { EFFORT, PROMPT_VERSION, SYSTEM } from "../prompts/profile-generation";
 
 type ProfileForAi = Pick<
   Tables<"job_profiles">,
@@ -42,7 +42,7 @@ export async function generateProfileConfig(profile: ProfileForAi): Promise<AiRe
   };
 
   const result = await runAi(
-    { kind: "profile_generation", promptVersion: PROMPT_VERSION, effort: "high", system: SYSTEM, schema: ProfileConfigOutput },
+    { kind: "profile_generation", promptVersion: PROMPT_VERSION, effort: EFFORT, system: SYSTEM, schema: ProfileConfigOutput },
     {
       entity: { type: "job_profile", id: profile.id },
       content: [{ type: "text", text: `Descriptivo de la vacante:\n\n${JSON.stringify(descriptivo, null, 2)}` }],

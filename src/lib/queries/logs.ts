@@ -14,6 +14,8 @@ export type AuditRow = Tables<"audit_log"> & { user_name: string | null };
 
 export type AiSummary = { costToday: number; cost7d: number; cost30d: number; runs30d: number; errors7d: number };
 
+export type PromptUsage = { kind: Tables<"ai_runs">["kind"]; prompt_version: string; runs: number; errors: number; cost: number; avgLatencyMs: number | null; lastAt: string };
+
 const LIMIT = 150;
 
 function since(days: number): string {
@@ -41,6 +43,33 @@ export async function getAiSummary(): Promise<AiSummary> {
     if (r.created_at >= d1) acc.costToday += cost;
     return acc;
   }, empty);
+}
+
+/** Llamadas por tarea y versión de prompt en los últimos 90 días, para comparar una versión con la anterior. */
+export async function listPromptUsage(): Promise<PromptUsage[]> {
+  await requireAdmin();
+  if (MOCK) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("ai_runs").select("kind, prompt_version, status, cost_usd, latency_ms, created_at").gte("created_at", since(90)).limit(10000);
+  if (error) throw error;
+  const groups = new Map<string, PromptUsage & { latencySum: number; latencyCount: number }>();
+  for (const r of data) {
+    const version = r.prompt_version ?? "sin versión";
+    const key = `${r.kind}|${version}`;
+    const g = groups.get(key) ?? { kind: r.kind, prompt_version: version, runs: 0, errors: 0, cost: 0, avgLatencyMs: null, lastAt: r.created_at, latencySum: 0, latencyCount: 0 };
+    g.runs += 1;
+    if (r.status !== "ok") g.errors += 1;
+    g.cost += Number(r.cost_usd ?? 0);
+    if (r.latency_ms !== null) {
+      g.latencySum += r.latency_ms;
+      g.latencyCount += 1;
+    }
+    if (r.created_at > g.lastAt) g.lastAt = r.created_at;
+    groups.set(key, g);
+  }
+  return [...groups.values()]
+    .map(({ latencySum, latencyCount, ...g }) => ({ ...g, avgLatencyMs: latencyCount ? Math.round(latencySum / latencyCount) : null }))
+    .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
 }
 
 export async function listAiRuns({ onlyErrors = false }: { onlyErrors?: boolean } = {}): Promise<AiRunRow[]> {

@@ -3,6 +3,9 @@
 
 export const PROMPT_VERSION = "cv_score@2026-10-19";
 
+/** Esfuerzo de razonamiento: corre una vez por CV, con volumen. */
+export const EFFORT = "medium";
+
 export const SYSTEM = `Eres analista de reclutamiento de Prime HR Innovation, en México. Calificas un CV contra los criterios de una vacante. Tu calificación es una sugerencia: el reclutador decide si el candidato avanza.
 
 Por cada criterio de la vacante devuelve, con su misma key:

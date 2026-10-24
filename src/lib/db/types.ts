@@ -3052,6 +3052,7 @@ export type Database = {
         | "psych_parse"
         | "doc_check"
         | "weekly_insights"
+        | "cv_extract"
       ai_run_status: "ok" | "error" | "refusal"
       application_stage:
         | "new"
@@ -3316,6 +3317,7 @@ export const Constants = {
         "psych_parse",
         "doc_check",
         "weekly_insights",
+        "cv_extract",
       ],
       ai_run_status: ["ok", "error", "refusal"],
       application_stage: [

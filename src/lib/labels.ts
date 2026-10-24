@@ -264,6 +264,7 @@ export const AI_RUN_KIND_LABELS: Record<Enums<"ai_run_kind">, string> = {
   psych_parse: "Lectura de psicométrico",
   doc_check: "Revisión de documento",
   weekly_insights: "Insights semanales",
+  cv_extract: "Lectura de CV",
 };
 
 export const AI_RUN_STATUS_LABELS: Record<Enums<"ai_run_status">, string> = {

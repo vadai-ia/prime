@@ -31,3 +31,16 @@ export const CvScoreOutput = z.object({
   flags: z.array(z.string()),
 });
 export type CvScoreOutput = z.infer<typeof CvScoreOutput>;
+
+// Datos de contacto del CV para la carga masiva. Vacío = el CV no lo dice; el código normaliza teléfono y fechas.
+export const CvExtractOutput = z.object({
+  full_name: z.string(),
+  phone: z.string(),
+  email: z.string(),
+  municipality: z.string(),
+  education_level: z.string(),
+  birth_date: z.string(),
+  age: z.number().nullable(),
+  is_cv: z.boolean(),
+});
+export type CvExtractOutput = z.infer<typeof CvExtractOutput>;

@@ -87,9 +87,14 @@ export default async function ConfiguracionPage() {
         title="Configuración"
         subtitle={`${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`}
         actions={
-          <ButtonLink href="/configuracion/logs" variant="ghost">
-            Logs técnicos
-          </ButtonLink>
+          <>
+            <ButtonLink href="/configuracion/prompts" variant="ghost">
+              Prompts de IA
+            </ButtonLink>
+            <ButtonLink href="/configuracion/logs" variant="ghost">
+              Logs técnicos
+            </ButtonLink>
+          </>
         }
       />
       {usersSection}

@@ -3,6 +3,9 @@
 
 export const PROMPT_VERSION = "profile_generation@2026-10-19";
 
+/** Esfuerzo de razonamiento: se razona mucho una vez por vacante. */
+export const EFFORT = "high";
+
 export const SYSTEM = `Eres analista de reclutamiento de Prime HR Innovation, una agencia de reclutamiento en México. Recibes el descriptivo de una vacante (D.P.) y propones cómo evaluar a sus candidatos. Un reclutador revisará y editará lo que propongas; lo que no sepas, dilo en "assumptions" en lugar de inventarlo.
 
 Devuelve:

@@ -228,6 +228,16 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 - [x] Menú para celular.
 - [x] Cron diario (Vercel Hobby) y `typecheck` con `next typegen` para que pase en Vercel.
 
+**Interfaz y primera calibración (24 oct 2026, plan §12.11):**
+
+- [x] Prueba desde cero: vacante Ejecutivo de Cobranza, evaluación generada con IA y 3 CV calificados (100 / 44 / 14, umbral 65).
+- [x] Levantamiento y edición de vacante por pasos, con barra de avance y obligatorios marcados.
+- [x] Tema claro / oscuro con los colores de marca, selector en el menú, celular, portal y login.
+- [x] Login rediseñado con la composición de la tarjeta de marca.
+- [x] Menú lateral plegable; cuenta, tema y Cerrar sesión debajo de Configuración.
+- [x] Configuración → Prompts de IA: ver cada prompt, su versión y lo que ha costado.
+- [x] Carga masiva de CV con lectura de datos por IA (migración 0025, archivo manual 12 aplicado el 24 oct; falta probarla en la app).
+
 **Otros (19 oct 2026):**
 
 - [x] Los seis templates de WhatsApp enviados a revisión de Meta.
@@ -302,7 +312,7 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 
 ## 8. Lo que falta, en orden
 
-1. **Probar y calibrar la IA** (§7).
+1. **Terminar de calibrar la IA** (§7): ajustes del prompt anotados en `pendientes_revision.md` §1 a §3 (alerta "Sin fechas de inicio y fin", pregunta de CRM, sueldo máximo como bloqueo), subir `PROMPT_VERSION` y volver a calificar los 3 CV. Falta probar con CV reales de Prime.
 2. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas y veredicto. Necesita 3 o 4 PDF reales.
 3. ~~Cola de tareas y cron~~ (hecho el 20 oct; falta `CRON_SECRET` y el cron en Vercel).
 4. **Correos**: los tres correos automáticos, por Resend o por un buzón de Prime con Graph; PDF del reporte semanal; SMTP de Auth.
@@ -310,7 +320,7 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 6. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
 7. **Weekly insights** y la pestaña de inteligencia interna con historia.
 
-Sin dependencias externas, para meter entre bloques: carga masiva de CVs (sacar nombre y teléfono del PDF sin IA es frágil; mejor con IA) e importación del Excel histórico (falta el archivo de Prime). Hecho el 21 oct: inactivos, exportar a Excel, permanencia, avisos nuevos, logs técnicos, Outlook por usuario y menú para celular (plan §12.10). La detección de duplicados por teléfono ya existía en el alta.
+Sin dependencias externas, para meter entre bloques: importación del Excel histórico (falta el archivo de Prime). La carga masiva de CV quedó el 24 oct. Hecho el 21 oct: inactivos, exportar a Excel, permanencia, avisos nuevos, logs técnicos, Outlook por usuario y menú para celular (plan §12.10). La detección de duplicados por teléfono ya existía en el alta.
 
 Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase Auth (Site URL, redirect URLs, templates, SMTP), colores reales en `src/app/globals.css`.
 
@@ -333,6 +343,8 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Texto del aviso de privacidad y plazo de conservación de datos de descartados.
 - [ ] Quién captura la permanencia a 30, 90 y 180 días.
 - [ ] Después de cuánto tiempo un candidato pasa a inactivo.
+- [ ] Residencia fuera de la zona: ¿alerta en el score del CV (sin restar puntos) o pregunta del prefiltro? Hoy no la revisa nadie.
+- [ ] Sueldo pedido arriba del tope: ¿bloquea o solo avisa? La IA puso bloqueo con el sueldo base aunque el puesto paga más con comisiones.
 - [ ] Confirmar: solo los reclutadores reciben candidatos por turno; al quitar a un reclutador sus candidatos se reparten solos; el reclutador no ve quién más trabaja su vacante.
 
 **Archivos:**
@@ -341,3 +353,4 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Excel histórico de clientes, vacantes y candidatos.
 - [ ] Excel de levantamiento, formato D.P., guion de entrevista y formato de la hoja de confirmación.
 - [ ] Muestras de Black Trust y del socioeconómico.
+- [ ] Logotipo de Prime en SVG o PNG (el login y el menú usan una "P" provisional).

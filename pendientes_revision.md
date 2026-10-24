@@ -21,7 +21,7 @@ Si la primera llamada falla con error de forma de petición, esquema o `fallback
 
 ---
 
-## 1. Generar la evaluación de la vacante (`profile_generation`) · programado, sin probar
+## 1. Generar la evaluación de la vacante (`profile_generation`) · probado el 24 oct, falta ajustar
 
 **Necesita:** API key y la vacante de Telasist con el descriptivo completo (requisitos, actividades, condiciones con sueldo y horario, competencias).
 
@@ -40,7 +40,7 @@ Si la primera llamada falla con error de forma de petición, esquema o `fallback
 
 ---
 
-## 2. Score del CV (`cv_score`) · programado, sin probar
+## 2. Score del CV (`cv_score`) · probado el 24 oct con CV generados, faltan CV reales
 
 **Necesita:** API key, la vacante del paso 1 ya con evaluación, y **2 o 3 CV reales en PDF**: uno bueno, uno regular y uno que no cumpla (sirven escaneados).
 
@@ -213,3 +213,35 @@ Se llena cuando esté programado. Lo esperado:
 
 - [ ] Configuración → usuarios: columna Outlook con "Conectado" y el correo, o "Sin conectar".
 - [ ] En el celular (o el navegador angosto): barra verde arriba con el menú, la campana y Cerrar sesión.
+
+---
+
+## 10. Interfaz del 24 oct · se prueba ya, sin llaves
+
+- [ ] **Tema**: el selector (sol, luna, monitor) cambia todo al momento; al recargar se queda. En oscuro, Tablero, Reportes y Configuración también salen oscuras (antes regresaban a claro; se agregó `ThemeSync`).
+- [ ] Las gráficas de Reportes y del Tablero se leen en los dos temas (tooltip, ejes, barras).
+- [x] **Menú lateral** se pliega y se expande, y lo recuerda al recargar; cuenta, tema y Cerrar sesión debajo de Configuración. *24 oct: funciona.*
+- [ ] **Levantamiento por pasos**: elegir cliente llena nombre, ciudad y contacto; cambiar de paso no pierde lo capturado; guardar sin nombre del puesto lleva al paso 2.
+- [ ] **Editar vacante** por pasos: guarda los cambios hechos en cualquier paso.
+- [ ] **Login** en celular: encabezado negro corto, sin desplazamiento horizontal.
+- [ ] Los correos de Reportes → Vista previa salen con la paleta nueva.
+- [ ] Configuración → **Prompts de IA**: salen los tres prompts con su versión y el uso de las pruebas del 24 oct.
+
+---
+
+## 11. Carga masiva de CV · programada el 24 oct; se prueba ya (necesita la API key)
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/12_lectura_de_cv.sql` en el SQL Editor: checklist con 1 "ok". *24 oct: aplicado, ok.*
+
+**Probar:**
+
+- [ ] Candidatos → **Carga masiva**: elegir la vacante y el canal, soltar 3 a 5 PDF (uno escaneado, y uno que no sea CV).
+- [ ] Cada fila pasa por Subiendo → Leyendo con IA → Listo, tres a la vez, en unos 10 a 20 s cada una.
+- [ ] Nombre, teléfono, correo, municipio y escolaridad salen bien. La edad solo aparece si el CV la dice; si no, vacía (no 15).
+- [ ] El que no es CV dice "Este PDF no parece un CV". Una fila sin teléfono no deja darse de alta hasta capturarlo.
+- [ ] Un teléfono que ya existe muestra "Ya registrado (N postulaciones)".
+- [ ] **Dar de alta**: cada fila queda "Dado de alta · ver ficha"; los candidatos salen en etapa Nuevo, repartidos por turno entre los reclutadores de la vacante, y en unos segundos con su score de CV.
+- [ ] Alguien de la lista negra: la fila dice que no se puede registrar (al reclutador sin el motivo) y al admin le llega el aviso.
+- [ ] Logs técnicos y Prompts de IA: las lecturas salen como "Lectura de CV" con su costo.

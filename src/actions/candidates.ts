@@ -5,12 +5,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
-import { assertStaff, UnauthorizedError } from "@/lib/dal";
+import { assertStaff, UnauthorizedError, type Session } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { extractCv } from "@/lib/cv/extract";
 import { aiEnabled } from "@/lib/ai/client";
+import { extractCvContact } from "@/lib/ai/tasks/extract-cv";
 import { enqueue, runTaskNow } from "@/lib/queue/run";
 import type { CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
@@ -67,6 +68,23 @@ export async function readCv(path: string): Promise<CvReadResult> {
   }
 }
 
+export type CvAiReadResult = { fields: CvFields; isCv: boolean } | { error: string };
+
+/** Carga masiva: la IA lee los datos de contacto del PDF ya subido (también escaneados). Propone, no guarda. */
+export async function readCvWithAi(path: string): Promise<CvAiReadResult> {
+  let session;
+  try {
+    session = await assertStaff();
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  if (!isOwnUpload(path, session.userId)) return { error: "Archivo no válido" };
+  if (!aiEnabled()) return { error: "La IA no está configurada: captura los datos a mano." };
+  const uploadId = path.slice(uploadPrefix(session.userId).length, -".pdf".length);
+  const result = await extractCvContact(path, uploadId);
+  return result.ok ? { fields: result.fields, isCv: result.isCv } : { error: result.error };
+}
+
 /** Mueve el CV a la carpeta del candidato y saca su texto. Si algo falla, el alta sigue con lo que haya. */
 async function attachCv(uploadPath: string, candidateId: string): Promise<{ cv_file_path: string; cv_text: string | null }> {
   const storage = createAdminClient().storage.from(BUCKET);
@@ -116,15 +134,14 @@ async function reportBlacklistAttempt(supabase: Awaited<ReturnType<typeof create
   if (error) console.error("report_blacklist_attempt", error.message);
 }
 
-/** Alta individual: crea (o reutiliza por teléfono) al candidato, lo postula a la vacante en etapa Nuevo y adjunta el CV. */
-export async function createCandidate(_prev: CandidateFormState, formData: FormData): Promise<CandidateFormState> {
-  let session;
-  try {
-    session = await assertStaff();
-  } catch (e) {
-    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
-  }
-  const raw = Object.fromEntries(Object.keys(schema.shape).map((k) => [k, formData.get(k) ?? ""]));
+type RegisterResult = { applicationId: string } | { error: string };
+
+/**
+ * Crea (o reutiliza por teléfono) al candidato, lo postula a la vacante en etapa Nuevo, adjunta el CV y
+ * encola su score. Lo comparten el alta individual y la carga masiva: misma lista negra, mismos duplicados
+ * y la base decide a quién se asigna (round robin).
+ */
+async function registerCandidate(session: Session, raw: Record<string, unknown>): Promise<RegisterResult> {
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
   const d = parsed.data;
@@ -215,10 +232,54 @@ export async function createCandidate(_prev: CandidateFormState, formData: FormD
     }
   }
 
+  return { applicationId: application.id };
+}
+
+/** Alta individual desde el formulario: al guardar abre la ficha. */
+export async function createCandidate(_prev: CandidateFormState, formData: FormData): Promise<CandidateFormState> {
+  let session;
+  try {
+    session = await assertStaff();
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  const raw = Object.fromEntries(Object.keys(schema.shape).map((k) => [k, formData.get(k) ?? ""]));
+  const result = await registerCandidate(session, raw);
+  if ("error" in result) return result;
+
   revalidatePath("/candidatos");
   revalidatePath("/tablero");
-  revalidatePath(`/perfiles/${d.profile_id}`);
-  redirect(`/candidatos/${application.id}`);
+  revalidatePath(`/perfiles/${String(raw.profile_id)}`);
+  redirect(`/candidatos/${result.applicationId}`);
+}
+
+export type BulkCandidateInput = {
+  profile_id: string;
+  source_channel: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  municipality: string;
+  education_level: string;
+  age_reported: string;
+  birth_date: string;
+  cv_path: string;
+};
+
+/** Carga masiva: da de alta una fila ya revisada. Devuelve el resultado en lugar de abrir la ficha. */
+export async function createCandidateFromBulk(input: BulkCandidateInput): Promise<RegisterResult> {
+  let session;
+  try {
+    session = await assertStaff();
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  const result = await registerCandidate(session, { ...input, zone: "", notes: "" });
+  if ("applicationId" in result) {
+    revalidatePath("/candidatos");
+    revalidatePath("/tablero");
+  }
+  return result;
 }
 
 /** Al capturar el teléfono: si la persona ya está registrada, en qué vacantes y cuándo. No crea ni cambia nada. */
