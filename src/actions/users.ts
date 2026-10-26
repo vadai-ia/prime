@@ -140,20 +140,32 @@ export async function setUserName(userId: string, fullName: string): Promise<Use
   return { ok: true };
 }
 
-/** Cambio de rol o de empresa: solo vía app_metadata (el trigger sincroniza el espejo). */
+/**
+ * Cambio de rol o de empresa de un reclutador o un usuario cliente (Configuración → Ver). Nunca el de
+ * otro admin ni el propio. Va por app_metadata; el trigger sincroniza el espejo public.users. Si deja
+ * de ser reclutador, la base lo saca de todas sus vacantes y reparte sus candidatos en proceso
+ * (users_release_assignments, 0014/0015), como al desactivarlo. La sesión abierta de esa persona toma el rol nuevo al refrescarse (hasta 1 h).
+ */
 export async function setUserRole(
   userId: string,
   role: (typeof ROLES)[number],
   clientId: string | null,
 ): Promise<UserFormState> {
+  let session;
   try {
-    await assertAdmin();
+    session = await assertAdmin();
   } catch (e) {
     return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
   }
+  if (session.userId === userId) return { error: "No puedes cambiar tu propio rol" };
   if ((role === "client") !== (clientId !== null)) {
     return { error: "Un usuario cliente necesita empresa; el staff no lleva empresa" };
   }
+
+  const supabase = await createClient();
+  const { data: target } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
+  if (!target) return { error: "Usuario no encontrado" };
+  if (target.role === "admin") return { error: "El rol de otro administrador no se cambia aquí" };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, {
@@ -162,10 +174,14 @@ export async function setUserRole(
   if (error) return { error: error.message };
 
   revalidatePath("/configuracion");
-  return { ok: true };
+  revalidatePath("/perfiles");
+  return { ok: true, message: "Rol actualizado." };
 }
 
-/** Restablecer la contraseña de alguien desde Configuración (sin correo). */
+/**
+ * Restablecer la contraseña de un reclutador o de un usuario cliente desde Configuración (sin correo):
+ * el admin pone una temporal y se la pasa. La de otro admin no: él la recupera por correo desde el login.
+ */
 export async function resetUserPassword(userId: string, password: string): Promise<UserFormState> {
   try {
     await assertAdmin();
@@ -173,6 +189,11 @@ export async function resetUserPassword(userId: string, password: string): Promi
     return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
   }
   if (password.length < 8) return { error: "La contraseña tiene al menos 8 caracteres" };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
+  if (!target) return { error: "Usuario no encontrado" };
+  if (target.role === "admin") return { error: "La contraseña de un administrador no se cambia aquí: la recupera él desde el login con “Olvidé mi contraseña”." };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });

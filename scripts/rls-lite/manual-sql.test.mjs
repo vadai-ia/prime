@@ -12,6 +12,8 @@ const MANUAL_09 = readFileSync(new URL("../../supabase/manual/09_lista_negra.sql
 const MANUAL_10 = readFileSync(new URL("../../supabase/manual/10_cola_de_tareas.sql", import.meta.url), "utf8");
 const MANUAL_11 = readFileSync(new URL("../../supabase/manual/11_permanencia_inactivos_avisos.sql", import.meta.url), "utf8");
 const MANUAL_12 = readFileSync(new URL("../../supabase/manual/12_lectura_de_cv.sql", import.meta.url), "utf8");
+const MANUAL_13 = readFileSync(new URL("../../supabase/manual/13_editar_vacante.sql", import.meta.url), "utf8");
+const MANUAL_14 = readFileSync(new URL("../../supabase/manual/14_razon_social_cliente.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -219,6 +221,41 @@ if (OLD && existsSync(OLD)) {
   check("K · 12 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_12), 1));
   const kept = await db.query(`select count(*)::int as n from public.ai_runs where kind = 'cv_extract'`);
   check("K · la llamada registrada se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- L. archivo 13 (editar la vacante): dos veces; cv_version arranca en la versión vigente y no se pisa
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12]) await runManual(db, sql);
+  await db.exec(`insert into public.job_profile_ai_configs (profile_id, version) values ('${PX}', 3)`);
+  const first = await runManual(db, MANUAL_13);
+  check("L · 13: checklist completo", allOk(first, 3), missing(first));
+  const start = await db.query(`select cv_version, salary_is_blocking from public.job_profile_ai_configs where profile_id = $1`, [PX]);
+  check("L · los scores existentes siguen vigentes (cv_version = version)", start.rows[0]?.cv_version === 3 && start.rows[0]?.salary_is_blocking === true, JSON.stringify(start.rows));
+  // después se editan las preguntas: sube version, los pesos se quedan en la 3
+  await db.exec(`update public.job_profile_ai_configs set version = 5, salary_is_blocking = false where profile_id = '${PX}'`);
+  await db.exec(`select public.log_audit('edit_profile', 'job_profile', '${PX}', null, '{"section":"prefilter_questions"}'::jsonb)`);
+  const again = await errorOf(() => runManual(db, MANUAL_13));
+  check("L · 13 por segunda vez no falla", !again, again ?? "");
+  check("L · 13 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_13), 3));
+  const kept = await db.query(`select cv_version, version, salary_is_blocking from public.job_profile_ai_configs where profile_id = $1`, [PX]);
+  check("L · no pisa cv_version ni la regla del sueldo", kept.rows[0]?.cv_version === 3 && kept.rows[0]?.version === 5 && kept.rows[0]?.salary_is_blocking === false, JSON.stringify(kept.rows));
+  const logged = await db.query(`select count(*)::int as n from public.audit_log where action = 'edit_profile'`);
+  check("L · el registro de la edición se queda", logged.rows[0].n === 1, `${logged.rows[0].n}`);
+}
+
+// --- M. 14 (razón social y nombre comercial): dos veces, sin tocar los datos capturados
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_14);
+  check("M · 14: checklist completo", allOk(first, 2), missing(first));
+  await db.exec(`update public.clients set legal_name = 'Telasist S.A. de C.V.', trade_name = 'Telasist' where name = 'Telasist'`);
+  const again = await errorOf(() => runManual(db, MANUAL_14));
+  check("M · 14 por segunda vez no falla", !again, again ?? "");
+  check("M · 14 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_14), 2));
+  const kept = await db.query(`select legal_name, trade_name from public.clients where name = 'Telasist'`);
+  check("M · no pisa la razón social capturada", kept.rows[0]?.legal_name === "Telasist S.A. de C.V." && kept.rows[0]?.trade_name === "Telasist", JSON.stringify(kept.rows));
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

@@ -245,3 +245,80 @@ Se llena cuando esté programado. Lo esperado:
 - [ ] **Dar de alta**: cada fila queda "Dado de alta · ver ficha"; los candidatos salen en etapa Nuevo, repartidos por turno entre los reclutadores de la vacante, y en unos segundos con su score de CV.
 - [ ] Alguien de la lista negra: la fila dice que no se puede registrar (al reclutador sin el motivo) y al admin le llega el aviso.
 - [ ] Logs técnicos y Prompts de IA: las lecturas salen como "Lectura de CV" con su costo.
+
+## 12. Edad del CV y edición de la vacante · programado el 26 oct; se prueba ya (la lectura necesita la API key)
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/13_editar_vacante.sql` en el SQL Editor **antes** de abrir la app con el código nuevo (el score del CV y la edición ya leen `cv_version`): checklist con 3 "ok". *26 oct: aplicado, 3 ok.*
+- [ ] Corregir la edad de 15 del candidato de prueba. No hay pantalla para editar los datos del candidato; en el SQL Editor: `update public.candidates set age_reported = null where age_reported < 18;`
+
+**Edad y lectura con Claude:**
+
+- [ ] Candidatos → Agregar candidato → subir un CV: dice "Leyendo…" unos segundos y llena los campos con la etiqueta "del CV".
+- [ ] Un CV escaneado (foto en PDF) también se llena.
+- [ ] Un CV sin edad deja Edad vacía; con la rueda del mouse o las flechas encima, el campo no cambia.
+- [ ] Escribir 15 en Edad y guardar: "La edad debe ser de 18 a 80 años".
+- [ ] Un CV que dice "17 años" no llena la edad y avisa que está fuera de 18 a 80.
+- [ ] Configuración → Logs técnicos → IA: la lectura sale como "Lectura de CV" con "Leyó nombre, teléfono…; edad N" y, ya dado de alta, "Candidato" con enlace a la ficha.
+
+**Edición de la vacante:**
+
+- [ ] Vacante → Editar: el paso 7 trae competencias funcionales y de liderazgo con su nivel; el paso 8, relaciones, proceso, canales y texto. Guardar y ver todo en el descriptivo.
+- [ ] Evaluación IA → Editar reglas: quitar el sueldo máximo o desmarcar "descarta" y ver "Alerta" en la tarjeta.
+- [ ] Editar preguntas: cambiar "¿Qué CRM has usado?" por "¿Has usado algún CRM? ¿Cuál?", subir y bajar, quitar una y agregar otra.
+- [ ] Editar mínimos: cambiar un mínimo, poner un bloqueante mayor que el mínimo (debe rechazarlo) y uno válido.
+- [ ] Después de editar preguntas o reglas, la ficha de Mariana **no** dice "Recalifica"; después de cambiar pesos, sí.
+- [ ] Logs técnicos → Accesos y cambios: cada guardado sale como "Editó una vacante" con la sección y la versión.
+
+## 13. Carga de datos de Prime · 26 oct; clientes cargados, faltan usuarios, vacantes y asignaciones
+
+El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae correos y teléfonos). Leerlo solo cuando el usuario lo pida. Lo que Prime tiene que corregir o contestar está en `datos_errores.md`.
+
+**Hecho:**
+
+- [x] Migración 0027 y `supabase/manual/14_razon_social_cliente.sql`: razón social y nombre comercial del cliente. *26 oct: aplicado, 2 ok.*
+- [x] Clientes cargados por SQL el 26 oct: 8 nuevos (BURGUER BAR JOINT, SCORPION, ORANGE, DEL FRUTO, GRAFICOS LA CENTRAL, PRIME HR, MC2 ARQUITECTOS, BIG DATA). Textos en mayúsculas como vienen, "N/A" vacío, ciudad sacada del domicilio y el correo no válido de Big Data vacío. Diegol Inc se queda.
+- [x] Telasist: se quedó el de prueba (mismo id) con los datos de la lista: nombre TELASIST y lo demás vacío. Sus vacantes y candidatos de prueba siguen ahí: pausarlos al cargar las reales.
+- [x] PRIME HR: portal prendido como los demás. *26 oct.*
+- [ ] Alta y edición de cliente muestran Razón social y Nombre comercial; la ficha del cliente los enseña (el nombre comercial solo si es distinto del nombre).
+
+**Decidido:**
+
+- Grupo Huerta (Shizuoka, Esmeralda y Divol, 11 vacantes) queda para después.
+- Los usuarios (admins y reclutadores) los crea el usuario desde Configuración; la carga no crea usuarios.
+
+**Falta, en orden:**
+
+- [x] Crear los usuarios (el usuario, desde Configuración → Crear usuario). *26 oct.*
+- [x] Vacantes cargadas por SQL el 26 oct: 22, activas, con zona y posiciones ("Por requisición del cliente" de Telasist y Scorpion va con 1), títulos como vienen, sin unidad de negocio y sin evaluación de IA. La de prueba "PRUEBA Ejecutivo de cobranza" (Telasist) sigue activa.
+- [ ] **Preguntar a Prime** (va en `datos_errores.md` §2):
+  - **Grupo Huerta (11 vacantes) no está cargado.** En la lista de clientes viene 3 veces (Shizuoka Motors, Esmeralda Motorcycle, Divol Truck & Buses). ¿Es un solo cliente o tres? Y de cada una de sus 11 vacantes, ¿a cuál razón social pertenece?
+  - **Chela Chupas (Capitán de meseros, Nancy) no está cargado:** no aparece en la lista de clientes. Faltan sus datos.
+- [ ] Llenar el descriptivo y generar la evaluación de IA de cada vacante, para que los CV se califiquen.
+- [ ] Pausar o cerrar "PRUEBA Ejecutivo de cobranza" cuando ya no se use.
+- [ ] Asignar reclutadores: desde Configuración → Usuarios → Ver → Elegir vacantes (o por SQL si son muchos).
+- [ ] Revisar: cada vacante bajo su cliente con zona y posiciones; cada reclutador ve solo las suyas (Configuración → Ver → Vacantes asignadas).
+- [x] `excel/` en `.gitignore`. *26 oct.*
+
+## 14. Contraseñas · programado el 26 oct; se prueba ya, sin llaves (el correo de recuperación usa el envío de Supabase)
+
+**Login con contraseña equivocada:**
+
+- [ ] Correo que no existe: "No hay una cuenta con ese correo."
+- [ ] Correo de reclutador: "Contraseña incorrecta. Pide a un administrador que te pase o te reinicie tu contraseña." Sin botón de recuperación.
+- [ ] Correo de admin: "Contraseña incorrecta." y el botón **Olvidé mi contraseña**. Al darle, dice que se mandó el enlace; el correo llega (revisar spam), abre `/cuenta/password`, se guarda la nueva y entra.
+- [ ] Usuario desactivado: "Tu cuenta está desactivada."
+- [ ] Si el correo no llega: en Supabase → Authentication → URL Configuration, `http://localhost:3000/auth/callback` (y la URL de producción) deben estar en Redirect URLs. El envío de Supabase sin SMTP propio manda pocos correos por hora.
+
+**Configuración (rediseño del 26 oct):**
+
+- [ ] Tres pestañas: Usuarios, Integraciones y Tareas automáticas (con el número de fallidas).
+- [ ] **Crear usuario** es un botón arriba a la derecha que abre un modal; trae una contraseña temporal ya generada (botón "Otra") y al crear la muestra para copiarla.
+- [ ] En la tabla, reclutadores y clientes tienen **Ver**; los admins no (tu fila dice "Tu cuenta").
+- [ ] Filas de color por rol (admin azul tenue, reclutador verde, cliente naranja) con franja a la izquierda. Arriba, la leyenda con el número de cada rol: al dar clic filtra y otro clic quita el filtro ("Todos" también). Buscador por nombre o correo.
+- [ ] Ver → Datos: editar nombre; correo, empresa (cliente), alta, última vez y Outlook.
+- [ ] Ver → Contraseña: explica que no se puede ver (está cifrada); **Restablecer contraseña** pone una temporal y la muestra. El reclutador entra con ella y la cambia en Mi cuenta.
+- [ ] Ver → Rol: reclutador ↔ cliente (pide empresa) o reclutador → admin. Al dejar de ser reclutador avisa que sale de sus N vacantes y se reparten sus candidatos; después de pasar a admin ya no tiene botón Ver.
+- [ ] Ver → Vacantes asignadas (reclutador activo) con enlace a cada vacante. **Elegir vacantes** abre un checklist de todas las vacantes no cerradas agrupadas por cliente, con buscador; al desmarcar avisa que sus candidatos se reparten. Guardar y ver el cambio también en Perfiles → vacante → Reclutadores.
+- [ ] Ver → Acceso: desactivar y activar.

@@ -11,6 +11,8 @@ export type ClientFormState = { error?: string } | undefined;
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nombre de la empresa requerido"),
+  legal_name: z.string().trim().optional(),
+  trade_name: z.string().trim().optional(),
   industry: z.string().trim().optional(),
   city: z.string().trim().optional(),
   address: z.string().trim().optional(),
@@ -42,6 +44,8 @@ export async function createClient(_prev: ClientFormState, formData: FormData): 
     .from("clients")
     .insert({
       name: d.name,
+      legal_name: d.legal_name || null,
+      trade_name: d.trade_name || null,
       industry: d.industry || null,
       city: d.city || null,
       address: d.address || null,
@@ -92,6 +96,8 @@ export async function updateClient(_prev: ClientFormState, formData: FormData): 
     .from("clients")
     .update({
       name: d.name,
+      legal_name: d.legal_name || null,
+      trade_name: d.trade_name || null,
       industry: d.industry || null,
       city: d.city || null,
       address: d.address || null,

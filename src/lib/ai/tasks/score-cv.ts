@@ -25,7 +25,7 @@ export type CvScoreResult = { ok: true; score: number } | { ok: false; error: st
 export async function scoreApplicationCv(supabase: Supabase, applicationId: string): Promise<CvScoreResult> {
   const { data: app, error } = await supabase
     .from("applications")
-    .select("id, profile_id, candidates(full_name, cv_file_path, cv_text), job_profiles(title, requirements, activities, job_profile_ai_configs(version, cv_weights))")
+    .select("id, profile_id, candidates(full_name, cv_file_path, cv_text), job_profiles(title, requirements, activities, job_profile_ai_configs(cv_version, cv_weights))")
     .eq("id", applicationId)
     .maybeSingle();
   if (error) return { ok: false, error: error.message };
@@ -73,7 +73,8 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
     .update({
       cv_score: score,
       cv_score_breakdown: breakdown,
-      cv_score_version: config.version,
+      // la versión de los pesos, no la de toda la evaluación: editar preguntas o reglas no pide recalificar
+      cv_score_version: config.cv_version,
       cv_scored_at: new Date().toISOString(),
       cv_ai_rationale: result.output.summary.trim() || null,
       ai_note: flags.length > 0 ? `Revisar: ${flags.join(" · ")}` : null,

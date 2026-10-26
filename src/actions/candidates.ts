@@ -12,8 +12,9 @@ import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { extractCv } from "@/lib/cv/extract";
 import { aiEnabled } from "@/lib/ai/client";
 import { extractCvContact } from "@/lib/ai/tasks/extract-cv";
+import { relinkAiRuns } from "@/lib/ai/run";
 import { enqueue, runTaskNow } from "@/lib/queue/run";
-import type { CvFields } from "@/lib/cv/parse";
+import { AGE_MAX, AGE_MIN, isValidAge, type CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
 import { CHANNEL_LABELS } from "@/lib/labels";
 import type { Enums } from "@/lib/db/types";
@@ -25,6 +26,8 @@ const MAX_BYTES = 20 * 1024 * 1024; // mismo límite que el bucket
 // Las subidas caen en uploads/{usuario}/ y se mueven a {candidato}/cv/ al guardar
 const uploadPrefix = (userId: string) => `uploads/${userId}/`;
 const isOwnUpload = (path: string, userId: string) => path.startsWith(uploadPrefix(userId)) && /^[\w/-]+\.pdf$/.test(path);
+/** El uuid del archivo subido: identifica su lectura con IA en ai_runs mientras no hay candidato. */
+const uploadIdOf = (path: string, userId: string) => path.slice(uploadPrefix(userId).length, -".pdf".length);
 
 export type CvUploadTicket = { path: string; token: string } | { error: string };
 
@@ -68,9 +71,9 @@ export async function readCv(path: string): Promise<CvReadResult> {
   }
 }
 
-export type CvAiReadResult = { fields: CvFields; isCv: boolean } | { error: string };
+export type CvAiReadResult = { fields: CvFields; isCv: boolean; ageIgnored: number | null } | { error: string };
 
-/** Carga masiva: la IA lee los datos de contacto del PDF ya subido (también escaneados). Propone, no guarda. */
+/** Alta individual y carga masiva: Claude lee los datos de contacto del PDF ya subido (también escaneados). Propone, no guarda. */
 export async function readCvWithAi(path: string): Promise<CvAiReadResult> {
   let session;
   try {
@@ -80,9 +83,8 @@ export async function readCvWithAi(path: string): Promise<CvAiReadResult> {
   }
   if (!isOwnUpload(path, session.userId)) return { error: "Archivo no válido" };
   if (!aiEnabled()) return { error: "La IA no está configurada: captura los datos a mano." };
-  const uploadId = path.slice(uploadPrefix(session.userId).length, -".pdf".length);
-  const result = await extractCvContact(path, uploadId);
-  return result.ok ? { fields: result.fields, isCv: result.isCv } : { error: result.error };
+  const result = await extractCvContact(path, uploadIdOf(path, session.userId));
+  return result.ok ? { fields: result.fields, isCv: result.isCv, ageIgnored: result.ageIgnored } : { error: result.error };
 }
 
 /** Mueve el CV a la carpeta del candidato y saca su texto. Si algo falla, el alta sigue con lo que haya. */
@@ -116,7 +118,12 @@ const schema = z.object({
   municipality: z.string().trim().max(80),
   zone: z.string().trim().max(80),
   education_level: z.string().trim().max(120),
-  age_reported: z.coerce.number().int().min(15, "Edad no válida").max(80, "Edad no válida").or(blank),
+  // un solo esquema (no .or(blank)) para que el error diga el rango y no "Invalid input"
+  age_reported: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || (/^\d{1,3}$/.test(v) && isValidAge(Number(v))), `La edad debe ser de ${AGE_MIN} a ${AGE_MAX} años`)
+    .transform((v) => (v === "" ? ("" as const) : Number(v))),
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de nacimiento no válida").or(blank),
   notes: z.string().trim().max(2000),
   cv_path: z.string(),
@@ -214,7 +221,10 @@ async function registerCandidate(session: Session, raw: Record<string, unknown>)
       .maybeSingle();
     if (existing) patch = Object.fromEntries(Object.entries(details).filter(([k, v]) => v !== null && existing[k as keyof typeof details] === null));
   }
-  if (d.cv_path) patch = { ...patch, ...(await attachCv(d.cv_path, candidateId)) };
+  if (d.cv_path) {
+    patch = { ...patch, ...(await attachCv(d.cv_path, candidateId)) };
+    await relinkAiRuns({ type: "cv_upload", id: uploadIdOf(d.cv_path, session.userId) }, { type: "application", id: application.id });
+  }
   if (Object.keys(patch).length > 0) {
     const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
     if (error) return { error: `El candidato quedó postulado, pero no se guardaron su CV o sus datos: ${error.message}` };

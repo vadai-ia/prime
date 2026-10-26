@@ -753,10 +753,12 @@ export type Database = {
           id: string
           industry: string | null
           is_active: boolean
+          legal_name: string | null
           name: string
           portal_enabled: boolean
           report_recipients: string[]
           timezone: string
+          trade_name: string | null
           updated_at: string
           weekly_report_dow: number
           weekly_report_time: string
@@ -774,10 +776,12 @@ export type Database = {
           id?: string
           industry?: string | null
           is_active?: boolean
+          legal_name?: string | null
           name: string
           portal_enabled?: boolean
           report_recipients?: string[]
           timezone?: string
+          trade_name?: string | null
           updated_at?: string
           weekly_report_dow?: number
           weekly_report_time?: string
@@ -795,10 +799,12 @@ export type Database = {
           id?: string
           industry?: string | null
           is_active?: boolean
+          legal_name?: string | null
           name?: string
           portal_enabled?: boolean
           report_recipients?: string[]
           timezone?: string
+          trade_name?: string | null
           updated_at?: string
           weekly_report_dow?: number
           weekly_report_time?: string
@@ -1226,6 +1232,7 @@ export type Database = {
           commute_max_min: number | null
           created_at: string
           cv_threshold: number
+          cv_version: number
           cv_weights: Json
           education_min: string | null
           experience_min_months: number | null
@@ -1238,6 +1245,7 @@ export type Database = {
           psych_minimums: Json
           requires_saturdays: boolean
           salary_expectation_max: number | null
+          salary_is_blocking: boolean
           schedule_text: string | null
           updated_at: string
           version: number
@@ -1249,6 +1257,7 @@ export type Database = {
           commute_max_min?: number | null
           created_at?: string
           cv_threshold?: number
+          cv_version?: number
           cv_weights?: Json
           education_min?: string | null
           experience_min_months?: number | null
@@ -1261,6 +1270,7 @@ export type Database = {
           psych_minimums?: Json
           requires_saturdays?: boolean
           salary_expectation_max?: number | null
+          salary_is_blocking?: boolean
           schedule_text?: string | null
           updated_at?: string
           version?: number
@@ -1272,6 +1282,7 @@ export type Database = {
           commute_max_min?: number | null
           created_at?: string
           cv_threshold?: number
+          cv_version?: number
           cv_weights?: Json
           education_min?: string | null
           experience_min_months?: number | null
@@ -1284,6 +1295,7 @@ export type Database = {
           psych_minimums?: Json
           requires_saturdays?: boolean
           salary_expectation_max?: number | null
+          salary_is_blocking?: boolean
           schedule_text?: string | null
           updated_at?: string
           version?: number
@@ -3078,6 +3090,7 @@ export type Database = {
         | "download_document"
         | "view_psych_report"
         | "export"
+        | "edit_profile"
       client_decision: "approve" | "reject"
       discard_reason_key:
         | "age"
@@ -3346,6 +3359,7 @@ export const Constants = {
         "download_document",
         "view_psych_report",
         "export",
+        "edit_profile",
       ],
       client_decision: ["approve", "reject"],
       discard_reason_key: [

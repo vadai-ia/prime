@@ -61,10 +61,12 @@ export default async function ClienteDetailPage(props: PageProps<"/clientes/[cli
       <div className="grid gap-5 lg:grid-cols-3">
         <Card title="Contacto y reportes" className="lg:col-span-1">
           <dl className="space-y-3">
+            <Field label="Razón social" value={client.legal_name} />
+            {client.trade_name && client.trade_name !== client.name && <Field label="Nombre comercial" value={client.trade_name} />}
             <Field label="Contacto" value={client.contact_name ? `${client.contact_name}${client.contact_title ? `, ${client.contact_title}` : ""}` : null} />
             <Field label="Correo" value={client.contact_email} />
             <Field label="Teléfono" value={client.contact_phone} />
-            <Field label="Dirección" value={client.address} />
+            <Field label="Domicilio" value={client.address} />
             <Field label="Cliente desde" value={client.client_since ? fmtDateLong(client.client_since) : null} />
             <div className="border-t border-line pt-3">
               <Field label="Reporte diario" value={`Todos los días a las ${client.daily_report_time.slice(0, 5)}`} />

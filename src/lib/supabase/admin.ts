@@ -4,7 +4,8 @@ import type { Database } from "@/lib/db/types";
 
 /**
  * Cliente con service role: hace bypass de RLS. Solo para webhooks, cron,
- * jobs y auth.admin (invitaciones, app_metadata). Nunca lo uses en una
+ * jobs, auth.admin (invitaciones, app_metadata) y el login fallido (rol del
+ * correo, src/actions/auth.ts). Nunca lo uses en una
  * lectura que dependa del usuario en sesión.
  */
 export function createAdminClient() {

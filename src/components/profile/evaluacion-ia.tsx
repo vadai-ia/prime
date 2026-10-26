@@ -5,15 +5,18 @@ import { fmtDate, fmtMoney, fmtMonths } from "@/lib/format";
 import { asArray, type CvWeight, type PrefilterQuestion, type PsychMinimum } from "@/lib/domain/json";
 import type { AiConfig } from "@/lib/queries/types";
 import { DEFAULT_CV_THRESHOLD } from "@/lib/domain/scoring";
-import { CvWeightsForm, GenerateEvaluationForm } from "./evaluacion-ia-forms";
+import { ANSWER_TYPE_LABELS } from "@/lib/labels";
+import { CvWeightsForm, GenerateEvaluationForm, PrefilterQuestionsForm, PrefilterRulesForm, PsychMinimumsForm } from "./evaluacion-ia-forms";
 
-const ANSWER_TYPES: Record<string, string> = {
-  text: "Texto libre",
-  months: "Meses de experiencia",
-  yes_no: "Sí / No",
-  money: "Monto",
-  number: "Número",
-};
+/** "Editar …" plegable al pie de cada tarjeta, como el de pesos y umbral. */
+function EditDetails({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <details className="mt-4 border-t border-line pt-3">
+      <summary className="cursor-pointer text-sm font-medium text-forest">{label}</summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
 
 /** Pestaña "Evaluación IA": reglas de prefiltro, pesos del CV, preguntas y mínimos psicométricos. */
 export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | null; profileId: string; aiOn: boolean }) {
@@ -49,7 +52,7 @@ export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | n
     },
     { label: "Traslado máximo", value: config.commute_max_min !== null ? `${config.commute_max_min} min` : "Sin regla", mode: config.commute_max_min !== null ? "Bloqueo" : null },
     { label: "Experiencia mínima", value: config.experience_min_months !== null ? fmtMonths(config.experience_min_months) : "Sin regla", mode: config.experience_min_months !== null ? "Bloqueo" : null },
-    { label: "Expectativa de sueldo máxima", value: config.salary_expectation_max !== null ? fmtMoney(config.salary_expectation_max) : "Sin regla", mode: config.salary_expectation_max !== null ? "Bloqueo" : null },
+    { label: "Expectativa de sueldo máxima", value: config.salary_expectation_max !== null ? fmtMoney(config.salary_expectation_max) : "Sin regla", mode: config.salary_expectation_max !== null ? (config.salary_is_blocking ? "Bloqueo" : "Alerta") : null },
     { label: "Horario", value: config.schedule_text ?? "Sin regla", mode: config.requires_saturdays ? "Bloqueo" : null, note: config.requires_saturdays ? "Requiere disponibilidad en sábado." : undefined },
     { label: "Escolaridad mínima", value: config.education_min ?? "Sin regla", mode: config.education_min ? "Alerta" : null },
   ];
@@ -85,6 +88,9 @@ export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | n
           Prompt {config.prompt_version ?? "—"}
           {config.generated_at && ` · generada ${fmtDate(config.generated_at)}`} · actualizada {fmtDate(config.updated_at)}
         </p>
+        <EditDetails label="Editar reglas">
+          <PrefilterRulesForm key={config.version} profileId={profileId} config={config} />
+        </EditDetails>
       </Card>
 
       <Card
@@ -126,13 +132,16 @@ export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | n
                 <div className="min-w-0">
                   <p className="text-sm text-ink">{q.text}</p>
                   <p className="text-xs text-ink-faint">
-                    Regla <code className="rounded bg-canvas px-1 font-mono">{q.rule_key}</code> · {ANSWER_TYPES[q.answer_type] ?? q.answer_type}
+                    Regla <code className="rounded bg-canvas px-1 font-mono">{q.rule_key}</code> · {ANSWER_TYPE_LABELS[q.answer_type] ?? q.answer_type}
                   </p>
                 </div>
               </li>
             ))}
           </ol>
         )}
+        <EditDetails label="Editar preguntas">
+          <PrefilterQuestionsForm key={config.version} profileId={profileId} questions={questions} />
+        </EditDetails>
       </Card>
 
       <Card title="Mínimos psicométricos" subtitle="Escalas de Psicotest que se comparan con el resultado">
@@ -163,6 +172,9 @@ export function EvaluacionIA({ config, profileId, aiOn }: { config: AiConfig | n
             )}
           </div>
         )}
+        <EditDetails label="Editar mínimos">
+          <PsychMinimumsForm key={config.version} profileId={profileId} minimums={minimums} blocking={blocking} />
+        </EditDetails>
       </Card>
     </div>
   );

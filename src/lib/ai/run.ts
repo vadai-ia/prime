@@ -124,3 +124,16 @@ async function logRun(row: {
   }
   return data.id;
 }
+
+/**
+ * La lectura del CV corre antes de que exista el candidato (entity `cv_upload`, el uuid del archivo).
+ * Al dar de alta se pasa a la postulación para que en Logs técnicos se pueda abrir. Si falla, solo se pierde el enlace.
+ */
+export async function relinkAiRuns(from: { type: string; id: string }, to: { type: string; id: string }): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("ai_runs")
+    .update({ entity_type: to.type, entity_id: to.id })
+    .eq("entity_type", from.type)
+    .eq("entity_id", from.id);
+  if (error) console.error("ai_runs relink", error.message);
+}

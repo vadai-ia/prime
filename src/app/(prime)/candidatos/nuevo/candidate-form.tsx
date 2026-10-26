@@ -2,7 +2,8 @@
 
 import { useActionState, useState, type DragEvent } from "react";
 import { FileText, Upload } from "lucide-react";
-import { checkCandidatePhone, createCandidate, readCv, startCvUpload } from "@/actions/candidates";
+import { checkCandidatePhone, createCandidate, readCv, readCvWithAi, startCvUpload } from "@/actions/candidates";
+import { AGE_MAX, AGE_MIN, type CvFields } from "@/lib/cv/parse";
 import { CandidateHistory } from "@/components/candidate/history";
 import type { CandidateHistoryRow } from "@/lib/queries/types";
 import { createClient } from "@/lib/supabase/client";
@@ -57,7 +58,7 @@ export function CandidateForm({ profiles, defaultProfileId }: { profiles: Profil
     if (error) return setCv({ status: "error", message: `No se pudo subir el CV: ${error.message}` });
 
     setCv({ status: "reading", name: file.name });
-    const read = await readCv(ticket.path);
+    const read = await readFile(ticket.path);
     if ("error" in read) return setCv({ status: "done", name: file.name, path: ticket.path, tone: "warn", message: read.error });
 
     // El CV solo llena campos vacíos o que él mismo había llenado; lo que tecleó el reclutador se respeta.
@@ -68,12 +69,30 @@ export function CandidateForm({ profiles, defaultProfileId }: { profiles: Profil
     const cvPhone = applied.find(([k]) => k === "phone")?.[1];
     if (cvPhone) void lookup(cvPhone);
 
-    const message = !read.hasText
-      ? "El PDF no trae texto (parece escaneado). El CV quedó adjunto; captura los datos a mano."
+    const notes = [
+      read.note,
+      read.ageIgnored !== null ? `El CV dice ${read.ageIgnored} años: fuera de ${AGE_MIN} a ${AGE_MAX}, no se llenó. Revísalo.` : null,
+    ].filter(Boolean);
+    const main = !read.isCv
+      ? "Este PDF no parece un CV. Quedó adjunto; revísalo o cámbialo."
       : applied.length === 0
         ? "No se reconocieron datos en el CV. Quedó adjunto; captura los datos a mano."
         : `Se ${applied.length === 1 ? "llenó 1 campo" : `llenaron ${applied.length} campos`} desde el CV. Revísalos antes de guardar.`;
-    setCv({ status: "done", name: file.name, path: ticket.path, tone: read.hasText && applied.length > 0 ? "ok" : "warn", message });
+    const ok = read.isCv && applied.length > 0 && notes.length === 0;
+    setCv({ status: "done", name: file.name, path: ticket.path, tone: ok ? "ok" : "warn", message: [main, ...notes].join(" ") });
+  }
+
+  /**
+   * Claude lee el CV (también escaneado). Si la IA no está configurada o falla, se usa el lector de
+   * texto del PDF, que no lee escaneados. Cada lectura con IA queda en Configuración → Logs técnicos.
+   */
+  async function readFile(path: string): Promise<{ fields: CvFields; isCv: boolean; ageIgnored: number | null; note: string | null } | { error: string }> {
+    const ai = await readCvWithAi(path);
+    if (!("error" in ai)) return { ...ai, note: null };
+    const text = await readCv(path);
+    if ("error" in text) return { error: `${ai.error} ${text.error}` };
+    if (!text.hasText) return { error: `${ai.error} El PDF no trae texto (parece escaneado). El CV quedó adjunto; captura los datos a mano.` };
+    return { fields: text.fields, isCv: true, ageIgnored: null, note: "No se pudo leer con IA; se usó el texto del PDF. Revisa los datos." };
   }
 
   function onDrop(e: DragEvent<HTMLLabelElement>) {
@@ -141,7 +160,7 @@ export function CandidateForm({ profiles, defaultProfileId }: { profiles: Profil
             {cv.status === "done" && cv.name}
             {(cv.status === "idle" || cv.status === "error") && "Arrastra el CV aquí o haz clic para elegirlo"}
           </span>
-          <span className="text-xs text-ink-muted">{cv.status === "done" ? "Haz clic para cambiarlo por otro" : "Solo PDF, hasta 20 MB. El formulario se llena con lo que se pueda leer."}</span>
+          <span className="text-xs text-ink-muted">{cv.status === "done" ? "Haz clic para cambiarlo por otro" : "Solo PDF, hasta 20 MB, también escaneado. La IA llena el formulario con lo que lea."}</span>
           <input
             type="file"
             accept="application/pdf"
@@ -179,7 +198,7 @@ export function CandidateForm({ profiles, defaultProfileId }: { profiles: Profil
         {input("municipality", "Municipio", { placeholder: "Aguascalientes" })}
         {input("zone", "Zona o colonia", { placeholder: "Zona norte" })}
         {input("education_level", "Escolaridad", { placeholder: "Preparatoria" }, true)}
-        {input("age_reported", "Edad", { type: "number", min: 15, max: 80 })}
+        {input("age_reported", "Edad", { inputMode: "numeric", pattern: "[0-9]{2}", maxLength: 2, autoComplete: "off", title: `De ${AGE_MIN} a ${AGE_MAX} años`, placeholder: `${AGE_MIN} a ${AGE_MAX}` })}
         {input("birth_date", "Fecha de nacimiento", { type: "date" })}
         <label className={`${labelClass} sm:col-span-2`}>
           Notas

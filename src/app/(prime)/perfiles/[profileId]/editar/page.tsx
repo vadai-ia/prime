@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/queries/profiles";
 import { PageHeader } from "@/components/ui/page-header";
-import { asJson, type ProfileCompetencies, type ProfileConditions, type ProfileRequirements, type ProfileSpecs } from "@/lib/domain/json";
+import { asArray, asJson, type ProfileCompetencies, type ProfileConditions, type ProfileRelation, type ProfileRequirements, type ProfileSpecs } from "@/lib/domain/json";
 import { ProfileEditForm } from "./profile-edit-form";
 
 export const metadata: Metadata = { title: "Editar vacante · Prime HR Innovation" };
@@ -31,6 +31,12 @@ export default async function EditarPerfilPage(props: PageProps<"/perfiles/[prof
           activities: profile.activities,
           conditions: asJson<ProfileConditions>(profile.conditions, {}),
           competencies: asJson<ProfileCompetencies>(profile.competencies, {}),
+        }}
+        publishing={{
+          relations: asArray<ProfileRelation>(profile.relations),
+          selection_process: profile.selection_process,
+          published_channels: profile.published_channels,
+          posting_text: profile.posting_text,
         }}
       />
     </div>

@@ -45,3 +45,6 @@ next-env.d.ts
 
 # credenciales reales de la base hospedada (no subir)
 cuentas.md
+
+# datos de Prime con correos y teléfonos (no subir)
+excel/

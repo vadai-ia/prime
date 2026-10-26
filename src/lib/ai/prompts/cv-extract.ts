@@ -1,4 +1,4 @@
-// Prompt de `cv_extract`: saca los datos de contacto de un CV para darlo de alta (carga masiva).
+// Prompt de `cv_extract`: saca los datos de contacto de un CV para darlo de alta (alta individual y carga masiva).
 // Cambiar el texto = subir PROMPT_VERSION (queda en ai_runs).
 
 export const PROMPT_VERSION = "cv_extract@2026-10-24";

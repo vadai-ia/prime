@@ -1,6 +1,6 @@
 # Servicios, llaves y tareas · Sistema de reclutamiento Prime HR Innovation
 
-Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qué llave necesita, qué tarea del sistema lo llama, qué está hecho y qué falta. Actualizado el 20 de octubre de 2026.
+Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qué llave necesita, qué tarea del sistema lo llama, qué está hecho y qué falta. Actualizado el 26 de octubre de 2026.
 
 ---
 
@@ -57,7 +57,8 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 - **Para qué lo usamos:** crear el evento de la entrevista en el calendario de Outlook del reclutador con reunión de Teams, invitar al candidato y a Fireflies, reagendar y cancelar. Opcional: mandar los correos automáticos desde un buzón de Prime.
 - **Qué necesita:** que el correo de Prime esté en Microsoft 365 (Exchange Online), una app registrada en Microsoft Entra ID por su admin con consentimiento, y que cada reclutador conecte su Outlook en Mi cuenta. Detalle en §6.
 - **Variables:** `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `ENCRYPTION_KEY`.
-- **Costo:** sin costo extra con las licencias de Microsoft 365 que Prime ya paga.
+- **Costo:** sin costo extra con las licencias de Microsoft 365 que Prime ya paga. Registrar la app en Entra ID es gratis. Cada reclutador que conecte necesita licencia **de trabajo con Teams y buzón de Exchange** (Business Basic o superior, unos 7 USD por usuario al mes). Un hotmail u outlook.com personal no sirve. El candidato no necesita nada: entra a Teams desde el navegador.
+- **Para probar antes que Prime:** un Microsoft 365 de trabajo propio o de VADAI (una licencia Business Basic, o la prueba gratis si Microsoft la ofrece en México), con la app registrada en ese tenant. Cuando llegue Prime solo cambian las tres llaves.
 - **Quién contrata:** Prime (ya lo tiene).
 
 ### Fireflies
@@ -66,7 +67,7 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 - **Para qué lo usamos:** entra a la reunión de **Teams** como un participante más (se invita a `fred@fireflies.ai` al evento de Outlook), transcribe en español y avisa por webhook. El sistema descarga la transcripción y se la pasa a Claude. Funciona igual con Teams que con Meet.
 - **Qué necesita:** cuenta con plan que incluya API, API key, el webhook apuntando a la app, y que la sala de espera de Teams deje entrar al bot (§6).
 - **Variables:** `FIREFLIES_API_KEY`, `FIREFLIES_WEBHOOK_SECRET`.
-- **Costo:** plan Business, unos 19 USD por usuario al mes. Se puede ahorrar si la transcripción nativa de Teams sirve (§6).
+- **Costo:** Free (0), Pro (unos 10 USD), Business (unos 19 USD) por usuario al mes. Para la primera prueba (que el bot entre y transcriba) alcanza el plan gratis, con la cuenta de Fireflies en el **mismo correo** con el que el reclutador conecta Outlook. Para que la app baje la transcripción sola (API y webhook) hay que confirmar en la página de Fireflies qué plan lo incluye antes de escribir ese código. Se puede ahorrar si la transcripción nativa de Teams sirve (§6).
 - **Quién contrata:** Prime.
 
 ### Resend (correo)
@@ -238,6 +239,23 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 - [x] Configuración → Prompts de IA: ver cada prompt, su versión y lo que ha costado.
 - [x] Carga masiva de CV con lectura de datos por IA (migración 0025, archivo manual 12 aplicado el 24 oct; falta probarla en la app).
 
+**Edad del CV y edición de la vacante (26 oct 2026, plan §12.12), sin probar en la app:**
+
+- [x] Edad mínima 18 en todas las capturas; el alta individual lee el CV con Claude (también escaneados) y la lectura sale en Logs técnicos.
+- [x] Editar todo lo de la vacante: competencias funcionales y de liderazgo, relaciones, proceso, publicación, reglas y preguntas del prefiltro, mínimos psicométricos, sueldo como bloqueo o alerta. Cada edición queda en Logs técnicos.
+- [x] Pegar `supabase/manual/13_editar_vacante.sql` (migración 0026). *26 oct: aplicado, checklist 3 ok.*
+- [x] Pegar `supabase/manual/14_razon_social_cliente.sql` (migración 0027: razón social y nombre comercial del cliente). *26 oct: aplicado, checklist 2 ok.*
+
+**Datos de Prime, contraseñas y Configuración (26 oct 2026, plan §12.13), sin probar en la app:**
+
+- [x] Clientes cargados por SQL: 8 nuevos y Telasist actualizado (Grupo Huerta para después). Errores para Prime en `datos_errores.md`.
+- [x] Login fallido según el rol del correo; "Olvidé mi contraseña" para admins (correo de Supabase); el admin restablece la de reclutadores y clientes.
+- [x] Configuración en pestañas; Crear usuario en modal; tabla con colores por rol, filtro y buscador; ficha **Ver** con datos, contraseña, rol, vacantes y acceso.
+- [ ] Crear los usuarios de Prime (los da de alta el usuario desde Configuración).
+- [x] Usuarios creados y 22 vacantes cargadas por SQL (26 oct). Grupo Huerta y Chela Chupas esperan a Prime (`datos_errores.md` §2).
+- [x] Elegir las vacantes de un reclutador desde Configuración → Ver (26 oct).
+- [ ] Asignar reclutadores a las vacantes (desde esa ficha o por SQL).
+
 **Otros (19 oct 2026):**
 
 - [x] Los seis templates de WhatsApp enviados a revisión de Meta.
@@ -268,9 +286,12 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 - [x] Formulario de entrevista: solo Teams; Meet y Zoom fuera de la app (20 oct).
 - [x] `src/lib/integrations/microsoft-graph.ts`: OAuth por reclutador, refresh, crear, mover y cancelar el evento con reunión de Teams (20 oct, sin probar).
 - [x] Mi cuenta → Conectar / Desconectar Outlook, y los tres puntos de `src/actions/interviews.ts`. Con Outlook conectado el evento siempre se crea y Fireflies siempre va invitado (20 oct, sin probar).
-- [ ] Pegar `supabase/manual/08_microsoft_teams.sql` y `09_lista_negra.sql` en el SQL Editor.
+- [x] Pegar `supabase/manual/08_microsoft_teams.sql` y `09_lista_negra.sql` en el SQL Editor (aplicados del 01 al 12).
+- [x] Que el admin vea en Configuración quién ya conectó su Outlook (21 oct).
+- [ ] Antes de probar: avisar al cancelar una entrevista cuando el Outlook de quien la agendó ya no está conectado (hoy el evento sigue vivo y el candidato no se entera, sin aviso; al reagendar sí avisa).
+- [ ] Variables en `.env`: `ENCRYPTION_KEY` (sin ella no aparece Conectar Outlook) y las tres `MICROSOFT_*`.
+- [ ] Recorrido de prueba con un candidato que use un correo propio: conectar, agendar, invitación, Teams, bot de Fireflies, reagendar, cancelar, desconectar y reconectar, refresco después de una hora (`pendientes_revision.md`, sección de Outlook).
 - [ ] Si el candidato no tiene correo, mandarle el enlace de Teams por WhatsApp (con `interview_confirm`).
-- [ ] Que el admin vea en Configuración quién ya conectó su Outlook.
 - [ ] Spike de medio día: evento con Teams desde Graph → Fireflies entra → webhook → transcripción. Probar también la transcripción nativa de Teams para decidir si se queda Fireflies.
 - [ ] Webhook de Fireflies y tarea `interview_analysis`.
 - [ ] Actualizar `plan.md` con lo que salga del spike.
@@ -312,13 +333,21 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 
 ## 8. Lo que falta, en orden
 
-1. **Terminar de calibrar la IA** (§7): ajustes del prompt anotados en `pendientes_revision.md` §1 a §3 (alerta "Sin fechas de inicio y fin", pregunta de CRM, sueldo máximo como bloqueo), subir `PROMPT_VERSION` y volver a calificar los 3 CV. Falta probar con CV reales de Prime.
-2. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas y veredicto. Necesita 3 o 4 PDF reales.
-3. ~~Cola de tareas y cron~~ (hecho el 20 oct; falta `CRON_SECRET` y el cron en Vercel).
-4. **Correos**: los tres correos automáticos, por Resend o por un buzón de Prime con Graph; PDF del reporte semanal; SMTP de Auth.
-5. **Outlook y Teams + Fireflies** (§6) y `interview_analysis`.
-6. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
-7. **Weekly insights** y la pestaña de inteligencia interna con historia.
+Orden acordado el 26 oct 2026:
+
+1. ~~**Edad del CV**~~ (programado el 26 oct; falta probar, `pendientes_revision.md` §12): el alta individual lee el CV con la misma IA que la carga masiva (`cv_extract`, Claude lee PDF de texto y escaneado) en lugar del lector de texto; el campo Edad sin flechitas ni rueda para que no se llene solo con el mínimo; edad mínima 18 (decidido el 26 oct); corregir a mano la edad del candidato de prueba.
+2. ~~**Editar todo lo de la vacante**~~ (programado el 26 oct; falta probar): antes solo se editaban el descriptivo, el estado y los pesos y umbral del CV. Falta editar a mano las reglas del prefiltro (edad, sueldo máximo, bloqueo o alerta), las preguntas del prefiltro, los mínimos psicométricos y las competencias funcionales y de liderazgo. Así los ajustes de la calibración (pregunta de CRM, sueldo como bloqueo) se corrigen sin regenerar.
+3. **Conectar Outlook, Teams y Fireflies y probarlos** (§6).
+4. **Probar la carga masiva de CV** (`pendientes_revision.md` §11), después de Teams.
+5. **Terminar de calibrar la IA** (§7): alerta "Sin fechas de inicio y fin" en el prompt del CV, subir `PROMPT_VERSION` y volver a calificar los 3 CV. Falta probar con CV reales de Prime.
+6. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas y veredicto. Necesita 3 o 4 PDF reales.
+7. **Webhook de Fireflies y `interview_analysis`**, cuando el recorrido del punto 3 funcione.
+8. **Correos**: los tres correos automáticos, por Resend o por un buzón de Prime con Graph; PDF del reporte semanal; SMTP de Auth. Hoy solo existen las plantillas y la vista previa: falta `sendEmail()`, los handlers `report_*` y sus horarios en `recurring.ts`.
+9. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
+10. **Weekly insights** y la pestaña de inteligencia interna con historia.
+11. Cola de tareas y cron: hecho el 20 oct; falta el cron en Vercel al desplegar.
+
+**Antes de todo (26 oct):** terminar la carga de datos de Prime: usuarios, vacantes y asignación de reclutadores (`pendientes_revision.md` §13).
 
 Sin dependencias externas, para meter entre bloques: importación del Excel histórico (falta el archivo de Prime). La carga masiva de CV quedó el 24 oct. Hecho el 21 oct: inactivos, exportar a Excel, permanencia, avisos nuevos, logs técnicos, Outlook por usuario y menú para celular (plan §12.10). La detección de duplicados por teléfono ya existía en el alta.
 
@@ -334,11 +363,13 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Cuenta y API key de Fireflies (o esperar al spike de Teams).
 - [ ] Número de WhatsApp definitivo.
 - [ ] Dominio para publicar el sistema.
+- [x] Acceso a Pandape y buzón `candidatos@primehrinnovation.com.mx` (26 oct; credenciales por canal seguro). Falta revisar qué permite Pandape (correo con CV, exportación, integración) para decidir la entrada automática.
 
 **Decisiones:**
 
 - [x] Cada reclutador conecta su Outlook (opción B, 20 oct 2026).
 - [ ] Fireflies o transcripción de Teams (después del spike).
+- [ ] Fireflies con cuenta maestra (propuesta del 26 oct): un solo usuario, p. ej. entrevistas@primehrinnovation.com.mx con licencia de M365, que el sistema invita a cada entrevista en lugar de `fred@fireflies.ai`; los reclutadores no necesitan Fireflies. Unos 19 USD al mes en lugar de uno por persona. Se confirma en el spike. Estado completo de la lista de requerimientos del 11 sep: `requerimientos_estado.md`.
 - [ ] Correos automáticos por Resend o desde un buzón de Prime.
 - [ ] Texto del aviso de privacidad y plazo de conservación de datos de descartados.
 - [ ] Quién captura la permanencia a 30, 90 y 180 días.
@@ -350,7 +381,9 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 **Archivos:**
 
 - [ ] Dos o tres CV reales y tres o cuatro PDF de Psicotest.
-- [ ] Excel histórico de clientes, vacantes y candidatos.
+- [x] Lista de usuarios, clientes y vacantes activas (Excel del 26 oct, en `excel/`).
+- [ ] Correcciones de esa lista: `datos_errores.md` (correos no válidos, razones sociales, Chela Chupas sin cliente, "por requisición", vacantes que no coinciden entre hojas, hojas sin contestar).
+- [ ] Excel histórico de candidatos.
 - [ ] Excel de levantamiento, formato D.P., guion de entrevista y formato de la hoja de confirmación.
 - [ ] Muestras de Black Trust y del socioeconómico.
 - [ ] Logotipo de Prime en SVG o PNG (el login y el menú usan una "P" provisional).

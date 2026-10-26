@@ -64,6 +64,8 @@ export function Area({ name, label, span = true, placeholder, rows = 3, value }:
 
 const MODALITIES = ["Presencial", "Híbrido", "Remoto"];
 
+const withLevel = (c: { name: string; level: string }) => (c.level ? `${c.name}: ${c.level}` : c.name);
+
 /** `step`: paso visible del levantamiento (2 a 7); sin él se muestran todas las secciones, como en la edición. */
 export function PositionFields({ defaults: d = {}, withNotes = true, step }: { defaults?: PositionDefaults; withNotes?: boolean; step?: number }) {
   const modality = d.conditions?.modality ?? "Presencial";
@@ -120,7 +122,9 @@ export function PositionFields({ defaults: d = {}, withNotes = true, step }: { d
         <Area name="cond_tools" label="Herramientas" span={false} placeholder={"Celular de empresa\nLaptop"} value={d.conditions?.tools} />
       </Section>
 
-      <Section number="VII" {...at(7)} title={withNotes ? "Competencias y notas" : "Competencias"}>
+      <Section number="VII" {...at(7)} title={withNotes ? "Competencias y notas" : "Competencias"} hint="Una por línea. En funcionales y de liderazgo, el nivel va después de dos puntos.">
+        <Area name="comp_functional" label="Competencias funcionales" span={false} placeholder={"Negociación: alto\nOrientación a resultados: medio"} value={d.competencies?.functional?.map(withLevel)} />
+        <Area name="comp_leadership" label="Competencias de liderazgo" span={false} placeholder={"Trabajo en equipo: medio"} value={d.competencies?.leadership?.map(withLevel)} />
         <Area name="comp_labor" label="Competencias laborales" placeholder={"Tolerancia a la presión\nHonestidad\nPersistencia"} value={d.competencies?.labor} />
         {withNotes && (
           <Area name="notes" label="Notas del levantamiento" placeholder="Todo lo que el cliente dijo y no cabe arriba: urgencia, rotación, contexto del equipo." rows={4} value={d.notes} />

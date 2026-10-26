@@ -462,6 +462,85 @@ from checks
 order by orden;
 """
 
+HEAD_13 = """-- Prime HR · migración 0026 para pegar en el SQL Editor (después de 12_*.sql).
+-- Edición a mano de la evaluación de la vacante: reglas y preguntas del prefiltro, mínimos
+-- psicométricos y sueldo máximo como bloqueo o alerta. Solo los cambios de pesos del CV piden
+-- recalificar (cv_version). Cada edición de la vacante queda en Logs técnicos ('edit_profile').
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no borra datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0026.
+
+begin;
+
+"""
+
+TAIL_13 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0026', 'profile_edit')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  col as (select column_name, is_nullable from information_schema.columns
+          where table_schema = 'public' and table_name = 'job_profile_ai_configs'),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'audit_action con edit_profile',
+          exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                  where t.typname = 'audit_action' and e.enumlabel = 'edit_profile')),
+      (2, 'job_profile_ai_configs.cv_version (obligatoria)',
+          exists (select 1 from col where column_name = 'cv_version' and is_nullable = 'NO')),
+      (3, 'job_profile_ai_configs.salary_is_blocking',
+          exists (select 1 from col where column_name = 'salary_is_blocking'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+HEAD_14 = """-- Prime HR · migración 0027 para pegar en el SQL Editor (después de 13_*.sql).
+-- Razón social y nombre comercial del cliente.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no borra datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0027.
+
+begin;
+
+"""
+
+TAIL_14 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0027', 'client_legal_names')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  col as (select column_name from information_schema.columns
+          where table_schema = 'public' and table_name = 'clients'),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'clients.legal_name (razón social)', exists (select 1 from col where column_name = 'legal_name')),
+      (2, 'clients.trade_name (nombre comercial)', exists (select 1 from col where column_name = 'trade_name'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
 # Entre migraciones que van en transacciones separadas ("separate": True).
 BETWEEN = "\ncommit;\n\nbegin;\n\n"
 
@@ -530,6 +609,20 @@ TARGETS = [
         "head": HEAD_12,
         "tail": TAIL_12,
         "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
+    },
+    {
+        "out": "13_editar_vacante.sql",
+        "migrations": ["0026_profile_edit.sql"],
+        "head": HEAD_13,
+        "tail": TAIL_13,
+        "expected": {"column": 2},  # el update solo toca filas sin cv_version y set not null se puede repetir
+    },
+    {
+        "out": "14_razon_social_cliente.sql",
+        "migrations": ["0027_client_legal_names.sql"],
+        "head": HEAD_14,
+        "tail": TAIL_14,
+        "expected": {"column": 2},
     },
 ]
 

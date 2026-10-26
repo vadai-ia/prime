@@ -12,6 +12,14 @@ export type CvFields = {
   birth_date?: string; // yyyy-mm-dd
 };
 
+/** Edad válida en el alta (decidido el 26 oct 2026): Prime no registra menores. La base acepta 14 a 99. */
+export const AGE_MIN = 18;
+export const AGE_MAX = 80;
+
+export function isValidAge(age: number): boolean {
+  return Number.isInteger(age) && age >= AGE_MIN && age <= AGE_MAX;
+}
+
 const HEADINGS =
   /^(curr[ií]culum( vitae)?|cv|hoja de vida|datos (personales|generales|de contacto)|informaci[oó]n (personal|de contacto)|perfil( profesional)?|resumen( profesional)?|objetivo( profesional)?|experiencia( laboral| profesional)?|educaci[oó]n|formaci[oó]n( acad[eé]mica)?|contacto|habilidades|aptitudes|idiomas|referencias|sobre m[ií]|acerca de m[ií])$/i;
 const NAME_WORD = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ'’.-]+$/;
@@ -57,7 +65,7 @@ export function parseCvText(raw: string): CvFields {
     municipality: findMunicipality(lines, head),
     education_level: findEducation(lines),
     birth_date: birth,
-    age_reported: findAge(text) ?? (birth ? ageFrom(birth) : undefined),
+    age_reported: findAge(text) ?? (birth && isValidAge(ageFrom(birth)) ? ageFrom(birth) : undefined),
   });
 }
 
@@ -113,7 +121,7 @@ function findName(lines: string[]): string | undefined {
 function findAge(text: string): number | undefined {
   const m = text.match(/\bedad\s*[:-]?\s*(\d{2})\b/i) ?? text.match(/\b(\d{2})\s*años de edad\b/i);
   const age = m ? Number(m[1]) : NaN;
-  return age >= 15 && age <= 80 ? age : undefined;
+  return isValidAge(age) ? age : undefined;
 }
 
 function findBirthDate(text: string): string | undefined {

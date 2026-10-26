@@ -17,9 +17,20 @@ export function ClientForm({ client }: { client?: Client }) {
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-forest">Empresa</legend>
         <label className={labelClass}>
-          Nombre de la empresa
+          Cliente
           <input name="name" type="text" required minLength={2} defaultValue={client?.name ?? ""} className={inputClass} placeholder="Telasist" />
+          <span className="mt-1 block text-xs font-normal text-ink-muted">Nombre corto con el que aparece en todo el sistema.</span>
         </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={labelClass}>
+            Razón social
+            <input name="legal_name" type="text" defaultValue={client?.legal_name ?? ""} className={inputClass} placeholder="Telasist, S.A. de C.V." />
+          </label>
+          <label className={labelClass}>
+            Nombre comercial
+            <input name="trade_name" type="text" defaultValue={client?.trade_name ?? ""} className={inputClass} />
+          </label>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={labelClass}>
             Giro
@@ -31,7 +42,7 @@ export function ClientForm({ client }: { client?: Client }) {
           </label>
         </div>
         <label className={labelClass}>
-          Dirección
+          Domicilio
           <input name="address" type="text" defaultValue={client?.address ?? ""} className={inputClass} placeholder="Calle, número, colonia" />
         </label>
         <label className={labelClass}>

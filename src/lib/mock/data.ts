@@ -59,7 +59,7 @@ function mkUser(p: Partial<User> & Pick<User, "id" | "email" | "full_name" | "ro
 }
 function mkClient(p: Partial<Client> & Pick<Client, "id" | "name">): Client {
   return {
-    industry: null, address: null, city: null, contact_name: null, contact_title: null, contact_email: null, contact_phone: null,
+    legal_name: null, trade_name: null, industry: null, address: null, city: null, contact_name: null, contact_title: null, contact_email: null, contact_phone: null,
     client_since: null, timezone: "America/Mexico_City", daily_report_time: "18:00:00", weekly_report_dow: 5, weekly_report_time: "09:00:00",
     report_recipients: [], portal_enabled: true, is_active: true, created_at: daysAgo(90), updated_at: daysAgo(5), ...p,
   };
@@ -73,7 +73,7 @@ function mkProfile(p: Partial<JobProfile> & Pick<JobProfile, "id" | "client_id" 
 }
 function mkAiConfig(p: Partial<AiConfig> & Pick<AiConfig, "profile_id">): AiConfig {
   return {
-    version: 1, age_min: null, age_max: null, age_is_blocking: false, commute_max_min: 60, experience_min_months: 12, salary_expectation_max: null,
+    version: 1, cv_version: 1, age_min: null, age_max: null, age_is_blocking: false, commute_max_min: 60, experience_min_months: 12, salary_expectation_max: null, salary_is_blocking: true,
     schedule_text: null, requires_saturdays: false, education_min: null, cv_weights: [], cv_threshold: 70, prefilter_questions: [], psych_minimums: [],
     psych_blocking: [], generated_by_ai: true, generated_at: daysAgo(40), prompt_version: "profile-v1", created_at: daysAgo(40), updated_at: daysAgo(40), ...p,
   };
@@ -273,7 +273,7 @@ export const assignmentEvents: AssignmentEvent[] = [
 ];
 
 export const aiConfigs: AiConfig[] = [
-  mkAiConfig({ profile_id: "p-cobranza", version: 2, age_min: 23, age_max: 45, commute_max_min: 60, experience_min_months: 12, salary_expectation_max: 11000, schedule_text: "L-V 8:30-18:00, sáb 9:00-13:00", requires_saturdays: true, education_min: "Preparatoria", cv_weights: W_COBRANZA, cv_threshold: 70, prefilter_questions: Q_COBRANZA, psych_minimums: [{ scale: "Tolerancia a la presión", min: 60 }, { scale: "Persuasión", min: 55 }, { scale: "Honestidad", min: 70 }], psych_blocking: [{ scale: "Tolerancia a la presión", min: 40 }], generated_at: daysAgo(20) }),
+  mkAiConfig({ profile_id: "p-cobranza", version: 2, cv_version: 2, age_min: 23, age_max: 45, commute_max_min: 60, experience_min_months: 12, salary_expectation_max: 11000, schedule_text: "L-V 8:30-18:00, sáb 9:00-13:00", requires_saturdays: true, education_min: "Preparatoria", cv_weights: W_COBRANZA, cv_threshold: 70, prefilter_questions: Q_COBRANZA, psych_minimums: [{ scale: "Tolerancia a la presión", min: 60 }, { scale: "Persuasión", min: 55 }, { scale: "Honestidad", min: 70 }], psych_blocking: [{ scale: "Tolerancia a la presión", min: 40 }], generated_at: daysAgo(20) }),
   mkAiConfig({ profile_id: "p-diseno", age_min: 24, age_max: 40, commute_max_min: 60, experience_min_months: 24, salary_expectation_max: 20000, schedule_text: "L-V 8:00-17:30", education_min: "Licenciatura", cv_weights: W_DISENO, cv_threshold: 75, prefilter_questions: Q_DISENO, psych_minimums: [{ scale: "Creatividad", min: 60 }, { scale: "Atención al detalle", min: 60 }, { scale: "Trabajo en equipo", min: 50 }] }),
   mkAiConfig({ profile_id: "p-supervisor", age_min: 28, age_max: 50, experience_min_months: 36, salary_expectation_max: 14000, education_min: "Ingeniería", cv_weights: W_COBRANZA, prefilter_questions: Q_COBRANZA.slice(0, 2) }),
   mkAiConfig({ profile_id: "p-vendedor", age_min: 20, age_max: 50, commute_max_min: 45, experience_min_months: 12, salary_expectation_max: 9500, schedule_text: "Rol de 6 días", education_min: "Secundaria", cv_weights: W_VENDEDOR, cv_threshold: 65, prefilter_questions: Q_VENDEDOR, psych_minimums: [{ scale: "Persuasión", min: 55 }, { scale: "Actitud de servicio", min: 60 }] }),

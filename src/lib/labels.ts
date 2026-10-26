@@ -285,4 +285,37 @@ export const AUDIT_ACTION_LABELS: Record<Enums<"audit_action">, string> = {
   download_document: "Descargó un documento",
   view_psych_report: "Abrió un psicométrico",
   export: "Exportó",
+  edit_profile: "Editó una vacante",
+};
+
+/** Tipo de respuesta de una pregunta del prefiltro (scoring.ts ANSWER_TYPES). */
+export const ANSWER_TYPE_LABELS: Record<string, string> = {
+  text: "Texto libre",
+  months: "Meses de experiencia",
+  yes_no: "Sí / No",
+  money: "Monto",
+  number: "Número",
+};
+
+/** Regla de la vacante que evalúa cada pregunta del prefiltro (scoring.ts RULE_KEYS). */
+export const RULE_KEY_LABELS: Record<string, string> = {
+  age_range: "Edad",
+  commute: "Traslado o zona",
+  experience_min: "Experiencia mínima",
+  salary_max: "Sueldo máximo",
+  requires_saturdays: "Sábados",
+  schedule: "Horario",
+  education_min: "Escolaridad",
+  systems: "Sistemas o conocimientos",
+  other: "Sin regla (la lee el reclutador)",
+};
+
+/** Qué parte de la vacante se editó (audit_log 'edit_profile', metadata.section). */
+export const PROFILE_EDIT_SECTION_LABELS: Record<string, string> = {
+  description: "Descriptivo",
+  generated: "Evaluación generada con IA",
+  cv_weights: "Pesos y umbral del CV",
+  prefilter_rules: "Reglas del prefiltro",
+  prefilter_questions: "Preguntas del prefiltro",
+  psych_minimums: "Mínimos psicométricos",
 };

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
 import { getAiSummary, listAiRuns, listAuditLog, listTaskLog, listWebhookLog } from "@/lib/queries/logs";
 import { taskLabel } from "@/lib/queue/handlers";
-import { AI_RUN_KIND_LABELS, AI_RUN_STATUS_LABELS, AI_RUN_STATUS_TONES, AUDIT_ACTION_LABELS, TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
+import { AI_RUN_KIND_LABELS, AI_RUN_STATUS_LABELS, AI_RUN_STATUS_TONES, AUDIT_ACTION_LABELS, PROFILE_EDIT_SECTION_LABELS, TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { fmtDateTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
@@ -17,7 +17,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "ia", label: "IA" },
   { key: "tareas", label: "Tareas automáticas" },
   { key: "webhooks", label: "Webhooks" },
-  { key: "auditoria", label: "Accesos y exportaciones" },
+  { key: "auditoria", label: "Accesos y cambios" },
 ];
 
 const usd = (n: number) => `$${n.toFixed(n < 1 ? 3 : 2)} USD`;
@@ -33,6 +33,8 @@ function entityHref(type: string | null, id: string | null): string | null {
 
 function EntityLink({ type, id }: { type: string | null; id: string | null }) {
   const href = entityHref(type, id);
+  // CV leído que todavía no se da de alta (o se descartó en la carga): no hay ficha que abrir
+  if (type === "cv_upload") return <span className="text-ink-faint">CV sin alta</span>;
   if (!href) return <span className="text-ink-faint">{type ?? "—"}</span>;
   return (
     <Link href={href} className="text-forest hover:underline">
@@ -60,7 +62,7 @@ export default async function LogsPage({ searchParams }: PageProps<"/configuraci
     const rows = await listAiRuns({ onlyErrors });
     table = (
       <SimpleTable
-        headers={["Cuándo", "Tarea", "Estado", "Sobre", "Costo", "Tokens (entrada / salida / caché)", "Tiempo", "Error"]}
+        headers={["Cuándo", "Tarea", "Estado", "Sobre", "Costo", "Tokens (entrada / salida / caché)", "Tiempo", "Resultado o error"]}
         align={["left", "left", "left", "left", "right", "right", "right", "left"]}
         empty={onlyErrors ? "Sin errores de la IA." : "Todavía no hay llamadas a la IA."}
         rows={rows.map((r) => [
@@ -76,7 +78,10 @@ export default async function LogsPage({ searchParams }: PageProps<"/configuraci
             {r.input_tokens ?? "—"} / {r.output_tokens ?? "—"} / {r.cache_read_tokens ?? 0}
           </span>,
           <span key="l" className="tabular-nums">{ms(r.latency_ms)}</span>,
-          <span key="x" className="line-clamp-3 max-w-sm text-xs text-danger">{r.error ?? ""}</span>,
+          <div key="x" className="max-w-sm text-xs">
+            {r.detail && <p className="text-ink-muted">{r.detail}</p>}
+            {r.error && <p className="line-clamp-3 text-danger">{r.error}</p>}
+          </div>,
         ])}
       />
     );
@@ -120,15 +125,24 @@ export default async function LogsPage({ searchParams }: PageProps<"/configuraci
       <SimpleTable
         headers={["Cuándo", "Quién", "Qué", "Detalle", "IP"]}
         align={["left", "left", "left", "left", "left"]}
-        empty="Nadie ha abierto CVs, documentos o psicométricos todavía."
+        empty="Nadie ha abierto CVs, documentos o psicométricos ni editado vacantes todavía."
         rows={rows.map((r) => {
-          const meta = (r.metadata ?? {}) as { tipo?: string; filas?: number };
+          const meta = (r.metadata ?? {}) as { tipo?: string; filas?: number; section?: string; version?: number };
           return [
             <span key="w" className="whitespace-nowrap text-xs text-ink-muted">{fmtDateTime(r.created_at)}</span>,
             r.user_name ?? "—",
             AUDIT_ACTION_LABELS[r.action],
             <span key="d" className="text-xs text-ink-muted">
-              {r.action === "export" ? `${meta.tipo ?? r.entity_type}${meta.filas !== undefined ? ` · ${meta.filas} filas` : ""}` : r.entity_type}
+              {r.action === "export" ? (
+                `${meta.tipo ?? r.entity_type}${meta.filas !== undefined ? ` · ${meta.filas} filas` : ""}`
+              ) : r.action === "edit_profile" ? (
+                <>
+                  <EntityLink type={r.entity_type} id={r.entity_id} /> · {PROFILE_EDIT_SECTION_LABELS[meta.section ?? ""] ?? meta.section ?? "—"}
+                  {meta.version !== undefined && ` (v${meta.version})`}
+                </>
+              ) : (
+                r.entity_type
+              )}
             </span>,
             <span key="i" className="text-xs text-ink-faint">{r.ip ? String(r.ip) : "—"}</span>,
           ];

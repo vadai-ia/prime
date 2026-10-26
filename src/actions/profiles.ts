@@ -6,8 +6,28 @@ import { z } from "zod";
 import { assertStaff, UnauthorizedError } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { MOCK_CORE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
-import { asJson, type ProfileCompetencies } from "@/lib/domain/json";
 import { positionFromFormData } from "@/lib/domain/intake-form-data";
+import { logProfileEdit } from "@/lib/audit";
+import { CHANNEL_LABELS } from "@/lib/labels";
+import type { Enums } from "@/lib/db/types";
+
+const CHANNELS = Object.keys(CHANNEL_LABELS) as Enums<"source_channel">[];
+
+const lines = (v: FormDataEntryValue | null) => (typeof v === "string" ? v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) : []);
+
+/** Sección VIII de la edición (Relaciones, proceso y publicación). No está en el levantamiento. */
+function publishingFromFormData(formData: FormData) {
+  return {
+    // "Gerente de crédito: reporta resultados" por línea
+    relations: lines(formData.get("relations")).map((line) => {
+      const i = line.indexOf(":");
+      return i < 0 ? { with: line, purpose: "" } : { with: line.slice(0, i).trim(), purpose: line.slice(i + 1).trim() };
+    }),
+    selection_process: lines(formData.get("selection_process")),
+    published_channels: formData.getAll("published_channels").map(String).filter((c): c is Enums<"source_channel"> => (CHANNELS as string[]).includes(c)),
+    posting_text: typeof formData.get("posting_text") === "string" ? String(formData.get("posting_text")).trim() || null : null,
+  };
+}
 
 export type ProfileFormState = { error?: string } | undefined;
 
@@ -35,7 +55,7 @@ export async function updateProfile(_prev: ProfileFormState, formData: FormData)
   const form = positionFromFormData(formData, title);
 
   const supabase = await createClient();
-  const { data: current, error: findError } = await supabase.from("job_profiles").select("competencies").eq("id", profile_id).maybeSingle();
+  const { data: current, error: findError } = await supabase.from("job_profiles").select("id").eq("id", profile_id).maybeSingle();
   if (findError) return { error: findError.message };
   if (!current) return { error: "Vacante no encontrada o no la tienes asignada" };
 
@@ -53,11 +73,12 @@ export async function updateProfile(_prev: ProfileFormState, formData: FormData)
       requirements: form.requirements ?? {},
       activities: form.activities ?? [],
       conditions: form.conditions ?? {},
-      // el formulario solo edita las competencias laborales; las funcionales y de liderazgo se conservan
-      competencies: { ...asJson<ProfileCompetencies>(current.competencies, {}), labor: form.competencies?.labor ?? [] },
+      competencies: form.competencies ?? {},
+      ...publishingFromFormData(formData),
     })
     .eq("id", profile_id);
   if (error) return { error: error.message };
+  await logProfileEdit(supabase, profile_id, { section: "description" });
 
   revalidatePath("/perfiles");
   revalidatePath(`/perfiles/${profile_id}`);

@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/dal";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { Avatar } from "@/components/ui/avatar";
-import { listUsers } from "@/lib/queries/users";
+import { listAssignableProfiles, listUserVacancies, listUsers } from "@/lib/queries/users";
 import { listClients } from "@/lib/queries/clients";
 import { getIntegrationsStatus } from "@/lib/queries/settings";
 import { getQueueOverview } from "@/lib/queries/tasks";
 import { listOutlookConnections } from "@/lib/queries/integrations";
 import { ButtonLink } from "@/components/ui/button";
+import { Tabs } from "@/components/ui/tabs";
 import { taskLabel } from "@/lib/queue/handlers";
 import { TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { fmtDateTime, timeAgo } from "@/lib/format";
 import type { IntegrationStatus } from "@/lib/queries/types";
 import { SimpleTable } from "../reportes/simple-table";
-import { InviteForm } from "./invite-form";
-import { UserRowActions } from "./user-row-actions";
+import { CreateUserDialog, UserDetailDialog } from "./user-dialogs";
+import { UsersTable } from "./users-table";
 import { TaskRowActions } from "./task-row-actions";
 
 export const metadata: Metadata = { title: "Configuración · Prime HR Innovation" };
@@ -34,21 +34,28 @@ const NEEDS: Record<IntegrationStatus["key"], string> = {
 
 export default async function ConfiguracionPage() {
   const session = await requireAdmin();
-  const [users, clients, integrations, queue, outlook] = await Promise.all([
+  const [users, vacancies, profiles, clients, integrations, queue, outlook] = await Promise.all([
     listUsers(),
+    listUserVacancies(),
+    listAssignableProfiles(),
     listClients({ includeInactive: true }),
     getIntegrationsStatus(),
     getQueueOverview(),
     listOutlookConnections(),
   ]);
 
+  const clientOptions = clients.map((c) => ({ id: c.id, name: c.name }));
+
+  // Los admins salen en la lista pero sin ficha: su rol y su contraseña no los cambia otro admin.
   const usersSection = (
-    <div className="grid gap-5 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <SimpleTable
-          headers={["Usuario", "Rol", "Empresa", "Estado", "Outlook", "Última vez", ""]}
-          align={["left", "left", "left", "left", "left", "left", "right"]}
-          rows={users.map((u) => [
+    <div>
+      <UsersTable
+        headers={["Usuario", "Rol", "Empresa", "Estado", "Outlook", "Última vez", ""]}
+        items={users.map((u) => ({
+          id: u.id,
+          role: u.role,
+          search: `${u.full_name} ${u.email}`.toLowerCase(),
+          cells: [
             <div key={u.id} className="flex items-center gap-3">
               <Avatar name={u.full_name || u.email} size="sm" />
               <div className="min-w-0">
@@ -62,22 +69,77 @@ export default async function ConfiguracionPage() {
             u.role === "client" ? (
               <span key={`${u.id}-o`} className="text-ink-faint">—</span>
             ) : outlook.has(u.id) ? (
-              <span key={`${u.id}-o`} className="text-xs" title={`Conectado ${timeAgo(outlook.get(u.id)?.connected_at)}`}>
-                <Pill tone="mint">Conectado</Pill>
-                <span className="mt-0.5 block truncate text-ink-muted">{outlook.get(u.id)?.account_email}</span>
-              </span>
+              <Pill key={`${u.id}-o`} tone="mint">Conectado</Pill>
             ) : (
               <Pill key={`${u.id}-o`}>Sin conectar</Pill>
             ),
             <span key={`${u.id}-t`} className="text-xs text-ink-muted">{u.last_seen_at ? timeAgo(u.last_seen_at) : "Nunca"}</span>,
-            <UserRowActions key={`${u.id}-x`} userId={u.id} fullName={u.full_name} isActive={u.is_active} isSelf={u.id === session.userId} />,
+            u.id === session.userId ? (
+              <span key={`${u.id}-x`} className="text-xs text-ink-faint">Tu cuenta</span>
+            ) : u.role === "admin" ? (
+              <span key={`${u.id}-x`} />
+            ) : (
+              <UserDetailDialog key={`${u.id}-x`} user={u} outlook={outlook.get(u.id) ?? null} vacancies={vacancies[u.id] ?? []} profiles={profiles} clients={clientOptions} />
+            ),
+          ],
+        }))}
+      />
+      <p className="mt-2 text-xs text-ink-faint">En Ver cambias nombre, contraseña, rol y acceso de reclutadores y clientes. Un admin cambia su propia contraseña en Mi cuenta o la recupera desde el login.</p>
+    </div>
+  );
+
+  const integrationsSection = (
+    <div>
+      <p className="text-sm text-ink-muted">
+        {integrations.filter((i) => i.configured).length} de {integrations.length} configuradas. Mientras una no exista, su dato se captura a mano.
+      </p>
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        {integrations.map((i) => (
+          <div key={i.key} className="rounded-card border border-line bg-surface p-5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-semibold text-ink">{i.label}</p>
+              <Pill tone={i.configured ? "mint" : "amber"}>{i.configured ? "Configurada" : "Pendiente"}</Pill>
+            </div>
+            <p className="mt-1 text-sm text-ink-muted">{i.detail}</p>
+            <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">{NEEDS[i.key]}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const tasksSection = (
+    <div>
+      <p className="text-sm text-ink-muted">
+        La cola corre una vez al día, 8:00 (/api/cron/tick). {queue.pending} pendientes · {queue.running} corriendo · {queue.failed} fallidas · {queue.doneLastDay} terminadas en 24 h
+        {queue.lastFinishedAt ? ` · última ${timeAgo(queue.lastFinishedAt)}` : ""}.
+      </p>
+      {queue.cronStale && (
+        <p className="mt-3 rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber">
+          Hay tareas que ya tocaban y no han corrido: el cron no está llegando. Revisa CRON_SECRET y el cron en Vercel (en local: npm run queue:tick).
+        </p>
+      )}
+      <div className="mt-3">
+        <SimpleTable
+          headers={["Tarea", "Estado", "Intentos", "Cuándo", "Error", ""]}
+          align={["left", "left", "center", "left", "left", "right"]}
+          empty="Nada pendiente ni fallido."
+          rows={queue.open.map((t) => [
+            taskLabel(t.type),
+            <Pill key={`${t.id}-s`} tone={TASK_STATUS_TONES[t.status]}>
+              {TASK_STATUS_LABELS[t.status]}
+            </Pill>,
+            `${t.attempts}/${t.max_attempts}`,
+            <span key={`${t.id}-w`} className="text-xs text-ink-muted">
+              {t.status === "pending" ? `Corre ${fmtDateTime(t.run_at)}` : t.finished_at ? fmtDateTime(t.finished_at) : `Desde ${fmtDateTime(t.run_at)}`}
+            </span>,
+            <span key={`${t.id}-e`} className="line-clamp-2 max-w-md text-xs text-danger">
+              {t.last_error ?? ""}
+            </span>,
+            <TaskRowActions key={`${t.id}-x`} taskId={t.id} status={t.status} />,
           ])}
         />
-        <p className="mt-2 text-xs text-ink-faint">El nombre se corrige aquí. El rol y la empresa se cambian desde app_metadata en Supabase; desactivar también bloquea el acceso en Auth y saca al reclutador de sus vacantes.</p>
       </div>
-      <Card title="Crear usuario" subtitle="Sin registro público: todas las cuentas se crean aquí.">
-        <InviteForm clients={clients.map((c) => ({ id: c.id, name: c.name }))} />
-      </Card>
     </div>
   );
 
@@ -85,9 +147,10 @@ export default async function ConfiguracionPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Configuración"
-        subtitle={`${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`}
+        subtitle="Usuarios, integraciones y tareas automáticas"
         actions={
           <>
+            <CreateUserDialog clients={clientOptions} />
             <ButtonLink href="/configuracion/prompts" variant="ghost">
               Prompts de IA
             </ButtonLink>
@@ -97,60 +160,13 @@ export default async function ConfiguracionPage() {
           </>
         }
       />
-      {usersSection}
-
-      <section className="mt-10">
-        <h2 className="text-lg font-medium text-ink">Integraciones</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          {integrations.filter((i) => i.configured).length} de {integrations.length} configuradas. Mientras una no exista, su dato se captura a mano.
-        </p>
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
-          {integrations.map((i) => (
-            <div key={i.key} className="rounded-card border border-line bg-surface p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold text-ink">{i.label}</p>
-                <Pill tone={i.configured ? "mint" : "amber"}>{i.configured ? "Configurada" : "Pendiente"}</Pill>
-              </div>
-              <p className="mt-1 text-sm text-ink-muted">{i.detail}</p>
-              <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">{NEEDS[i.key]}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="tareas" className="mt-10 scroll-mt-6">
-        <h2 className="text-lg font-medium text-ink">Tareas automáticas</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          La cola corre una vez al día, 8:00 (/api/cron/tick). {queue.pending} pendientes · {queue.running} corriendo · {queue.failed} fallidas · {queue.doneLastDay} terminadas en 24 h
-          {queue.lastFinishedAt ? ` · última ${timeAgo(queue.lastFinishedAt)}` : ""}.
-        </p>
-        {queue.cronStale && (
-          <p className="mt-3 rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber">
-            Hay tareas que ya tocaban y no han corrido: el cron no está llegando. Revisa CRON_SECRET y el cron en Vercel (en local: npm run queue:tick).
-          </p>
-        )}
-        <div className="mt-3">
-          <SimpleTable
-            headers={["Tarea", "Estado", "Intentos", "Cuándo", "Error", ""]}
-            align={["left", "left", "center", "left", "left", "right"]}
-            empty="Nada pendiente ni fallido."
-            rows={queue.open.map((t) => [
-              taskLabel(t.type),
-              <Pill key={`${t.id}-s`} tone={TASK_STATUS_TONES[t.status]}>
-                {TASK_STATUS_LABELS[t.status]}
-              </Pill>,
-              `${t.attempts}/${t.max_attempts}`,
-              <span key={`${t.id}-w`} className="text-xs text-ink-muted">
-                {t.status === "pending" ? `Corre ${fmtDateTime(t.run_at)}` : t.finished_at ? fmtDateTime(t.finished_at) : `Desde ${fmtDateTime(t.run_at)}`}
-              </span>,
-              <span key={`${t.id}-e`} className="line-clamp-2 max-w-md text-xs text-danger">
-                {t.last_error ?? ""}
-              </span>,
-              <TaskRowActions key={`${t.id}-x`} taskId={t.id} status={t.status} />,
-            ])}
-          />
-        </div>
-      </section>
+      <Tabs
+        items={[
+          { key: "usuarios", label: "Usuarios", badge: users.length, content: usersSection },
+          { key: "integraciones", label: "Integraciones", badge: `${integrations.filter((i) => i.configured).length}/${integrations.length}`, content: integrationsSection },
+          { key: "tareas", label: "Tareas automáticas", badge: queue.failed || undefined, content: tasksSection },
+        ]}
+      />
     </div>
   );
 }

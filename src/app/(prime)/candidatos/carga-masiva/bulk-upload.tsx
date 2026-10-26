@@ -6,6 +6,7 @@ import { CheckCircle2, FileText, Loader2, Trash2, TriangleAlert, Upload, XCircle
 import { checkCandidatePhone, createCandidateFromBulk, readCv, readCvWithAi, startCvUpload } from "@/actions/candidates";
 import { createClient } from "@/lib/supabase/client";
 import { CHANNEL_LABELS } from "@/lib/labels";
+import { AGE_MAX, AGE_MIN } from "@/lib/cv/parse";
 import { buttonPrimaryClass, inputClass, labelClass } from "@/components/ui/form";
 
 type ProfileOption = { id: string; label: string };
@@ -71,6 +72,7 @@ export function BulkUpload({ profiles, defaultProfileId, withAi }: { profiles: P
       else {
         fields = read.fields;
         if (!read.isCv) message = "Este PDF no parece un CV. Revísalo o quítalo.";
+        else if (read.ageIgnored !== null) message = `El CV dice ${read.ageIgnored} años: fuera de ${AGE_MIN} a ${AGE_MAX}, no se llenó.`;
       }
     } else {
       const read = await readCv(ticket.path);
@@ -253,7 +255,7 @@ export function BulkUpload({ profiles, defaultProfileId, withAi }: { profiles: P
                       <td className="px-2 py-2">{cell("email", { type: "email" })}</td>
                       <td className="px-2 py-2">{cell("municipality")}</td>
                       <td className="px-2 py-2">{cell("education_level")}</td>
-                      <td className="px-2 py-2">{cell("age_reported", { type: "number", min: 15, max: 80, inputMode: "numeric" })}</td>
+                      <td className="px-2 py-2">{cell("age_reported", { inputMode: "numeric", pattern: "[0-9]{2}", maxLength: 2, autoComplete: "off", title: `De ${AGE_MIN} a ${AGE_MAX} años` })}</td>
                       <td className="px-2 py-2">
                         {r.status !== "saved" && !isBusy(r.status) && (
                           <button

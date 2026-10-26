@@ -18,7 +18,7 @@ export function Resumen({ detail }: { detail: ApplicationDetail }) {
   const threshold = p.cv_threshold;
   const cvTone = a.cv_score !== null && threshold !== null ? (a.cv_score >= threshold ? "leaf" : "amber") : "neutral";
   // Calificado con otros pesos: la vacante cambió su evaluación después
-  const stale = a.cv_score !== null && aiConfig !== null && a.cv_score_version !== null && a.cv_score_version !== aiConfig.version;
+  const stale = a.cv_score !== null && aiConfig !== null && a.cv_score_version !== null && a.cv_score_version !== aiConfig.cv_version;
   const canScore = aiEnabled() && Boolean(candidate.cv_file_path || candidate.cv_text);
 
   return (
@@ -38,7 +38,7 @@ export function Resumen({ detail }: { detail: ApplicationDetail }) {
         >
           {stale && (
             <p className="mb-4 rounded-lg bg-amber-soft px-3 py-2 text-xs text-amber">
-              Calificado con los pesos v{a.cv_score_version}; la vacante ya va en la v{aiConfig?.version}. Recalifica para usar los vigentes.
+              Calificado con los pesos v{a.cv_score_version}; los vigentes son la v{aiConfig?.cv_version}. Recalifica para usar los vigentes.
             </p>
           )}
           {a.cv_score === null ? (

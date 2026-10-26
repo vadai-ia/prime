@@ -42,6 +42,47 @@ export async function setProfileRecruiters(_prev: AssignmentFormState, formData:
   return { ok: true, message: count === 0 ? "La vacante quedó sin reclutadores: los candidatos nuevos solo los verá un administrador." : `Guardado. ${count} ${count === 1 ? "reclutador trabaja" : "reclutadores trabajan"} esta vacante.` };
 }
 
+const recruiterProfilesSchema = z.object({
+  recruiter_id: z.string().uuid("Reclutador no válido"),
+  profile_ids: z.array(z.string().uuid("Vacante no válida")),
+});
+
+/**
+ * La misma asignación, vista desde el reclutador (Configuración → Ver → Vacantes asignadas): deja
+ * exactamente las vacantes marcadas. Primero altas y luego bajas, como `set_profile_recruiters`; los
+ * triggers validan que sea reclutador activo, escriben el historial y reparten los candidatos del que sale.
+ */
+export async function setRecruiterProfiles(recruiterId: string, profileIds: string[]): Promise<AssignmentFormState> {
+  try {
+    await assertPermission("manage_assignments");
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  if (MOCK_CORE) return { error: MOCK_WRITE_ERROR };
+
+  const parsed = recruiterProfilesSchema.safeParse({ recruiter_id: recruiterId, profile_ids: [...new Set(profileIds)] });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
+  const { recruiter_id, profile_ids } = parsed.data;
+
+  const supabase = await createClient();
+  if (profile_ids.length) {
+    const { error } = await supabase
+      .from("job_profile_assignments")
+      .upsert(profile_ids.map((profile_id) => ({ profile_id, recruiter_id })), { onConflict: "profile_id,recruiter_id", ignoreDuplicates: true });
+    if (error) return { error: error.message };
+  }
+  let remove = supabase.from("job_profile_assignments").delete().eq("recruiter_id", recruiter_id);
+  if (profile_ids.length) remove = remove.not("profile_id", "in", `(${profile_ids.join(",")})`);
+  const { error } = await remove;
+  if (error) return { error: error.message };
+
+  revalidatePath("/configuracion");
+  revalidatePath("/perfiles");
+  revalidatePath("/candidatos");
+  revalidatePath("/tablero");
+  return { ok: true, message: profile_ids.length ? `Guardado: ${profile_ids.length} ${profile_ids.length === 1 ? "vacante" : "vacantes"}.` : "Quedó sin vacantes." };
+}
+
 const reassignSchema = z.object({
   application_id: z.string().uuid("Postulación no válida"),
   recruiter_id: z.string().uuid("Reclutador no válido").nullable(),
