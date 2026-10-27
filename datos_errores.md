@@ -3,7 +3,7 @@
 *26 oct 2026. Revisión del Excel "Lista de Rol y Vacante" antes de cargarlo al sistema.*
 
 Lo que está aquí no se carga hasta que Prime lo confirme o lo corrija. Lo demás se carga tal cual viene.
-**Grupo Huerta queda para después** (sus 3 razones sociales y sus 11 vacantes).
+**Grupo Huerta:** se cargan sus 3 razones sociales como 3 clientes; sus 11 vacantes esperan a saber de cuál es cada una (§2).
 
 ## 1. Clientes (hoja "LISTA DE CLIENTES")
 
@@ -48,7 +48,25 @@ Los reportes diarios y semanales del cliente salen a este correo; si está mal, 
 
 Las otras 22 vacantes de la hoja ya están en el sistema. Estas 12 esperan respuesta:
 
-- **Grupo Huerta (11 vacantes):** en la lista de clientes aparece 3 veces, con razones sociales distintas (Shizuoka Motors, Esmeralda Motorcycle, Divol Truck & Buses). ¿Lo manejamos como **un solo cliente** o como **tres**? Si son tres, ¿a cuál pertenece cada vacante? (Gerente de marketing ×2, Gerente de flotilla, Hostess, Gerente de servicios, Hojalatero, Técnico master, Auxiliar contable, Asesor de venta, Back office, Becario de sistemas). Por la zona, las de Coacalco podrían ser de Shizuoka y las de Zona Esmeralda de Esmeralda, pero las de Lindavista y La Villa no coinciden con ningún domicilio: hay que confirmarlo. Divol además trae un correo no válido (§1).
+- **Grupo Huerta (11 vacantes):** se dio de alta como **tres clientes**, uno por razón social: "GRUPO HUERTA - SHIZUOKA MOTORS", "GRUPO HUERTA - ESMERALDA MOTORCYCLE" y "GRUPO HUERTA - DIVOL TRUCK & BUSES". Cada uno tiene su portal y su reporte; si una sola persona de RH lleva las tres, necesita un usuario por empresa (avísennos). En Divol, "SAPI DE CV" venía en el nombre comercial; lo pasamos a la razón social. Shizuoka y Divol no traen responsable ni correo válido (§1).
+
+  **Necesitamos que nos digan de qué empresa es cada vacante** (llenar la última columna). La sugerencia sale de la zona, pero las de Lindavista y La Villa no coinciden con ningún domicilio:
+
+  | # | Vacante | Zona | Reclutador | Sugerencia | ¿Empresa? |
+  |---|---|---|---|---|---|
+  | 1 | Gerente de marketing | La Villa, Tultitlán | Nancy | ¿Divol? (Tultitlán) | |
+  | 2 | Gerente de marketing | Zona Esmeralda | Nancy y Diego | Esmeralda | |
+  | 3 | Gerente de flotilla | Lindavista | Nancy | ? | |
+  | 4 | Hostess ("HOSTEST") | Lindavista | Nancy | ? | |
+  | 5 | Gerente de servicios | Zona Esmeralda | Nancy | Esmeralda | |
+  | 6 | Hojalatero | Lindavista | Nancy | ? | |
+  | 7 | Técnico master | Coacalco ("COCALCO") | Nancy | Shizuoka | |
+  | 8 | Auxiliar contable | Coacalco | Nancy y Diego | Shizuoka | |
+  | 9 | Asesor de venta | Lindavista | Gabriela, Denisse y Diego | ? | |
+  | 10 | Back office | Lindavista | Gabriela | ? | |
+  | 11 | Becario de sistemas ("CMR": ¿CRM?) | Lindavista | Gabriela | ? | |
+
+  ¿Hay una sucursal en Lindavista? Si es de una de las tres empresas, díganos cuál.
 - **CHELA CHUPAS** (Capitán de meseros, Nancy): no aparece en la lista de clientes. Faltan sus datos (razón social, giro, domicilio, contacto, correo).
 
 ### Número de vacantes

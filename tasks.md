@@ -362,7 +362,7 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Quién es el admin de Microsoft 365 y que haga los pasos de §6.
 - [ ] Cuenta y API key de Fireflies (o esperar al spike de Teams).
 - [ ] Número de WhatsApp definitivo.
-- [ ] Dominio para publicar el sistema.
+- [x] Dominio para publicar el sistema: `app.primehrinnovation.com.mx` (confirmado el 26 oct). Falta apuntar el DNS a Vercel al desplegar.
 - [x] Acceso a Pandape y buzón `candidatos@primehrinnovation.com.mx` (26 oct; credenciales por canal seguro). Falta revisar qué permite Pandape (correo con CV, exportación, integración) para decidir la entrada automática.
 
 **Decisiones:**

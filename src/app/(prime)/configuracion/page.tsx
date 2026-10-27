@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/dal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Avatar } from "@/components/ui/avatar";
-import { listAssignableProfiles, listUserVacancies, listUsers } from "@/lib/queries/users";
+import { listAssignableProfiles, listUserVacancies, listUsers, type UserVacancy } from "@/lib/queries/users";
 import { listClients } from "@/lib/queries/clients";
 import { getIntegrationsStatus } from "@/lib/queries/settings";
 import { getQueueOverview } from "@/lib/queries/tasks";
@@ -12,7 +12,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { taskLabel } from "@/lib/queue/handlers";
 import { TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
-import { ROLE_LABELS } from "@/lib/auth/roles";
+import { ROLE_LABELS, type Role } from "@/lib/auth/roles";
 import { fmtDateTime, timeAgo } from "@/lib/format";
 import type { IntegrationStatus } from "@/lib/queries/types";
 import { SimpleTable } from "../reportes/simple-table";
@@ -32,6 +32,22 @@ const NEEDS: Record<IntegrationStatus["key"], string> = {
   resend: "Dominio de Prime verificado (SPF, DKIM, DMARC) y remitente configurado.",
 };
 
+/** Vacantes asignadas a un reclutador: cuántas y las dos primeras; el resto en el tooltip y en Ver. */
+function UserVacanciesCell({ role, list }: { role: Role; list: UserVacancy[] }) {
+  if (role !== "recruiter") return <span className="text-ink-faint">—</span>;
+  if (!list.length) return <span className="text-xs text-amber">Ninguna</span>;
+  const names = list.map((v) => `${v.title} · ${v.client_name}`);
+  return (
+    <div className="max-w-56 text-xs" title={names.join("\n")}>
+      <p className="font-medium text-ink">{list.length === 1 ? "1 vacante" : `${list.length} vacantes`}</p>
+      <p className="truncate text-ink-muted">
+        {list.slice(0, 2).map((v) => v.title).join(", ")}
+        {list.length > 2 ? ` +${list.length - 2}` : ""}
+      </p>
+    </div>
+  );
+}
+
 export default async function ConfiguracionPage() {
   const session = await requireAdmin();
   const [users, vacancies, profiles, clients, integrations, queue, outlook] = await Promise.all([
@@ -50,7 +66,7 @@ export default async function ConfiguracionPage() {
   const usersSection = (
     <div>
       <UsersTable
-        headers={["Usuario", "Rol", "Empresa", "Estado", "Outlook", "Última vez", ""]}
+        headers={["Usuario", "Rol", "Empresa", "Vacantes", "Estado", "Outlook", "Última vez", ""]}
         items={users.map((u) => ({
           id: u.id,
           role: u.role,
@@ -65,6 +81,7 @@ export default async function ConfiguracionPage() {
             </div>,
             ROLE_LABELS[u.role],
             u.client_name ?? <span className="text-ink-faint">—</span>,
+            <UserVacanciesCell key={`${u.id}-v`} role={u.role} list={vacancies[u.id] ?? []} />,
             <Pill key={`${u.id}-a`} tone={u.is_active ? "mint" : "neutral"}>{u.is_active ? "Activo" : "Inactivo"}</Pill>,
             u.role === "client" ? (
               <span key={`${u.id}-o`} className="text-ink-faint">—</span>
