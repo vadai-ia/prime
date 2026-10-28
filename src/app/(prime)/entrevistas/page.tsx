@@ -6,6 +6,7 @@ import { can } from "@/lib/auth/permissions";
 import { listInterviews } from "@/lib/queries/interviews";
 import { listPipeline } from "@/lib/queries/pipeline";
 import { listStaff } from "@/lib/queries/users";
+import { inRecruiterScope, listRecruiterProfiles } from "@/lib/queries/assignments";
 import { DONE_INTERVIEW, dayIndex, dayToIso } from "@/lib/metrics";
 import { RecruiterFilter } from "@/components/filters/recruiter-filter";
 import type { InterviewRow } from "@/lib/queries/types";
@@ -50,16 +51,15 @@ export default async function EntrevistasPage(props: { searchParams: Promise<Sea
   const sp = await props.searchParams;
   const recruiterParam = isAdmin && typeof sp.reclutador === "string" ? sp.reclutador : "";
 
-  const [all, pipeline, staff] = await Promise.all([
+  const [all, pipeline, staff, byRecruiter] = await Promise.all([
     listInterviews("all"),
     recruiterParam ? listPipeline({ includeDiscarded: true }) : Promise.resolve([]),
     isAdmin ? listStaff() : Promise.resolve([]),
+    recruiterParam ? listRecruiterProfiles() : Promise.resolve(new Map<string, Set<string>>()),
   ]);
 
-  // Filtro de admin por el reclutador dueño del candidato (el mismo que usa el Tablero).
-  const owned = new Set(
-    pipeline.filter((r) => (recruiterParam === "sin-asignar" ? r.assigned_recruiter_id === null : r.assigned_recruiter_id === recruiterParam)).map((r) => r.application_id),
-  );
+  // Filtro de admin por las vacantes que trabaja el reclutador (el mismo que usa el Tablero).
+  const owned = new Set(pipeline.filter((r) => inRecruiterScope(r.profile_id, recruiterParam, byRecruiter)).map((r) => r.application_id));
   const interviews = recruiterParam ? all.filter((i) => owned.has(i.application_id)) : all;
 
   const now = new Date();

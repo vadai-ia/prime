@@ -37,7 +37,6 @@ export function CandidateHistory({ rows, currentApplicationId }: { rows: Candida
             <span className="text-xs text-ink-muted">
               · postuló el {fmtDate(r.applied_at, { day: "numeric", month: "short", year: "numeric" })} ({timeAgo(r.applied_at)})
             </span>
-            {r.recruiter_name && <span className="text-xs text-ink-faint">· {r.recruiter_name}</span>}
           </li>
         ))}
       </ul>

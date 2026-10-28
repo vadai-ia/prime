@@ -12,13 +12,8 @@ export function Reclutadores({ profileId, data }: { profileId: string; data: Pro
       <Card
         className="lg:col-span-3"
         title="Quién trabaja esta vacante"
-        subtitle="Cada reclutador ve solo esta vacante, su cliente y los candidatos que le tocan. Los candidatos nuevos se reparten por turno."
+        subtitle="Los reclutadores marcados ven esta vacante, su cliente y a todos sus candidatos."
       >
-        {data.unassigned_candidates > 0 && (
-          <p className="mb-3 rounded-lg bg-amber-soft px-3 py-2 text-sm text-ink">
-            {data.unassigned_candidates} {data.unassigned_candidates === 1 ? "candidato en proceso no tiene" : "candidatos en proceso no tienen"} reclutador. Se reparten al guardar la asignación.
-          </p>
-        )}
         <RecruiterChecklist profileId={profileId} recruiters={data.recruiters} />
       </Card>
 

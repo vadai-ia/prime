@@ -5,7 +5,6 @@ import { Calendar, FileText, GraduationCap, Mail, MapPin, Megaphone, Phone, User
 import { requireStaff } from "@/lib/dal";
 import { can } from "@/lib/auth/permissions";
 import { getApplicationDetail, getCandidateHistory } from "@/lib/queries/pipeline";
-import { listProfileTeam } from "@/lib/queries/assignments";
 import { listStaff } from "@/lib/queries/users";
 import { getBlacklistEntry } from "@/lib/queries/blacklist";
 import { getMyOutlook } from "@/lib/queries/integrations";
@@ -16,7 +15,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { StagePill } from "@/components/ui/pill";
 import { Tabs } from "@/components/ui/tabs";
 import { StageActions } from "@/components/candidate/stage-actions";
-import { AssignedRecruiter } from "@/components/candidate/assigned-recruiter";
 import { CandidateHistory } from "@/components/candidate/history";
 import { Resumen } from "@/components/candidate/resumen";
 import { WhatsApp } from "@/components/candidate/whatsapp";
@@ -25,6 +23,7 @@ import { Psicometrico } from "@/components/candidate/psicometrico";
 import { Expediente } from "@/components/candidate/expediente";
 import { BlacklistPanel } from "@/components/candidate/blacklist-panel";
 import { PermanenciaPanel } from "@/components/candidate/permanencia-panel";
+import { EditCandidate } from "@/components/candidate/edit-candidate";
 
 export async function generateMetadata(props: PageProps<"/candidatos/[applicationId]">): Promise<Metadata> {
   const { applicationId } = await props.params;
@@ -39,10 +38,9 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
   if (!detail) notFound();
 
   const { candidate: c, application: a, pipeline: p } = detail;
-  // El reclutador solo llega aquí si el candidato es suyo; quién lo lleva y reasignarlo es cosa del admin.
+  // El reclutador llega aquí si trabaja la vacante (0029); no hay reclutador por candidato.
   const canBlacklist = can(session.role, "view_blacklist");
-  const [team, staff, history, query, blacklisted, outlook, followups] = await Promise.all([
-    can(session.role, "manage_assignments") ? listProfileTeam(a.profile_id) : null,
+  const [staff, history, query, blacklisted, outlook, followups] = await Promise.all([
     listStaff(),
     getCandidateHistory(c.phone_e164),
     props.searchParams,
@@ -69,7 +67,17 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
               <StagePill stage={a.stage} />
             </div>
             <p className="mt-0.5 text-sm text-ink-muted">
-              {p.profile_title} · {p.client_name}
+              <Link href={`/perfiles/${a.profile_id}`} className="font-medium text-ink hover:text-forest hover:underline">
+                {p.profile_title}
+              </Link>{" "}
+              ·{" "}
+              {p.client_id ? (
+                <Link href={`/clientes/${p.client_id}`} className="hover:text-forest hover:underline">
+                  {p.client_name}
+                </Link>
+              ) : (
+                p.client_name
+              )}
             </p>
             <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink-muted">
               <Meta icon={<Phone className="h-3.5 w-3.5" />} value={fmtPhone(c.phone_e164)} />
@@ -86,7 +94,7 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
                 </a>
               )}
             </dl>
-            {team && <AssignedRecruiter applicationId={a.id} recruiterId={a.assigned_recruiter_id} team={team} />}
+            <EditCandidate applicationId={a.id} candidate={c} />
           </div>
         </div>
         <StageActions applicationId={a.id} stage={a.stage} discardedFrom={a.discarded_from_stage} />

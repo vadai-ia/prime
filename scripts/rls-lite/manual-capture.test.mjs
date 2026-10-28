@@ -22,7 +22,7 @@ await as(db, admin, async () => {
   await q(`select public.set_profile_recruiters($1, $2)`, [PY, [B.id]]);
 });
 
-// La misma persona postulada a X (la lleva A) y a Y (la lleva B)
+// La misma persona postulada a X (vacante de A) y a Y (vacante de B)
 const PHONE = "+524491234567";
 const { person, appX, appY } = await as(db, "service", async () => {
   const [c] = await q(`insert into public.candidates (full_name, phone_e164) values ('Persona Repetida', $1) returning id`, [PHONE]);
@@ -37,7 +37,7 @@ await as(db, A, async () => {
   const h = await q(`select * from public.candidate_history_by_phone($1)`, [PHONE]);
   check("A ve las 2 postulaciones de la persona, la más reciente primero", h.length === 2 && h[0].application_id === appX, `${h.length}`);
   const other = h.find((r) => r.application_id === appY);
-  check("de la ajena ve vacante, cliente, etapa, motivo y reclutador", other?.profile_title === "Perfil Y" && other?.client_name === "Cliente Y" && other?.stage === "discarded" && other?.discard_reason_key === "withdrew" && other?.recruiter_name === "Reclutador B", JSON.stringify(other));
+  check("de la ajena ve vacante, cliente, etapa y motivo", other?.profile_title === "Perfil Y" && other?.client_name === "Cliente Y" && other?.stage === "discarded" && other?.discard_reason_key === "withdrew", JSON.stringify(other));
   check("is_mine marca solo la suya", h.find((r) => r.application_id === appX)?.is_mine === true && other?.is_mine === false);
   const direct = await q(`select id from public.applications where id = $1`, [appY]);
   check("el historial no le abre la postulación ajena", direct.length === 0);

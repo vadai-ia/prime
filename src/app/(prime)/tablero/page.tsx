@@ -15,12 +15,15 @@ import { attentionReason, needsAttention } from "@/lib/attention";
 import { listProfiles } from "@/lib/queries/profiles";
 import { listInterviews } from "@/lib/queries/interviews";
 import { listStaff } from "@/lib/queries/users";
+import { inRecruiterScope, listRecruiterProfiles } from "@/lib/queries/assignments";
 import { countFollowups } from "@/lib/queries/followups";
 import { INTERVIEW_TYPE_LABELS, PIPELINE_STAGES, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { daysLabel, fmtDate, fmtDateLong, fmtPct, fmtTime } from "@/lib/format";
 import type { InterviewRow, ProfileSummary, StageCounts } from "@/lib/queries/types";
-import { IN_PROCESS, STALE_DAYS, dayIndex, indicators, kpis, recruiterLoad, stageConversion, staleRows, weeklyTrend } from "./metrics";
+import { IN_PROCESS, STALE_DAYS, appliedIn, dayIndex, indicators, periodTotals, recruiterLoad, snapshot, stageConversion, staleRows, trend as trendSeries, trendUnit } from "./metrics";
 import { RecruiterFilter } from "@/components/filters/recruiter-filter";
+import { DateRangePicker } from "@/components/filters/date-range-picker";
+import { parseRange, previousRange, rangeDays, rangeParams, rangePhrase } from "@/lib/date-range";
 import { CLIENT_DAILY_STAGES, buildDailyInternal } from "@/lib/email/data";
 
 export const metadata: Metadata = { title: "Tablero · Prime HR Innovation" };
@@ -87,6 +90,22 @@ function StageLegend() {
   );
 }
 
+/** "↑ 25% vs. los 30 días previos". Sin base para comparar, solo el número de antes. */
+function Delta({ now, before, days }: { now: number; before: number; days: number }) {
+  const prev = days === 1 ? "ayer" : `los ${days} días previos`;
+  if (before === 0) return <span>{now === 0 ? "Sin movimiento" : `Sin registros ${days === 1 ? "ayer" : `en ${prev}`}`}</span>;
+  const pct = Math.round(((now - before) / before) * 100);
+  if (pct === 0) return <span>Igual que {prev}</span>;
+  return (
+    <span>
+      <span className={pct > 0 ? "font-medium text-leaf" : "font-medium text-danger"}>
+        {pct > 0 ? "↑" : "↓"} {Math.abs(pct)}%
+      </span>{" "}
+      vs. {prev}
+    </span>
+  );
+}
+
 function Indicator({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-2.5">
@@ -124,29 +143,40 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
   const sp = await props.searchParams;
   const recruiterParam = isAdmin && typeof sp.reclutador === "string" ? sp.reclutador : "";
 
-  const [user, allRows, allInterviews, profiles, staff, followups] = await Promise.all([
+  const [user, allRows, allInterviews, profiles, staff, followups, byRecruiter] = await Promise.all([
     getCurrentUser(),
     listPipeline({ includeDiscarded: true }),
     listInterviews("all"),
     listProfiles({ status: "active" }),
     isAdmin ? listStaff() : Promise.resolve([]),
     countFollowups(),
+    isAdmin ? listRecruiterProfiles() : Promise.resolve(new Map<string, Set<string>>()),
   ]);
 
-  // El filtro por reclutador es de admin; al reclutador RLS ya le devuelve solo lo suyo.
-  const rows = recruiterParam
-    ? allRows.filter((r) => (recruiterParam === "sin-asignar" ? r.assigned_recruiter_id === null : r.assigned_recruiter_id === recruiterParam))
-    : allRows;
+  // El filtro por reclutador es de admin y va por las vacantes que trabaja (0029); al reclutador RLS ya le devuelve solo lo suyo.
+  const rows = recruiterParam ? allRows.filter((r) => inRecruiterScope(r.profile_id, recruiterParam, byRecruiter)) : allRows;
   const visibleApps = new Set(rows.map((r) => r.application_id));
   const interviews = recruiterParam ? allInterviews.filter((i) => visibleApps.has(i.application_id)) : allInterviews;
 
   const now = new Date();
   const today = dayIndex(now);
-  const k = kpis(rows, interviews, now);
-  const ind = indicators(rows, now);
-  const trend = weeklyTrend(rows, interviews, now);
-  const conversion = stageConversion(rows);
-  const load = isAdmin && !recruiterParam ? recruiterLoad(rows, now) : [];
+  // Periodo: cambia lo que pasó (postulaciones, entrevistas, contrataciones, indicadores, conversión, tendencia).
+  // Lo de ahora (en proceso, atención, estancados, agenda) no depende del periodo.
+  const range = parseRange(sp, today);
+  const days = rangeDays(range);
+  const phrase = rangePhrase(range);
+  const keepRange = rangeParams(range);
+  const keepRecruiter: Record<string, string> = recruiterParam ? { reclutador: recruiterParam } : {};
+  const snap = snapshot(rows);
+  const period = periodTotals(rows, interviews, range);
+  const before = periodTotals(rows, interviews, previousRange(range));
+  const ind = indicators(rows, range);
+  const unit = trendUnit(range);
+  const trend = trendSeries(rows, interviews, range);
+  const conversion = stageConversion(appliedIn(rows, range));
+  const team = staff.filter((s) => s.role === "recruiter").map((s) => ({ id: s.id, name: s.full_name, profiles: byRecruiter.get(s.id) ?? new Set<string>() }));
+  const load = isAdmin && !recruiterParam ? recruiterLoad(rows, range, team) : [];
+  const loadHref = (id: string | null) => `/tablero?${new URLSearchParams({ ...keepRange, reclutador: id ?? "sin-asignar" }).toString()}`;
   const stale = staleRows(rows).slice(0, 6);
   const attention = rows.filter(needsAttention).sort((a, b) => (b.days_in_stage ?? 0) - (a.days_in_stage ?? 0));
 
@@ -171,8 +201,13 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title={`${greeting(now)}${firstName ? `, ${firstName}` : ""}`}
-        subtitle={`${fmtDateLong(now.toISOString())} · ${k.active} ${k.active === 1 ? "candidato" : "candidatos"} en proceso en ${shownProfiles.length} ${shownProfiles.length === 1 ? "vacante activa" : "vacantes activas"}`}
-        actions={isAdmin ? <RecruiterFilter action="/tablero" recruiters={recruiters} value={recruiterParam} /> : undefined}
+        subtitle={`${fmtDateLong(now.toISOString())} · ${snap.active} ${snap.active === 1 ? "candidato" : "candidatos"} en proceso en ${shownProfiles.length} ${shownProfiles.length === 1 ? "vacante activa" : "vacantes activas"}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <DateRangePicker path="/tablero" today={today} value={range} keep={keepRecruiter} />
+            {isAdmin && <RecruiterFilter action="/tablero" recruiters={recruiters} value={recruiterParam} keep={keepRange} />}
+          </div>
+        }
       />
 
       {followups.vencidos > 0 && (
@@ -185,18 +220,18 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
       )}
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Nuevos hoy" value={k.newToday} hint="Postulaciones recibidas hoy" tone="forest" />
-        <Stat label="En prefiltro" value={k.inPrefilter} hint="Respondiendo las preguntas del perfil" />
-        <Stat label="Entrevistas hoy" value={k.interviewsToday} hint="Prime y con cliente" />
-        <Stat label="Psicométricos por completar" value={k.psychPending} hint="Sin enviar o sin respuesta" tone={k.psychPending ? "amber" : "ink"} />
-        <Stat label="Expedientes en captura" value={k.docsInProgress} hint={k.docsMissing ? `Faltan ${k.docsMissing} documentos en total` : "Sin documentos pendientes"} />
-        <Stat label="Contratados esta semana" value={k.hiredThisWeek} hint="Últimos 7 días" tone="leaf" />
+        <Stat label="Postulaciones" value={period.applications} hint={<Delta now={period.applications} before={before.applications} days={days} />} tone="forest" />
+        <Stat label="Entrevistas realizadas" value={period.interviews} hint={<Delta now={period.interviews} before={before.interviews} days={days} />} />
+        <Stat label="Contratados" value={period.hired} hint={<Delta now={period.hired} before={before.hired} days={days} />} tone="leaf" />
+        <Stat label="En prefiltro" value={snap.inPrefilter} hint="Ahora · respondiendo las preguntas" />
+        <Stat label="Psicométricos por completar" value={snap.psychPending} hint="Ahora · sin enviar o sin respuesta" tone={snap.psychPending ? "amber" : "ink"} />
+        <Stat label="Expedientes en captura" value={snap.docsInProgress} hint={snap.docsMissing ? `Ahora · faltan ${snap.docsMissing} documentos` : "Ahora · sin documentos pendientes"} />
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card title="Tendencia" subtitle="Últimas 8 semanas: postulaciones, entrevistas realizadas y contrataciones">
-            <TrendChart data={trend} />
+          <Card title="Tendencia" subtitle={`Postulaciones, entrevistas realizadas y contrataciones ${phrase}, ${unit === "day" ? "por día" : unit === "week" ? "por semana" : "por mes"}`}>
+            <TrendChart data={trend} unit={unit} />
           </Card>
 
           <Card title="Requiere tu atención" subtitle="Lo que el agente no puede resolver solo" padded={false}>
@@ -302,23 +337,23 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
             )}
           </Card>
 
-          <Card title="Indicadores" subtitle="Últimos 90 días">
+          <Card title="Indicadores" subtitle={`Postulaciones y contrataciones ${phrase}`}>
             <div className="divide-y divide-line">
               <Indicator
                 label="Días a contratación"
                 value={ind.daysToHire === null ? "—" : `${Math.round(ind.daysToHire)} d`}
-                hint={ind.hiresInWindow ? `Mediana de ${ind.hiresInWindow} ${ind.hiresInWindow === 1 ? "contratación" : "contrataciones"}, de postulación a contratado` : "Aún no hay contrataciones"}
+                hint={ind.hiresInWindow ? `Mediana de ${ind.hiresInWindow} ${ind.hiresInWindow === 1 ? "contratación" : "contrataciones"}, de postulación a contratado` : "Sin contrataciones en el periodo"}
               />
               <Indicator
                 label="Llegan a contratación"
                 value={ind.hireRate === null ? "—" : fmtPct(ind.hireRate)}
                 hint={`De ${ind.applicationsInWindow} ${ind.applicationsInWindow === 1 ? "postulación" : "postulaciones"} recibidas`}
               />
-              <Indicator label="Estancados" value={String(ind.stale)} hint="Más días de los esperados en su etapa" />
+              <Indicator label="Estancados" value={String(ind.stale)} hint="Ahora · más días de los esperados en su etapa" />
             </div>
           </Card>
 
-          <Card title="Conversión entre etapas" subtitle="Cuántos llegan a cada etapa y qué parte pasa desde la anterior">
+          <Card title="Conversión entre etapas" subtitle={`De las postulaciones recibidas ${phrase}: cuántas llegan a cada etapa y qué parte pasa desde la anterior`}>
             {conversion[0]?.reached ? (
               <div className="space-y-3">
                 {conversion.map((c) => (
@@ -335,21 +370,21 @@ export default async function TableroPage(props: { searchParams: Promise<Search>
                 ))}
               </div>
             ) : (
-              <EmptyState title="Sin postulaciones todavía" />
+              <EmptyState title="Sin postulaciones en el periodo" hint="Elige un periodo más amplio arriba." />
             )}
           </Card>
 
           {load.length > 0 && (
-            <Card title="Carga por reclutador" subtitle="En proceso, estancados y contratados en 30 días" padded={false}>
+            <Card title="Carga por reclutador" subtitle={`De las vacantes que trabaja cada uno: en proceso y estancados ahora; contratados ${phrase}`} padded={false}>
               <ul className="divide-y divide-line">
                 {load.map((l) => (
                   <li key={l.id ?? "none"}>
-                    <Link href={`/tablero?reclutador=${l.id ?? "sin-asignar"}`} className="block px-5 py-3 transition hover:bg-canvas">
+                    <Link href={loadHref(l.id)} className="block px-5 py-3 transition hover:bg-canvas">
                       <div className="flex items-center justify-between gap-3">
                         <p className={`truncate text-sm font-medium ${l.id ? "text-ink" : "text-ink-muted"}`}>{l.name}</p>
                         <div className="flex shrink-0 items-center gap-1.5">
                           {l.stale > 0 && <Pill tone="amber">{l.stale} estancados</Pill>}
-                          {l.hired30 > 0 && <Pill tone="forest">{l.hired30} contratados</Pill>}
+                          {l.hired > 0 && <Pill tone="forest">{l.hired} {l.hired === 1 ? "contratado" : "contratados"}</Pill>}
                         </div>
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">

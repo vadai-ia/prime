@@ -76,7 +76,7 @@ export default async function PermanenciaPage({ searchParams }: PageProps<"/cand
         {fmtDay(r.due_at)} · {r.outcome === "pending" ? dueLabel(r.due_at, today) : `capturado ${fmtDate(r.recorded_at)}${r.recorded_by_name ? ` por ${r.recorded_by_name}` : ""}`}
       </p>
     </div>,
-    ...(isAdmin ? [<span key="r" className="text-xs text-ink-muted">{r.recruiter_name ?? "Sin asignar"}</span>] : []),
+    ...(isAdmin ? [<span key="r" className="text-xs text-ink-muted">{r.recruiter_name ?? "—"}</span>] : []),
     view === "capturados" ? (
       <div key="o" className="max-w-xs">
         <Pill tone={FOLLOWUP_OUTCOME_TONES[r.outcome]}>{FOLLOWUP_OUTCOME_LABELS[r.outcome]}</Pill>

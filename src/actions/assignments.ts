@@ -15,7 +15,7 @@ const recruitersSchema = z.object({
 
 /**
  * Checklist de reclutadores de una vacante (plan §2.3). Solo admin: el reclutador nunca se asigna solo.
- * La RPC deja exactamente los marcados; la base reparte por turno los candidatos del que sale y escribe el historial.
+ * La RPC deja exactamente los marcados; la base escribe el historial. Quien queda marcado ve a todos los candidatos de la vacante (0029).
  */
 export async function setProfileRecruiters(_prev: AssignmentFormState, formData: FormData): Promise<AssignmentFormState> {
   try {
@@ -50,7 +50,7 @@ const recruiterProfilesSchema = z.object({
 /**
  * La misma asignación, vista desde el reclutador (Configuración → Ver → Vacantes asignadas): deja
  * exactamente las vacantes marcadas. Primero altas y luego bajas, como `set_profile_recruiters`; los
- * triggers validan que sea reclutador activo, escriben el historial y reparten los candidatos del que sale.
+ * triggers validan que sea reclutador activo, y escriben el historial.
  */
 export async function setRecruiterProfiles(recruiterId: string, profileIds: string[]): Promise<AssignmentFormState> {
   try {
@@ -88,7 +88,7 @@ const reassignSchema = z.object({
   recruiter_id: z.string().uuid("Reclutador no válido").nullable(),
 });
 
-/** Reasignar un candidato a otro reclutador de la misma vacante (o dejarlo sin asignar). Solo admin. */
+/** Reasignar un candidato a otro reclutador de la misma vacante. Solo admin. Sin pantalla desde 0029: la visibilidad es por vacante. */
 export async function assignApplicationRecruiter(_prev: AssignmentFormState, formData: FormData): Promise<AssignmentFormState> {
   try {
     await assertPermission("manage_assignments");

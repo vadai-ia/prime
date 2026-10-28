@@ -251,7 +251,7 @@ function RoleSection({ user, vacancies, clients }: { user: UserRow; vacancies: n
       </div>
       {changed && user.role === "recruiter" && role !== "recruiter" && (
         <p className="rounded-lg bg-amber-soft px-3 py-2 text-xs text-amber">
-          Saldrá de {vacancies === 1 ? "su vacante" : `sus ${vacancies} vacantes`} y sus candidatos en proceso se reparten entre los demás reclutadores de cada una.
+          Saldrá de {vacancies === 1 ? "su vacante" : `sus ${vacancies} vacantes`}; los demás reclutadores de cada una siguen viendo a todos sus candidatos.
         </p>
       )}
       {changed && role === "admin" && (
@@ -348,7 +348,7 @@ function VacanciesSection({ userId, vacancies, profiles }: { userId: string; vac
       </div>
       {removed > 0 && (
         <p className="rounded-lg bg-amber-soft px-3 py-2 text-xs text-amber">
-          Sale de {removed === 1 ? "1 vacante" : `${removed} vacantes`}: sus candidatos en proceso ahí se reparten entre los demás reclutadores de cada una.
+          Sale de {removed === 1 ? "1 vacante" : `${removed} vacantes`}: deja de ver sus candidatos.
         </p>
       )}
       {result?.error && <p className={alertErrorClass}>{result.error}</p>}
@@ -383,7 +383,7 @@ function AccessSection({ userId, isActive, role }: { userId: string; isActive: b
     <Section title="Acceso">
       <p className="text-ink-muted">
         {isActive
-          ? `Desactivar bloquea su acceso${role === "recruiter" ? ", lo saca de sus vacantes y reparte sus candidatos en proceso" : ""}. Se puede volver a activar.`
+          ? `Desactivar bloquea su acceso${role === "recruiter" ? ", y lo saca de sus vacantes" : ""}. Se puede volver a activar.`
           : "La cuenta está desactivada: no puede entrar."}
       </p>
       <button

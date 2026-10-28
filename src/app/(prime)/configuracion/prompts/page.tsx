@@ -21,7 +21,7 @@ const PROMPTS: { kind: Enums<"ai_run_kind">; file: string; when: string; version
   {
     kind: "profile_generation",
     file: "src/lib/ai/prompts/profile-generation.ts",
-    when: "Vacante → Evaluación IA → Generar con IA. Lee el levantamiento y propone criterios y pesos del CV, umbral, reglas y preguntas del prefiltro y mínimos psicométricos.",
+    when: "Vacante → Evaluación IA → Generar con IA. Lee el descriptivo de la vacante y propone criterios y pesos del CV, umbral, reglas y preguntas del prefiltro y mínimos psicométricos.",
     version: profileGeneration.PROMPT_VERSION,
     effort: profileGeneration.EFFORT,
     system: profileGeneration.SYSTEM,

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
 import { getAiSummary, listAiRuns, listAuditLog, listTaskLog, listWebhookLog } from "@/lib/queries/logs";
 import { taskLabel } from "@/lib/queue/handlers";
-import { AI_RUN_KIND_LABELS, AI_RUN_STATUS_LABELS, AI_RUN_STATUS_TONES, AUDIT_ACTION_LABELS, PROFILE_EDIT_SECTION_LABELS, TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
+import { AI_RUN_KIND_LABELS, AI_RUN_STATUS_LABELS, AI_RUN_STATUS_TONES, AUDIT_ACTION_LABELS, CANDIDATE_FIELD_LABELS, PROFILE_EDIT_SECTION_LABELS, TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { fmtDateTime } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
@@ -125,9 +125,9 @@ export default async function LogsPage({ searchParams }: PageProps<"/configuraci
       <SimpleTable
         headers={["Cuándo", "Quién", "Qué", "Detalle", "IP"]}
         align={["left", "left", "left", "left", "left"]}
-        empty="Nadie ha abierto CVs, documentos o psicométricos ni editado vacantes todavía."
+        empty="Nadie ha abierto CVs, documentos o psicométricos ni editado vacantes o candidatos todavía."
         rows={rows.map((r) => {
-          const meta = (r.metadata ?? {}) as { tipo?: string; filas?: number; section?: string; version?: number };
+          const meta = (r.metadata ?? {}) as { tipo?: string; filas?: number; section?: string; version?: number; fields?: string[] };
           return [
             <span key="w" className="whitespace-nowrap text-xs text-ink-muted">{fmtDateTime(r.created_at)}</span>,
             r.user_name ?? "—",
@@ -139,6 +139,10 @@ export default async function LogsPage({ searchParams }: PageProps<"/configuraci
                 <>
                   <EntityLink type={r.entity_type} id={r.entity_id} /> · {PROFILE_EDIT_SECTION_LABELS[meta.section ?? ""] ?? meta.section ?? "—"}
                   {meta.version !== undefined && ` (v${meta.version})`}
+                </>
+              ) : r.action === "edit_candidate" ? (
+                <>
+                  <EntityLink type={r.entity_type} id={r.entity_id} /> · {(meta.fields ?? []).map((f) => CANDIDATE_FIELD_LABELS[f] ?? f).join(", ") || "—"}
                 </>
               ) : (
                 r.entity_type

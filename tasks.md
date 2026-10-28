@@ -251,10 +251,26 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 - [x] Clientes cargados por SQL: 8 nuevos y Telasist actualizado (Grupo Huerta para después). Errores para Prime en `datos_errores.md`.
 - [x] Login fallido según el rol del correo; "Olvidé mi contraseña" para admins (correo de Supabase); el admin restablece la de reclutadores y clientes.
 - [x] Configuración en pestañas; Crear usuario en modal; tabla con colores por rol, filtro y buscador; ficha **Ver** con datos, contraseña, rol, vacantes y acceso.
-- [ ] Crear los usuarios de Prime (los da de alta el usuario desde Configuración).
+- [x] Crear los usuarios de Prime (los da de alta el usuario desde Configuración).
 - [x] Usuarios creados y 22 vacantes cargadas por SQL (26 oct). Grupo Huerta y Chela Chupas esperan a Prime (`datos_errores.md` §2).
 - [x] Elegir las vacantes de un reclutador desde Configuración → Ver (26 oct).
-- [ ] Asignar reclutadores a las vacantes (desde esa ficha o por SQL).
+- [x] Asignar reclutadores a las vacantes (el usuario, desde Configuración → Ver, 27 oct).
+
+**Periodo en el Tablero (27 oct 2026, plan §12.14), sin probar en la app:**
+
+- [x] Selector de periodo con atajos y calendario; postulaciones, entrevistas, contratados, tendencia, indicadores y conversión según el periodo, con comparación contra el periodo anterior (`pendientes_revision.md` §15).
+
+**Editar datos del candidato (27 oct 2026, plan §12.15), sin probar en la app:**
+
+- [x] Botón "Editar datos" en la ficha: contacto, perfil, identidad (CURP, RFC, NSS, domicilio) y notas; lista negra y duplicados como en el alta; registro en Logs técnicos (migración 0028).
+- [x] Pegar `supabase/manual/15_editar_candidato.sql` (`pendientes_revision.md` §16). *27 oct: aplicado, checklist 1 ok.*
+- [x] Botón "Cargar CVs" en la vacante; vacante "PRUEBA Ejecutivo de cobranza" borrada por SQL (27 oct).
+
+**El reclutador ve toda su vacante (27 oct 2026, plan §12.16), sin probar en la app:**
+
+- [x] Sin reclutador por candidato ni reparto por turno: quien trabaja la vacante ve a todos sus candidatos; filtros y carga por reclutador del Tablero y Entrevistas por vacante (migración 0029).
+- [x] Pegar `supabase/manual/16_reclutador_ve_su_vacante.sql` **antes** de desplegar (`pendientes_revision.md` §17). *27 oct: aplicado, checklist 5 ok.*
+- [x] Enlace a la vacante y al cliente en la ficha del candidato; aviso claro en la carga masiva cuando la persona ya existía.
 
 **Otros (19 oct 2026):**
 
@@ -363,7 +379,8 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Cuenta y API key de Fireflies (o esperar al spike de Teams).
 - [ ] Número de WhatsApp definitivo.
 - [x] Dominio para publicar el sistema: `app.primehrinnovation.com.mx` (confirmado el 26 oct). Falta apuntar el DNS a Vercel al desplegar.
-- [x] Acceso a Pandape y buzón `candidatos@primehrinnovation.com.mx` (26 oct; credenciales por canal seguro). Falta revisar qué permite Pandape (correo con CV, exportación, integración) para decidir la entrada automática.
+- [x] Acceso a Pandape y buzón `candidatos@primehrinnovation.com.mx` (26 oct; credenciales por canal seguro).
+- [ ] **Pandapé: pedir la API del ATS (reclutamiento).** Prime se lo pide a su Customer Success de Pandapé Enterprise: Client ID y Client Secret, sandbox si hay, la documentación (Swagger) de la versión que **lee los postulantes de cada vacante** con contacto, CV y portal de origen, si hay webhook de nuevo postulante, límite de llamadas y si tiene costo extra. **No es `api.hcm.pandape.com`**: esa es Pandapé HCM (antes HolmesHR), solo checadas y horarios. La exportación del menú solo trae vacantes (530 en un año, 53,703 postulantes) y Word, no candidatos. Pandapé multipublica a Indeed, OCC, Computrabajo y LinkedIn: una sola entrada cubre casi todo. Si no hay API: leer candidatos@ con Graph o importar a mano. Detalle en `requerimientos_estado.md` §8.
 
 **Decisiones:**
 

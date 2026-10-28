@@ -3091,6 +3091,7 @@ export type Database = {
         | "view_psych_report"
         | "export"
         | "edit_profile"
+        | "edit_candidate"
       client_decision: "approve" | "reject"
       discard_reason_key:
         | "age"
@@ -3360,6 +3361,7 @@ export const Constants = {
         "view_psych_report",
         "export",
         "edit_profile",
+        "edit_candidate",
       ],
       client_decision: ["approve", "reject"],
       discard_reason_key: [

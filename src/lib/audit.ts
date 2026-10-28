@@ -14,3 +14,12 @@ export async function logProfileEdit(supabase: Supabase, profileId: string, meta
   const { error } = await supabase.rpc("log_audit", { p_action: "edit_profile", p_entity_type: "job_profile", p_entity_id: profileId, p_metadata: metadata });
   if (error) console.error("log_audit edit_profile", error.message);
 }
+
+/**
+ * Registro técnico de una edición de los datos del candidato (audit_log 'edit_candidate', migración 0028):
+ * qué campos cambiaron, nunca sus valores. Va contra la postulación desde la que se editó, para enlazar a la ficha.
+ */
+export async function logCandidateEdit(supabase: Supabase, applicationId: string, metadata: { candidate_id: string; fields: string[] }): Promise<void> {
+  const { error } = await supabase.rpc("log_audit", { p_action: "edit_candidate", p_entity_type: "application", p_entity_id: applicationId, p_metadata: metadata });
+  if (error) console.error("log_audit edit_candidate", error.message);
+}

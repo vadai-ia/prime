@@ -58,7 +58,14 @@ export default async function PerfilDetailPage(props: PageProps<"/perfiles/[prof
             <ButtonLink href={`/candidatos?profile=${profile.id}`} variant="secondary">
               Ver candidatos
             </ButtonLink>
-            {profile.status !== "closed" && <ButtonLink href={`/candidatos/nuevo?profile=${profile.id}`}>Agregar candidato</ButtonLink>}
+            {profile.status !== "closed" && (
+              <>
+                <ButtonLink href={`/candidatos/carga-masiva?profile=${profile.id}`} variant="secondary">
+                  Cargar CVs
+                </ButtonLink>
+                <ButtonLink href={`/candidatos/nuevo?profile=${profile.id}`}>Agregar candidato</ButtonLink>
+              </>
+            )}
           </>
         }
       />

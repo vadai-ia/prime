@@ -14,6 +14,8 @@ const MANUAL_11 = readFileSync(new URL("../../supabase/manual/11_permanencia_ina
 const MANUAL_12 = readFileSync(new URL("../../supabase/manual/12_lectura_de_cv.sql", import.meta.url), "utf8");
 const MANUAL_13 = readFileSync(new URL("../../supabase/manual/13_editar_vacante.sql", import.meta.url), "utf8");
 const MANUAL_14 = readFileSync(new URL("../../supabase/manual/14_razon_social_cliente.sql", import.meta.url), "utf8");
+const MANUAL_15 = readFileSync(new URL("../../supabase/manual/15_editar_candidato.sql", import.meta.url), "utf8");
+const MANUAL_16 = readFileSync(new URL("../../supabase/manual/16_reclutador_ve_su_vacante.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -256,6 +258,37 @@ if (OLD && existsSync(OLD)) {
   check("M · 14 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_14), 2));
   const kept = await db.query(`select legal_name, trade_name from public.clients where name = 'Telasist'`);
   check("M · no pisa la razón social capturada", kept.rows[0]?.legal_name === "Telasist S.A. de C.V." && kept.rows[0]?.trade_name === "Telasist", JSON.stringify(kept.rows));
+}
+
+// --- N. 15 (edición del candidato): dos veces, y el registro de una edición se queda
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_15);
+  check("N · 15: checklist completo", allOk(first, 1), missing(first));
+  await db.exec(`select public.log_audit('edit_candidate', 'application', '${PX}', null, '{"fields":["phone_e164"]}'::jsonb)`);
+  const again = await errorOf(() => runManual(db, MANUAL_15));
+  check("N · 15 por segunda vez no falla", !again, again ?? "");
+  check("N · 15 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_15), 1));
+  const logged = await db.query(`select count(*)::int as n from public.audit_log where action = 'edit_candidate'`);
+  check("N · el registro de la edición se queda", logged.rows[0].n === 1, `${logged.rows[0].n}`);
+}
+
+// --- O. 16 (0029): el reclutador ve toda su vacante; dos veces sin tocar datos
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15]) await runManual(db, sql);
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164) values ('c0000000-0000-4000-8000-000000000001', 'Ana', '+524491000001');
+    insert into public.applications (candidate_id, profile_id) values ('c0000000-0000-4000-8000-000000000001', '${PX}');
+  `);
+  const first = await runManual(db, MANUAL_16);
+  check("O · 16: checklist completo", allOk(first, 5), missing(first));
+  const again = await errorOf(() => runManual(db, MANUAL_16));
+  check("O · 16 por segunda vez no falla", !again, again ?? "");
+  check("O · 16 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_16), 5));
+  const kept = await db.query(`select count(*)::int as n from public.applications`);
+  check("O · las postulaciones se quedan", kept.rows[0].n === 1, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

@@ -286,6 +286,7 @@ export const AUDIT_ACTION_LABELS: Record<Enums<"audit_action">, string> = {
   view_psych_report: "Abrió un psicométrico",
   export: "Exportó",
   edit_profile: "Editó una vacante",
+  edit_candidate: "Editó datos de un candidato",
 };
 
 /** Tipo de respuesta de una pregunta del prefiltro (scoring.ts ANSWER_TYPES). */
@@ -311,6 +312,23 @@ export const RULE_KEY_LABELS: Record<string, string> = {
 };
 
 /** Qué parte de la vacante se editó (audit_log 'edit_profile', metadata.section). */
+/** Campos del candidato que se pueden editar desde su ficha (Logs técnicos los nombra así). */
+export const CANDIDATE_FIELD_LABELS: Record<string, string> = {
+  full_name: "Nombre",
+  phone_e164: "Teléfono",
+  email: "Correo",
+  age_reported: "Edad",
+  birth_date: "Fecha de nacimiento",
+  municipality: "Municipio",
+  zone: "Zona",
+  education_level: "Escolaridad",
+  notes: "Notas",
+  curp: "CURP",
+  rfc: "RFC",
+  nss: "NSS",
+  address_line: "Domicilio",
+};
+
 export const PROFILE_EDIT_SECTION_LABELS: Record<string, string> = {
   description: "Descriptivo",
   generated: "Evaluación generada con IA",

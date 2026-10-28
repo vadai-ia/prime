@@ -17,7 +17,8 @@ import { enqueue, runTaskNow } from "@/lib/queue/run";
 import { AGE_MAX, AGE_MIN, isValidAge, type CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
 import { CHANNEL_LABELS } from "@/lib/labels";
-import type { Enums } from "@/lib/db/types";
+import { logCandidateEdit } from "@/lib/audit";
+import type { Enums, TablesUpdate } from "@/lib/db/types";
 import type { CandidateHistoryRow } from "@/lib/queries/types";
 
 const BUCKET = "cvs";
@@ -146,7 +147,7 @@ type RegisterResult = { applicationId: string } | { error: string };
 /**
  * Crea (o reutiliza por teléfono) al candidato, lo postula a la vacante en etapa Nuevo, adjunta el CV y
  * encola su score. Lo comparten el alta individual y la carga masiva: misma lista negra, mismos duplicados
- * y la base decide a quién se asigna (round robin).
+ * y la base decide quién lo ve (los reclutadores de la vacante).
  */
 async function registerCandidate(session: Session, raw: Record<string, unknown>): Promise<RegisterResult> {
   const parsed = schema.safeParse(raw);
@@ -194,7 +195,7 @@ async function registerCandidate(session: Session, raw: Record<string, unknown>)
     if (error) return { error: error.message };
   }
 
-  // Alta manual: la postulación queda con quien la captura; si la captura un admin, entra al round robin de la vacante.
+  // Alta manual: la postulación queda con quien la captura (assigned_recruiter_id); la ven todos los reclutadores de la vacante.
   const { data: application, error: appError } = await supabase
     .from("applications")
     .insert({ candidate_id: candidateId, profile_id: d.profile_id, source_channel: d.source_channel })
@@ -290,6 +291,108 @@ export async function createCandidateFromBulk(input: BulkCandidateInput): Promis
     revalidatePath("/tablero");
   }
   return result;
+}
+
+export type CandidateEditState = { error?: string; ok?: boolean } | undefined;
+
+const upper = (v: string) => v.replace(/\s+/g, "").toUpperCase();
+
+const editSchema = z.object({
+  application_id: z.string().uuid(),
+  full_name: z.string().trim().min(3, "Nombre completo requerido").max(120),
+  phone: z.string().trim().min(1, "Teléfono requerido"),
+  email: z.string().trim().email("Correo no válido").or(blank),
+  municipality: z.string().trim().max(80),
+  zone: z.string().trim().max(80),
+  education_level: z.string().trim().max(120),
+  age_reported: schema.shape.age_reported,
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de nacimiento no válida").or(blank),
+  notes: z.string().trim().max(2000),
+  curp: z.string().transform(upper).refine((v) => v === "" || /^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$/.test(v), "CURP no válida: son 18 caracteres"),
+  rfc: z.string().transform(upper).refine((v) => v === "" || /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(v), "RFC no válido: son 12 o 13 caracteres"),
+  nss: z.string().transform((v) => v.replace(/[\s-]/g, "")).refine((v) => v === "" || /^\d{11}$/.test(v), "NSS no válido: son 11 dígitos"),
+  address_line: z.string().trim().max(300),
+});
+
+const EDITABLE = ["full_name", "phone_e164", "email", "age_reported", "birth_date", "municipality", "zone", "education_level", "notes", "curp", "rfc", "nss", "address_line"] as const;
+type EditableField = (typeof EDITABLE)[number];
+
+/**
+ * Corrige los datos de la persona desde su ficha. RLS decide quién (admin, o el reclutador con una
+ * postulación suya de esta persona, plan §2.3). Un teléfono o correo nuevo pasa por la lista negra como
+ * en el alta, y cada edición queda en Logs técnicos con los campos que cambiaron (sin sus valores).
+ */
+export async function updateCandidate(_prev: CandidateEditState, formData: FormData): Promise<CandidateEditState> {
+  let session;
+  try {
+    session = await assertStaff();
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  const parsed = editSchema.safeParse(Object.fromEntries(Object.keys(editSchema.shape).map((k) => [k, formData.get(k) ?? ""])));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
+  const d = parsed.data;
+  const phone = toE164Mx(d.phone);
+  if (!phone) return { error: "Teléfono no válido. Escribe los 10 dígitos, con o sin +52." };
+  if (MOCK) return { error: MOCK_WRITE_ERROR };
+
+  const supabase = await createClient();
+  const { data: application } = await supabase.from("applications").select("candidate_id, profile_id").eq("id", d.application_id).maybeSingle();
+  if (!application) return { error: "Candidato no encontrado o no lo tienes asignado" };
+  const { data: current } = await supabase.from("candidates").select(EDITABLE.join(", ")).eq("id", application.candidate_id).maybeSingle<Record<EditableField, string | number | null>>();
+  if (!current) return { error: "Candidato no encontrado o no lo tienes asignado" };
+
+  const next: Record<EditableField, string | number | null> = {
+    full_name: d.full_name,
+    phone_e164: phone,
+    email: d.email || null,
+    age_reported: d.age_reported === "" ? null : d.age_reported,
+    birth_date: d.birth_date || null,
+    municipality: d.municipality || null,
+    zone: d.zone || null,
+    education_level: d.education_level || null,
+    notes: d.notes || null,
+    curp: d.curp || null,
+    rfc: d.rfc || null,
+    nss: d.nss || null,
+    address_line: d.address_line || null,
+  };
+  const changed = EDITABLE.filter((k) => next[k] !== current[k]);
+  if (changed.length === 0) return { ok: true };
+
+  // Un teléfono o correo nuevo no puede ser el de alguien en la lista negra (al reclutador, sin el motivo).
+  const phoneChanged = changed.includes("phone_e164");
+  const emailChanged = changed.includes("email") && !!d.email;
+  if (phoneChanged || emailChanged) {
+    const { data: blocked } = await supabase.rpc("is_blacklisted", { p_phone: phoneChanged ? phone : "", p_email: emailChanged ? d.email : undefined });
+    if (blocked) {
+      await reportBlacklistAttempt(supabase, phone, d.email, application.profile_id);
+      return {
+        error: session.role === "admin" ? "Ese teléfono o correo es de una persona en la lista negra (Candidatos → Lista negra)." : "No se puede usar ese teléfono o correo. Consulta con tu administrador.",
+      };
+    }
+  }
+
+  const patch = Object.fromEntries(changed.map((k) => [k, next[k]])) as TablesUpdate<"candidates">;
+  if (changed.includes("full_name")) patch.first_name = d.full_name.split(/\s+/)[0] ?? null;
+  const { data: saved, error } = await supabase.from("candidates").update(patch).eq("id", application.candidate_id).select("id");
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error: error.message.includes("curp")
+          ? "Esa CURP ya es de otra persona registrada."
+          : "Ese teléfono ya es de otra persona registrada. Si es la misma persona, pide a un administrador que lo revise.",
+      };
+    }
+    return { error: error.message };
+  }
+  if (!saved?.length) return { error: "No tienes permiso para editar a este candidato" };
+
+  await logCandidateEdit(supabase, d.application_id, { candidate_id: application.candidate_id, fields: changed });
+  revalidatePath(`/candidatos/${d.application_id}`);
+  revalidatePath("/candidatos");
+  revalidatePath("/tablero");
+  return { ok: true };
 }
 
 /** Al capturar el teléfono: si la persona ya está registrada, en qué vacantes y cuándo. No crea ni cambia nada. */

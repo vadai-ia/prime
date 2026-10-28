@@ -541,6 +541,93 @@ from checks
 order by orden;
 """
 
+HEAD_15 = """-- Prime HR · migración 0028 para pegar en el SQL Editor (después de 14_*.sql).
+-- Edición de los datos del candidato desde su ficha: cada cambio queda en Logs técnicos
+-- ('edit_candidate'), con los campos que cambiaron y sin sus valores.
+--
+-- Pegar ANTES de abrir la app con el código nuevo: guardar los datos registra 'edit_candidate'.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no borra datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0028.
+
+begin;
+
+"""
+
+TAIL_15 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0028', 'candidate_edit')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'audit_action con edit_candidate',
+          exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                  where t.typname = 'audit_action' and e.enumlabel = 'edit_candidate'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+HEAD_16 = """-- Prime HR · migración 0029 para pegar en el SQL Editor (después de 15_*.sql).
+-- El reclutador ve a TODOS los candidatos de las vacantes que trabaja (ya no solo los suyos).
+-- Se acaba el reparto por turno: los candidatos nuevos no se asignan a nadie y quitar a un
+-- reclutador de una vacante no reparte nada. Los avisos de un candidato llegan a todos los
+-- reclutadores de su vacante.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no borra datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0029.
+
+begin;
+
+"""
+
+TAIL_16 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0029', 'vacancy_scope')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  fn as (select p.proname, pg_get_functiondef(p.oid) as def
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'app'),
+  pol as (select policyname, qual from pg_policies where schemaname = 'public' and tablename = 'applications'),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'can_access_application por vacante',
+          exists (select 1 from fn where proname = 'can_access_application' and def not like '%assigned_recruiter_id%')),
+      (2, 'can_access_candidate por vacante',
+          exists (select 1 from fn where proname = 'can_access_candidate' and def not like '%assigned_recruiter_id%')),
+      (3, 'applications: el reclutador ve toda su vacante',
+          exists (select 1 from pol where policyname = 'applications_select_recruiter' and qual not like '%assigned_recruiter_id%')),
+      (4, 'sin reparto por turno',
+          exists (select 1 from fn where proname = 'next_recruiter_for_profile' and def not like '%turn_seq%')),
+      (5, 'avisos a los reclutadores de la vacante',
+          exists (select 1 from fn where proname = 'notify_application' and def like '%job_profile_assignments%'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
 # Entre migraciones que van en transacciones separadas ("separate": True).
 BETWEEN = "\ncommit;\n\nbegin;\n\n"
 
@@ -623,6 +710,20 @@ TARGETS = [
         "head": HEAD_14,
         "tail": TAIL_14,
         "expected": {"column": 2},
+    },
+    {
+        "out": "15_editar_candidato.sql",
+        "migrations": ["0028_candidate_edit.sql"],
+        "head": HEAD_15,
+        "tail": TAIL_15,
+        "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
+    },
+    {
+        "out": "16_reclutador_ve_su_vacante.sql",
+        "migrations": ["0029_vacancy_scope.sql"],
+        "head": HEAD_16,
+        "tail": TAIL_16,
+        "expected": {"trigger": 1, "drop_policy": 2, "policy": 2},
     },
 ]
 

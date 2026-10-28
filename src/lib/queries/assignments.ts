@@ -1,19 +1,15 @@
 import "server-only";
 import { requirePermission } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
-import { MOCK_CORE as MOCK, MOCK_PIPELINE } from "@/lib/mock";
+import { MOCK_CORE as MOCK } from "@/lib/mock";
 import * as mock from "@/lib/mock/data";
-import { listPipeline } from "./pipeline";
-import type { ProfileRecruiters, RecruiterOption } from "./types";
+import type { ProfileRecruiters } from "./types";
 
 const HISTORY_LIMIT = 30;
 
-/** Checklist de reclutadores activos de una vacante, cuántos candidatos en proceso lleva cada uno y el historial de cambios. Solo admin. */
+/** Checklist de reclutadores activos de una vacante y el historial de cambios. Solo admin. */
 export async function getProfileRecruiters(profileId: string): Promise<ProfileRecruiters> {
   await requirePermission("manage_assignments");
-
-  const open = (await listPipeline({ profileId })).filter((r) => r.stage !== "hired");
-  const openBy = (recruiterId: string | null) => open.filter((r) => (r.assigned_recruiter_id ?? null) === recruiterId).length;
 
   if (MOCK) {
     const assigned = mock.profileAssignments.filter((a) => a.profile_id === profileId);
@@ -22,9 +18,8 @@ export async function getProfileRecruiters(profileId: string): Promise<ProfileRe
         .filter((u) => u.role === "recruiter" && u.is_active)
         .map((u) => {
           const a = assigned.find((x) => x.recruiter_id === u.id);
-          return { id: u.id, full_name: u.full_name, email: u.email, avatar_url: u.avatar_url, assigned: !!a, assigned_at: a?.assigned_at ?? null, open_candidates: openBy(u.id) };
+          return { id: u.id, full_name: u.full_name, email: u.email, avatar_url: u.avatar_url, assigned: !!a, assigned_at: a?.assigned_at ?? null };
         }),
-      unassigned_candidates: openBy(null),
       history: mock.assignmentEvents
         .filter((e) => e.profile_id === profileId)
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -50,30 +45,34 @@ export async function getProfileRecruiters(profileId: string): Promise<ProfileRe
   return {
     recruiters: recruiters.data.map((u) => {
       const a = assigned.data.find((x) => x.recruiter_id === u.id);
-      return { ...u, assigned: !!a, assigned_at: a?.assigned_at ?? null, open_candidates: openBy(u.id) };
+      return { ...u, assigned: !!a, assigned_at: a?.assigned_at ?? null };
     }),
-    unassigned_candidates: openBy(null),
     history: history.data.map(({ recruiter, actor, ...e }) => ({ ...e, recruiter_name: recruiter?.full_name ?? "", actor_name: actor?.full_name ?? null })),
   };
 }
 
-/** Reclutadores que trabajan la vacante, para reasignar un candidato desde su ficha. Solo admin. */
-export async function listProfileTeam(profileId: string): Promise<RecruiterOption[]> {
+/**
+ * Qué vacantes trabaja cada reclutador (id del reclutador → ids de vacantes), para el filtro por
+ * reclutador y la carga del Tablero y Entrevistas: desde 0029 el reclutador ve a todos los candidatos
+ * de sus vacantes. Solo admin.
+ */
+export async function listRecruiterProfiles(): Promise<Map<string, Set<string>>> {
   await requirePermission("manage_assignments");
-
-  // la ficha sale del pipeline: si el pipeline es de demo, la vacante también lo es
-  if (MOCK_PIPELINE) {
-    return mock.profileAssignments
-      .filter((a) => a.profile_id === profileId)
-      .flatMap((a) => mock.users.filter((u) => u.id === a.recruiter_id))
-      .map((u) => ({ id: u.id, full_name: u.full_name, email: u.email, avatar_url: u.avatar_url }));
+  let rows: { recruiter_id: string; profile_id: string }[] = mock.profileAssignments;
+  if (!MOCK) {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("job_profile_assignments").select("recruiter_id, profile_id");
+    if (error) throw error;
+    rows = data;
   }
+  const m = new Map<string, Set<string>>();
+  for (const r of rows) m.set(r.recruiter_id, (m.get(r.recruiter_id) ?? new Set<string>()).add(r.profile_id));
+  return m;
+}
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("job_profile_assignments")
-    .select("users!job_profile_assignments_recruiter_id_fkey(id, full_name, email, avatar_url)")
-    .eq("profile_id", profileId);
-  if (error) throw error;
-  return data.flatMap((a) => (a.users ? [a.users] : [])).sort((a, b) => a.full_name.localeCompare(b.full_name, "es"));
+/** ¿La vacante entra en el filtro de reclutador? "sin-asignar" = vacantes que nadie trabaja. */
+export function inRecruiterScope(profileId: string | null, recruiterParam: string, byRecruiter: Map<string, Set<string>>): boolean {
+  if (!profileId) return false;
+  if (recruiterParam === "sin-asignar") return ![...byRecruiter.values()].some((s) => s.has(profileId));
+  return byRecruiter.get(recruiterParam)?.has(profileId) ?? false;
 }

@@ -40,7 +40,7 @@ const missingRequired = (v: Values) => v.full_name.trim().length < 3 || v.phone.
 /**
  * Carga masiva: cada PDF se sube directo a Storage (URL firmada, como el alta individual), la IA lee sus
  * datos de contacto y se muestran en una tabla editable. "Dar de alta" usa la misma acción que el alta
- * individual: lista negra, duplicados por teléfono y la base asigna al reclutador por turno.
+ * individual: lista negra y duplicados por teléfono; los ven todos los reclutadores de la vacante.
  */
 export function BulkUpload({ profiles, defaultProfileId, withAi }: { profiles: ProfileOption[]; defaultProfileId?: string; withAi: boolean }) {
   const [profileId, setProfileId] = useState(defaultProfileId ?? "");
@@ -132,7 +132,7 @@ export function BulkUpload({ profiles, defaultProfileId, withAi }: { profiles: P
   async function saveAll() {
     if (!profileId || ready.length === 0) return;
     setSaving(true);
-    // Una por una: cada alta pasa por la lista negra, los duplicados y el round robin en la base.
+    // Una por una: cada alta pasa por la lista negra y los duplicados en la base.
     for (const row of ready) {
       patch(row.key, { status: "saving", message: undefined });
       const result = await createCandidateFromBulk({ profile_id: profileId, source_channel: channel, cv_path: row.path!, ...row.values });
@@ -280,7 +280,7 @@ export function BulkUpload({ profiles, defaultProfileId, withAi }: { profiles: P
             <p className="mr-auto text-xs text-ink-muted">
               {!profileId
                 ? "Selecciona la vacante para poder dar de alta."
-                : "Se postulan en etapa Nuevo. La base asigna a cada uno un reclutador de la vacante por turno y la IA califica su CV."}
+                : "Se postulan en etapa Nuevo, los ven todos los reclutadores de la vacante y la IA califica su CV."}
             </p>
             <button
               type="button"
@@ -331,7 +331,10 @@ function RowStatus({ row: r }: { row: Row }) {
   }
   const warnings = [
     missingRequired(r.values) ? "Falta nombre o teléfono" : null,
-    r.history ? `Ya registrado (${r.history} ${r.history === 1 ? "postulación" : "postulaciones"})` : null,
+    // registerCandidate solo llena los datos vacíos de alguien que ya existe; lo de esta fila no reemplaza su ficha.
+    r.history
+      ? `Ya registrado (${r.history} ${r.history === 1 ? "postulación" : "postulaciones"}): se conservan los datos de su ficha y solo se llenan los vacíos. Corrige en la ficha con Editar datos.`
+      : null,
     r.message ?? null,
   ].filter(Boolean);
   if (warnings.length === 0) return <p className={`${base} text-forest`}>Listo</p>;

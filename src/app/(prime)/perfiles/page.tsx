@@ -143,7 +143,8 @@ export default async function PerfilesPage(props: PageProps<"/perfiles">) {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <Pill tone={i.status === "generated" ? "mint" : "amber"}>{i.status === "generated" ? "Perfil generado" : "Borrador"}</Pill>
+                      {/* Generado pero sin vacante: la vacante se borró y el levantamiento quedó. */}
+                      <Pill tone={i.profile_id ? "mint" : "amber"}>{i.profile_id ? "Perfil generado" : i.status === "generated" ? "Sin vacante" : "Borrador"}</Pill>
                       {!i.profile_id && isAdmin && <CreateProfileForm intakeId={i.id} hasClient={Boolean(i.client_id)} clients={clientOptions} />}
                     </div>
                   </li>

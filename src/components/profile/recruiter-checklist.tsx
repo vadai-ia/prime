@@ -27,9 +27,6 @@ export function RecruiterChecklist({ profileId, recruiters }: { profileId: strin
                 <span className="block truncate text-sm font-medium text-ink">{r.full_name || "Sin nombre"}</span>
                 <span className="block truncate text-xs text-ink-muted">{r.email}</span>
               </span>
-              <span className="shrink-0 text-xs text-ink-muted">
-                {r.open_candidates} {r.open_candidates === 1 ? "candidato" : "candidatos"} en proceso
-              </span>
             </label>
           </li>
         ))}
@@ -47,7 +44,7 @@ export function RecruiterChecklist({ profileId, recruiters }: { profileId: strin
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-ink-muted">Al quitar a alguien, sus candidatos en proceso se reparten por turno entre quienes queden.</p>
+        <p className="text-xs text-ink-muted">Quien quede desmarcado deja de ver la vacante y sus candidatos.</p>
         <button type="submit" disabled={pending} className={`${buttonPrimaryClass} mt-0 w-auto`}>
           {pending ? "Guardando…" : "Guardar asignación"}
         </button>

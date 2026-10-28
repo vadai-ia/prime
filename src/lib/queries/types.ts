@@ -71,8 +71,7 @@ export type RecruiterOption = Pick<User, "id" | "full_name" | "email" | "avatar_
 
 /** Checklist de reclutadores de una vacante y su historial (solo admin). */
 export type ProfileRecruiters = {
-  recruiters: (RecruiterOption & { assigned: boolean; assigned_at: string | null; open_candidates: number })[];
-  unassigned_candidates: number;
+  recruiters: (RecruiterOption & { assigned: boolean; assigned_at: string | null })[];
   history: (AssignmentEvent & { recruiter_name: string; actor_name: string | null })[];
 };
 

@@ -15,38 +15,39 @@ await db.exec(`
 const admin = await createUser(db, { email: "admin@t", role: "admin", full_name: "Andrea" });
 const A = await createUser(db, { email: "a@t", role: "recruiter", full_name: "Reclutador A" });
 const B = await createUser(db, { email: "b@t", role: "recruiter", full_name: "Reclutador B" });
+const C = await createUser(db, { email: "c@t", role: "recruiter", full_name: "Reclutador C" }); // no trabaja la vacante
 const cliente = await createUser(db, { email: "cx@t", role: "client", client_id: CX, full_name: "Contacto X" });
 await as(db, admin, () => q(`select public.set_profile_recruiters($1, $2)`, [PX, [A.id]]));
 
 const notes = (kind) => svc(`select user_id, title, body, href, entity_id from public.notifications where kind = $1 order by created_at`, [kind]);
 const person = (name, phone) => svc(`insert into public.candidates (full_name, phone_e164) values ($1, $2) returning id`, [name, phone]).then((r) => r[0].id);
 
-// --- candidato asignado
-const c1 = await person("Ana Round Robin", "+524491000001");
+// --- candidato nuevo (0029: sin round robin, avisa a los reclutadores de la vacante)
+const c1 = await person("Ana Nueva", "+524491000001");
 const [app1] = await as(db, admin, () => q(`insert into public.applications (candidate_id, profile_id) values ($1, $2) returning id, assigned_recruiter_id`, [c1, PX]));
 let assigned = await notes("candidate_assigned");
-check("el admin captura: por turno le toca a A y le llega el aviso", app1.assigned_recruiter_id === A.id && assigned.length === 1 && assigned[0].user_id === A.id && assigned[0].title === "Te asignaron a Ana Round Robin" && assigned[0].body === "Cobranza · Telasist", JSON.stringify(assigned));
+check("el admin captura: nadie queda asignado y A recibe el aviso", app1.assigned_recruiter_id === null && assigned.length === 1 && assigned[0].user_id === A.id && assigned[0].title === "Nuevo candidato: Ana Nueva" && assigned[0].body === "Cobranza · Telasist", JSON.stringify(assigned));
 
 const c2 = await person("Beto Manual", "+524491000002");
 const [app2] = await as(db, A, () => q(`insert into public.applications (candidate_id, profile_id) values ($1, $2) returning id, assigned_recruiter_id`, [c2, PX]));
 assigned = await notes("candidate_assigned");
-check("si lo captura el reclutador, es suyo y no se avisa a sí mismo", app2.assigned_recruiter_id === A.id && assigned.length === 1, JSON.stringify(assigned));
+check("si lo captura el reclutador, queda como quien lo capturó y no se avisa a sí mismo", app2.assigned_recruiter_id === A.id && assigned.length === 1, JSON.stringify(assigned));
 
 await as(db, admin, () => q(`select public.set_profile_recruiters($1, $2)`, [PX, [A.id, B.id]]));
-await as(db, admin, () => q(`update public.applications set assigned_recruiter_id = $1 where id = $2`, [B.id, app1.id]));
 assigned = await notes("candidate_assigned");
-check("al reasignar, le llega al nuevo reclutador", assigned.length === 2 && assigned[1].user_id === B.id && assigned[1].entity_id === app1.id, JSON.stringify(assigned));
+check("sumar a B a la vacante no manda avisos de candidatos", assigned.length === 1, JSON.stringify(assigned));
 
-// --- entrevista agendada: admins y su reclutador, menos quien la agenda
+// --- entrevista agendada: admins y los reclutadores de la vacante, menos quien la agenda
 await as(db, A, () => q(`insert into public.interviews (application_id, type, scheduled_at) values ($1, 'prime', '2026-10-22 17:00:00+00')`, [app2.id]));
 const iv = await notes("interview_scheduled");
-check("entrevista agendada: avisa al admin, no a quien la agendó", iv.length === 1 && iv[0].user_id === admin.id && iv[0].title === "Entrevista Prime agendada: Beto Manual", JSON.stringify(iv));
+const ivTo = iv.map((n) => n.user_id).sort().join();
+check("entrevista agendada: avisa al admin y a B, no a quien la agendó", iv.length === 2 && ivTo === [admin.id, B.id].sort().join() && iv[0].title === "Entrevista Prime agendada: Beto Manual", JSON.stringify(iv));
 check("con la hora de México", iv[0]?.body === "22/10/2026 11:00 · Cobranza · Telasist", iv[0]?.body);
 
 // --- documento recibido
 await as(db, A, () => q(`insert into public.candidate_documents (candidate_id, application_id, document_type_key, status, received_via) values ($1, $2, 'ine', 'received', 'upload')`, [c2, app2.id]));
 const docs = await notes("document_received");
-check("documento recibido: avisa al admin con el tipo", docs.length === 1 && docs[0].user_id === admin.id && docs[0].body === "INE (frente y reverso) · Cobranza · Telasist", JSON.stringify(docs));
+check("documento recibido: avisa al admin y a B con el tipo", docs.length === 2 && docs.some((n) => n.user_id === admin.id) && docs.some((n) => n.user_id === B.id) && docs[0].body === "INE (frente y reverso) · Cobranza · Telasist", JSON.stringify(docs));
 
 // --- intento de registrar a alguien de la lista negra
 const vetada = await person("Persona Vetada", "+524491000009");
@@ -68,8 +69,8 @@ const fus = await svc(`select id, checkpoint_days from public.placement_followup
 const [f30, f90, f180] = fus.map((f) => f.id);
 const [r30] = await as(db, A, () => q(`select outcome, recorded_by, notes from public.record_placement_followup($1, 'active', null, null, '  Todo bien  ')`, [f30]));
 check("el reclutador captura Sigue a 30 días", r30.outcome === "active" && r30.recorded_by === A.id && r30.notes === "Todo bien", JSON.stringify(r30));
-const otherRec = await as(db, B, () => errorOf(() => q(`select public.record_placement_followup($1, 'active')`, [f90])));
-check("otro reclutador no la captura", !!otherRec, otherRec ?? "sin error");
+const otherRec = await as(db, C, () => errorOf(() => q(`select public.record_placement_followup($1, 'active')`, [f90])));
+check("un reclutador de otra vacante no la captura", !!otherRec, otherRec ?? "sin error");
 const fromClientF = await as(db, cliente, () => errorOf(() => q(`select public.record_placement_followup($1, 'active')`, [f90])));
 check("el cliente no la captura", !!fromClientF, fromClientF ?? "sin error");
 const noDate = await as(db, A, () => errorOf(() => q(`select public.record_placement_followup($1, 'left')`, [f90])));

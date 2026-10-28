@@ -285,7 +285,7 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 
 **Decidido:**
 
-- Grupo Huerta (Shizuoka, Esmeralda y Divol, 11 vacantes) queda para después.
+- Grupo Huerta: 3 clientes, uno por razón social ("GRUPO HUERTA - SHIZUOKA MOTORS", "- ESMERALDA MOTORCYCLE", "- DIVOL TRUCK & BUSES"), cargados el 26 oct. Sus 11 vacantes esperan a que Prime diga de cuál es cada una (tabla en `datos_errores.md` §2).
 - Los usuarios (admins y reclutadores) los crea el usuario desde Configuración; la carga no crea usuarios.
 
 **Falta, en orden:**
@@ -293,11 +293,12 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 - [x] Crear los usuarios (el usuario, desde Configuración → Crear usuario). *26 oct.*
 - [x] Vacantes cargadas por SQL el 26 oct: 22, activas, con zona y posiciones ("Por requisición del cliente" de Telasist y Scorpion va con 1), títulos como vienen, sin unidad de negocio y sin evaluación de IA. La de prueba "PRUEBA Ejecutivo de cobranza" (Telasist) sigue activa.
 - [ ] **Preguntar a Prime** (va en `datos_errores.md` §2):
-  - **Grupo Huerta (11 vacantes) no está cargado.** En la lista de clientes viene 3 veces (Shizuoka Motors, Esmeralda Motorcycle, Divol Truck & Buses). ¿Es un solo cliente o tres? Y de cada una de sus 11 vacantes, ¿a cuál razón social pertenece?
+  - **Grupo Huerta:** los 3 clientes ya están; falta saber de cuál es cada una de las 11 vacantes.
   - **Chela Chupas (Capitán de meseros, Nancy) no está cargado:** no aparece en la lista de clientes. Faltan sus datos.
 - [ ] Llenar el descriptivo y generar la evaluación de IA de cada vacante, para que los CV se califiquen.
 - [ ] Pausar o cerrar "PRUEBA Ejecutivo de cobranza" cuando ya no se use.
-- [ ] Asignar reclutadores: desde Configuración → Usuarios → Ver → Elegir vacantes (o por SQL si son muchos).
+- [x] Asignar reclutadores: desde Configuración → Usuarios → Ver → Elegir vacantes. *27 oct: el usuario asignó a todos.*
+- [ ] **Pandapé: pedir la API del ATS (reclutamiento).** Prime se lo pide a su Customer Success de Pandapé Enterprise: Client ID y Client Secret, sandbox si hay, la documentación (Swagger) de la versión que **lee los postulantes de cada vacante** con contacto, CV y portal de origen, si hay webhook de nuevo postulante, límite de llamadas y si tiene costo extra. **No es `api.hcm.pandape.com`**: esa es Pandapé HCM (antes HolmesHR), solo checadas y horarios. La exportación del menú solo trae vacantes (530 en un año, 53,703 postulantes) y Word, no candidatos. Pandapé multipublica a Indeed, OCC, Computrabajo y LinkedIn: una sola entrada cubre casi todo. Si no hay API: leer candidatos@ con Graph o importar a mano. Detalle en `requerimientos_estado.md` §8.
 - [ ] Revisar: cada vacante bajo su cliente con zona y posiciones; cada reclutador ve solo las suyas (Configuración → Ver → Vacantes asignadas).
 - [x] `excel/` en `.gitignore`. *26 oct.*
 
@@ -309,6 +310,7 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 - [ ] Correo de reclutador: "Contraseña incorrecta. Pide a un administrador que te pase o te reinicie tu contraseña." Sin botón de recuperación.
 - [ ] Correo de admin: "Contraseña incorrecta." y el botón **Olvidé mi contraseña**. Al darle, dice que se mandó el enlace; el correo llega (revisar spam), abre `/cuenta/password`, se guarda la nueva y entra.
 - [ ] Usuario desactivado: "Tu cuenta está desactivada."
+- [x] Redirect URLs en Supabase (local y producción). *27 oct: puestas por el usuario.*
 - [ ] Si el correo no llega: en Supabase → Authentication → URL Configuration, `http://localhost:3000/auth/callback` (y la URL de producción) deben estar en Redirect URLs. El envío de Supabase sin SMTP propio manda pocos correos por hora.
 
 **Configuración (rediseño del 26 oct):**
@@ -322,3 +324,53 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 - [ ] Ver → Rol: reclutador ↔ cliente (pide empresa) o reclutador → admin. Al dejar de ser reclutador avisa que sale de sus N vacantes y se reparten sus candidatos; después de pasar a admin ya no tiene botón Ver.
 - [ ] Ver → Vacantes asignadas (reclutador activo) con enlace a cada vacante. **Elegir vacantes** abre un checklist de todas las vacantes no cerradas agrupadas por cliente, con buscador; al desmarcar avisa que sus candidatos se reparten. Guardar y ver el cambio también en Perfiles → vacante → Reclutadores.
 - [ ] Ver → Acceso: desactivar y activar.
+
+## 15. Periodo en el Tablero · programado el 27 oct; se prueba ya, sin llaves
+
+- [ ] Al entrar, el selector dice "Últimos 30 días" con las fechas al lado y la URL queda limpia (`/tablero`).
+- [ ] Cada atajo aplica con un clic, cierra y recalcula: Postulaciones, Entrevistas realizadas y Contratados, con "↑ / ↓ N% vs. los N días previos".
+- [ ] Rango propio: clic en el día inicial, la banda sigue al cursor, clic en el final, el pie dice "3 – 15 oct 2026 · 13 días" y **Aplicar** se habilita. Elegir el final antes que el inicial también funciona.
+- [ ] Los días futuros salen apagados y "Mes siguiente" se apaga en el mes actual. Hoy lleva un punto.
+- [ ] Teclado: flechas, Inicio/Fin de semana, RePág/AvPág de mes, Enter elige, Esc cierra y regresa el foco al botón.
+- [ ] Clic fuera o Cancelar cierra sin cambiar nada.
+- [ ] Tendencia: por día con 7 o 30 días, por semana con 90, por mes con "Este año"; el tooltip lo dice bien.
+- [ ] Indicadores, Conversión y "contratados" de Carga por reclutador cambian con el periodo; En prefiltro, Psicométricos, Expedientes, Requiere tu atención, Estancados, Agenda y Vacantes activas no.
+- [ ] Admin: elegir un reclutador conserva el periodo, y cambiar el periodo conserva el reclutador. Los enlaces de Carga por reclutador también conservan el periodo.
+- [ ] Como reclutador: el selector aparece, sin el filtro de reclutador, y los números son solo de sus candidatos.
+- [ ] Celular: el selector abre como hoja desde abajo con los atajos en fila y un solo mes; sin desplazamiento horizontal.
+- [ ] Tema oscuro: banda, día elegido y botones se leen bien.
+- [ ] Una URL rota (`?desde=2026-02-30`, fechas al revés o futuras) regresa a los últimos 30 días sin error.
+
+## 17. El reclutador ve toda su vacante · programado el 27 oct; se prueba ya, sin llaves
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/16_reclutador_ve_su_vacante.sql` en el SQL Editor **antes** de desplegar el código nuevo: checklist con 5 "ok". Correrlo dos veces no falla. *27 oct: aplicado.*
+
+**Probar:**
+
+- [ ] Dos reclutadores en la misma vacante: los dos ven a **todos** sus candidatos (Candidatos, Tablero, ficha, entrevistas, documentos).
+- [ ] Un reclutador de otra vacante no los ve ni abre su ficha.
+- [ ] La ficha ya no tiene "Reclutador asignado". La pestaña Reclutadores de la vacante ya no habla de repartir.
+- [ ] Subir CVs: no se asignan a nadie; a cada reclutador de la vacante le llega "Nuevo candidato: …".
+- [ ] Quitar a un reclutador de la vacante: deja de verla; los demás siguen viendo todo.
+- [ ] Tablero como admin → filtro por reclutador: muestra lo de sus vacantes. "Carga por reclutador" cuenta por vacante. "Vacantes sin reclutador" muestra lo de las vacantes que nadie trabaja.
+
+## 16. Editar los datos del candidato · programado el 27 oct; se prueba ya, sin llaves
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/15_editar_candidato.sql` en el SQL Editor **antes** de guardar una edición: checklist con 1 "ok". Correrlo dos veces no falla. *27 oct: aplicado.*
+
+**Probar:**
+
+- [ ] Ficha del candidato → **Editar datos**: abre con todo lo que ya tiene (teléfono como "+52 449 …").
+- [ ] Corregir la edad de 15 del candidato de prueba a vacío o a un valor de 18 a 80 y guardar: el modal se cierra y la ficha lo muestra (ya no hace falta el `update` por SQL de §12).
+- [ ] Edad 15 o 90: "La edad debe ser de 18 a 80 años". CURP de 17 caracteres, RFC raro o NSS de 10 dígitos: cada uno con su mensaje.
+- [ ] CURP y RFC escritos en minúsculas o con espacios se guardan en mayúsculas y juntos.
+- [ ] Cambiar el teléfono por el de otro candidato que ya existe: "Ese teléfono ya es de otra persona registrada…".
+- [ ] Cambiar el teléfono o el correo por el de alguien en la lista negra: como reclutador, "No se puede usar ese teléfono o correo…" sin motivo; como admin, dice que está en la lista negra; al admin le llega el aviso.
+- [ ] Guardar sin cambiar nada cierra el modal y no deja registro.
+- [ ] Configuración → Logs técnicos → Accesos y cambios: "Editó datos de un candidato" con enlace a la ficha y los campos que cambiaron (sin los valores).
+- [ ] Como reclutador, en un candidato de su vacante: puede editar. Un candidato de una vacante que no trabaja ni siquiera se abre (§17).
+- [ ] Si el candidato tiene dos postulaciones, el cambio se ve en las dos fichas.
