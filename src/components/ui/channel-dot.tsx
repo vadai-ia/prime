@@ -1,9 +1,13 @@
 import type { Enums } from "@/lib/db/types";
 import { CHANNEL_LABELS } from "@/lib/labels";
 
-// Colores de cada bolsa (los de la demo); Bolsa Prime usa el verde de marca.
+// Colores de cada bolsa (los de la demo); Bolsa Prime usa el verde de marca. Indeed, OCC y Computrabajo
+// llevan tonos que se distinguen de los azules de Facebook y LinkedIn, no su color de marca.
 const CHANNEL_COLORS: Record<Enums<"source_channel">, string> = {
   pandape: "#f26522",
+  indeed: "#2557a7",
+  occ: "#7b3fa0",
+  computrabajo: "#d9306b",
   facebook: "#1877f2",
   linkedin: "#0a66c2",
   prime_pool: "var(--leaf)",

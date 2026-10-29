@@ -171,7 +171,7 @@ Con la lista de usuarios del 26 oct son 7 reclutadores: un asiento por persona s
 | 🟡 | Pandape (reenvío al buzón candidatos@) | 26 oct: Prime dio acceso (Pandapé Enterprise) y el buzón `candidatos@primehrinnovation.com.mx` (credenciales por canal seguro, nunca al repo). La exportación que encontró el usuario es **de vacantes, no de candidatos** (530 en un año, 53,703 postulantes; también exporta a Word). Pandapé multipublica a Indeed, OCC, Computrabajo, LinkedIn y otros: casi todos los postulantes pasan por ahí, así que una sola entrada cubre casi todo. Siguiente: preguntar a soporte de Pandapé por la API (la ofrecen a empresas) y revisar "Fuente de datos", "Plantillas → Mensajes" y las notificaciones por correo. Si no hay API, leer candidatos@ con Graph. La API existe pero no es pública: OAuth2 con Client ID y Client Secret que da su Customer Success; según un proyecto de terceros (sin confirmar) la v1 no lista los candidatos de una vacante y la v2 sí. Hay que pedir credenciales, sandbox, la documentación de la versión que lea postulantes con CV y si hay webhook de nuevo postulante. |
 | 🟠 | Facebook y LinkedIn | Falta describir cómo llegan hoy. Conectar Lead Ads sería trabajo nuevo. |
 | ❌ | Bolsa propia de Prime | *N/A.* |
-| 🟡 | Otros canales y volumen por canal | Recibido el 26 oct (últimos 30 días): Indeed 2,851, OCC 2,336, Computrabajo 1,223, Facebook 851 a 1,300 y LinkedIn 2 a 13 postulados. 🟡 Falta agregar Indeed, OCC y Computrabajo al catálogo de canales (`source_channel`, migración). Con ~7,000 postulados al mes, la carga a mano no alcanza: hace falta una entrada automática (buzón o importación). |
+| 🟡 | Otros canales y volumen por canal | Recibido el 26 oct (últimos 30 días): Indeed 2,851, OCC 2,336, Computrabajo 1,223, Facebook 851 a 1,300 y LinkedIn 2 a 13 postulados. ✅ Indeed, OCC y Computrabajo ya están en el catálogo de canales (28 oct, migración 0031). Con ~7,000 postulados al mes, la carga a mano no alcanza: hace falta una entrada automática (buzón o importación). |
 | 🟠 | Texto estándar de publicación | Falta aprobarlo. ✅ El texto de la vacante ya se edita en la vacante (paso 8). |
 
 ## 9. Contactos de clientes para reportes y portal
@@ -250,7 +250,7 @@ Sin dependencia externa, en el orden propuesto:
 1. Prueba de Teams, Outlook y Fireflies, con el cambio a cuenta maestra de Fireflies (entrevistas@).
 2. Correos automáticos con su capa de envío (proveedor por decidir) y el PDF semanal.
 3. Importar desde Excel clientes, vacantes y candidatos.
-4. Subir el D.P. (PDF o Word) y que Claude llene el levantamiento.
+4. ~~Subir el D.P. (PDF o Word) y que Claude llene el levantamiento.~~ Programado el 28 oct, falta probar (`pendientes_revision.md` §18).
 5. Hoja de confirmación generada y expediente en ZIP para el cliente.
 6. Qué ve cada cliente en el portal, configurable.
 7. Retención: borrar o anonimizar al vencer el plazo.

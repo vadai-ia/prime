@@ -631,6 +631,80 @@ order by orden;
 # Entre migraciones que van en transacciones separadas ("separate": True).
 BETWEEN = "\ncommit;\n\nbegin;\n\n"
 
+
+HEAD_17 = """-- Prime HR · migración 0030 para pegar en el SQL Editor (después de 16_*.sql).
+-- Tipo de llamada a la IA "intake_extract": en el levantamiento se sube el descriptivo de puesto
+-- (PDF o Word) y Claude llena las secciones II a VII. Cada lectura queda registrada en ai_runs.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0030.
+
+begin;
+
+"""
+
+TAIL_17 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0030', 'intake_extract_kind')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'ai_run_kind con intake_extract',
+          exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                  where t.typname = 'ai_run_kind' and e.enumlabel = 'intake_extract'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+
+HEAD_18 = """-- Prime HR · migración 0031 para pegar en el SQL Editor (después de 17_*.sql).
+-- Canales Indeed, OCC y Computrabajo en el catálogo de origen del candidato (source_channel).
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0031.
+
+begin;
+
+"""
+
+TAIL_18 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0031', 'job_board_channels')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  ch as (select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_channel'),
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'canal Indeed', exists (select 1 from ch where enumlabel = 'indeed')),
+      (2, 'canal OCC', exists (select 1 from ch where enumlabel = 'occ')),
+      (3, 'canal Computrabajo', exists (select 1 from ch where enumlabel = 'computrabajo'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
 TARGETS = [
     {
         "out": "04_asignacion_reclutadores_y_alcance.sql",
@@ -724,6 +798,20 @@ TARGETS = [
         "head": HEAD_16,
         "tail": TAIL_16,
         "expected": {"trigger": 1, "drop_policy": 2, "policy": 2},
+    },
+    {
+        "out": "17_lectura_de_descriptivo.sql",
+        "migrations": ["0030_intake_extract_kind.sql"],
+        "head": HEAD_17,
+        "tail": TAIL_17,
+        "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
+    },
+    {
+        "out": "18_canales_bolsas.sql",
+        "migrations": ["0031_job_board_channels.sql"],
+        "head": HEAD_18,
+        "tail": TAIL_18,
+        "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
     },
 ]
 

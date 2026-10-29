@@ -16,6 +16,8 @@ const MANUAL_13 = readFileSync(new URL("../../supabase/manual/13_editar_vacante.
 const MANUAL_14 = readFileSync(new URL("../../supabase/manual/14_razon_social_cliente.sql", import.meta.url), "utf8");
 const MANUAL_15 = readFileSync(new URL("../../supabase/manual/15_editar_candidato.sql", import.meta.url), "utf8");
 const MANUAL_16 = readFileSync(new URL("../../supabase/manual/16_reclutador_ve_su_vacante.sql", import.meta.url), "utf8");
+const MANUAL_17 = readFileSync(new URL("../../supabase/manual/17_lectura_de_descriptivo.sql", import.meta.url), "utf8");
+const MANUAL_18 = readFileSync(new URL("../../supabase/manual/18_canales_bolsas.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -289,6 +291,37 @@ if (OLD && existsSync(OLD)) {
   check("O · 16 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_16), 5));
   const kept = await db.query(`select count(*)::int as n from public.applications`);
   check("O · las postulaciones se quedan", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- P. 17 (lectura del descriptivo con IA): dos veces, con una llamada registrada de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15, MANUAL_16]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_17);
+  check("P · 17: checklist completo", allOk(first, 1), missing(first));
+  await db.exec(`insert into public.ai_runs (kind, model, status) values ('intake_extract', 'claude-opus-5-5', 'ok')`);
+  const again = await errorOf(() => runManual(db, MANUAL_17));
+  check("P · 17 por segunda vez no falla", !again, again ?? "");
+  check("P · 17 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_17), 1));
+  const kept = await db.query(`select count(*)::int as n from public.ai_runs where kind = 'intake_extract'`);
+  check("P · la llamada registrada se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- Q. 18 (canales Indeed, OCC y Computrabajo): dos veces, con una postulación de Indeed de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15, MANUAL_16, MANUAL_17]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_18);
+  check("Q · 18: checklist completo", allOk(first, 3), missing(first));
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164) values ('c0000000-0000-4000-8000-000000000002', 'Beto', '+524491000002');
+    insert into public.applications (candidate_id, profile_id, source_channel) values ('c0000000-0000-4000-8000-000000000002', '${PX}', 'indeed');
+  `);
+  const again = await errorOf(() => runManual(db, MANUAL_18));
+  check("Q · 18 por segunda vez no falla", !again, again ?? "");
+  check("Q · 18 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_18), 3));
+  const kept = await db.query(`select count(*)::int as n from public.applications where source_channel = 'indeed'`);
+  check("Q · la postulación de Indeed se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

@@ -112,6 +112,14 @@ Cada uso pasa por `runAi()` (`src/lib/ai/run.ts`): esquema zod de salida, prompt
 - **Dónde se guarda:** `job_profile_ai_configs`, con versión +1. Todavía no reescribe el descriptivo.
 - **Costo:** 0.10 a 0.20 USD, una vez por vacante.
 
+### Lectura del descriptivo (`intake_extract`) · programado el 28 oct, sin probar
+
+- **Cuándo corre:** Levantamiento → **Subir descriptivo**.
+- **Qué recibe:** el D.P. del cliente: PDF directo (también escaneado) o el texto de un Word .docx.
+- **Qué devuelve:** las secciones II a VII del levantamiento y notas con lo que no cabe. No guarda nada: el formulario solo llena lo vacío y quien captura revisa y guarda.
+- **Dónde se guarda:** solo en `ai_runs` (`entity_type = 'intake_upload'`).
+- **Costo:** por medir; esperado cerca de lo de `profile_generation` o menos.
+
 ### Score de CV (`cv_score`) · programado
 
 - **Cuándo corre:** al dar de alta un candidato con CV (en segundo plano) y con "Calificar CV" o "Recalificar" en la ficha.
@@ -349,19 +357,23 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 
 ## 8. Lo que falta, en orden
 
+**Hecho el 28 oct (falta probar, `pendientes_revision.md` §18 y §19):** selector de reclutadores al crear la vacante, "Subir descriptivo" en el levantamiento (Claude llena los pasos 2 a 7; migración 0030, archivo manual 17, ya aplicado) y canales Indeed, OCC y Computrabajo (migración 0031, archivo manual 18). Carga masiva confirmada por el usuario.
+
+**Siguiente, sin dependencias:** aviso al cancelar una entrevista con el Outlook desconectado e invitar a la cuenta maestra en lugar de `fred@fireflies.ai`; alerta "Sin fechas de inicio y fin" en el prompt del CV; "Olvidé mi contraseña" en el portal del cliente. Detalle en `tomorrow.md`.
+
 Orden acordado el 26 oct 2026:
 
 1. ~~**Edad del CV**~~ (programado el 26 oct; falta probar, `pendientes_revision.md` §12): el alta individual lee el CV con la misma IA que la carga masiva (`cv_extract`, Claude lee PDF de texto y escaneado) en lugar del lector de texto; el campo Edad sin flechitas ni rueda para que no se llene solo con el mínimo; edad mínima 18 (decidido el 26 oct); corregir a mano la edad del candidato de prueba.
 2. ~~**Editar todo lo de la vacante**~~ (programado el 26 oct; falta probar): antes solo se editaban el descriptivo, el estado y los pesos y umbral del CV. Falta editar a mano las reglas del prefiltro (edad, sueldo máximo, bloqueo o alerta), las preguntas del prefiltro, los mínimos psicométricos y las competencias funcionales y de liderazgo. Así los ajustes de la calibración (pregunta de CRM, sueldo como bloqueo) se corrigen sin regenerar.
 3. **Conectar Outlook, Teams y Fireflies y probarlos** (§6).
-4. **Probar la carga masiva de CV** (`pendientes_revision.md` §11), después de Teams.
+4. ~~**Probar la carga masiva de CV**~~ (`pendientes_revision.md` §11): probada el 27 oct en producción con 3 CV; faltan un escaneado y uno que no sea CV.
 5. **Terminar de calibrar la IA** (§7): alerta "Sin fechas de inicio y fin" en el prompt del CV, subir `PROMPT_VERSION` y volver a calificar los 3 CV. Falta probar con CV reales de Prime.
 6. **`psych_parse`**: leer el PDF de Psicotest ya subido y llenar escalas y veredicto. Necesita 3 o 4 PDF reales.
 7. **Webhook de Fireflies y `interview_analysis`**, cuando el recorrido del punto 3 funcione.
 8. **Correos**: los tres correos automáticos, por Resend o por un buzón de Prime con Graph; PDF del reporte semanal; SMTP de Auth. Hoy solo existen las plantillas y la vista previa: falta `sendEmail()`, los handlers `report_*` y sus horarios en `recurring.ts`.
 9. **Whaapy**: entrada por WhatsApp, prefiltro con `prefilter_reply`, psicométrico y documentos por WhatsApp, `doc_check`.
 10. **Weekly insights** y la pestaña de inteligencia interna con historia.
-11. Cola de tareas y cron: hecho el 20 oct; falta el cron en Vercel al desplegar.
+11. Cola de tareas y cron: hecho el 20 oct. App desplegada en Vercel con dominio el 27 oct: revisar que el cron de `vercel.json` aparezca en Vercel → Settings → Cron Jobs y que `CRON_SECRET` esté en las variables.
 
 **Antes de todo (26 oct):** terminar la carga de datos de Prime: usuarios, vacantes y asignación de reclutadores (`pendientes_revision.md` §13).
 

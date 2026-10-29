@@ -44,3 +44,25 @@ export const CvExtractOutput = z.object({
   is_cv: z.boolean(),
 });
 export type CvExtractOutput = z.infer<typeof CvExtractOutput>;
+
+// Levantamiento a partir del descriptivo de puesto (PDF o Word). Vacío = el documento no lo dice.
+const leveled = z.array(z.object({ name: z.string(), level: z.string() }));
+export const IntakeExtractOutput = z.object({
+  position: z.object({ title: z.string(), unit: z.string(), reports_to: z.string(), openings: z.number().nullable(), work_zone: z.string(), objective: z.string() }),
+  specs: z.object({ age: z.string(), sex: z.string(), marital_status: z.string(), children: z.string(), residence: z.string() }),
+  requirements: z.object({ education: z.string(), experience: z.string(), knowledge: z.array(z.string()), languages: z.string(), systems: z.array(z.string()) }),
+  activities: z.array(z.string()),
+  conditions: z.object({
+    salary: z.string(),
+    benefits: z.array(z.string()),
+    schedule: z.string(),
+    modality: z.string(),
+    travel: z.string(),
+    staff_in_charge: z.string(),
+    tools: z.array(z.string()),
+  }),
+  competencies: z.object({ functional: leveled, leadership: leveled, labor: z.array(z.string()) }),
+  notes: z.string(),
+  is_job_description: z.boolean(),
+});
+export type IntakeExtractOutput = z.infer<typeof IntakeExtractOutput>;

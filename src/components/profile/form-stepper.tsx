@@ -92,7 +92,7 @@ export function useFormStepper() {
     if (titleMissing) setTitleMissing(false);
   }
 
-  return { step, goTo, progress, titleMissing, remeasure, formProps: { ref: attachForm, noValidate: true, onSubmit, onInput } };
+  return { step, goTo, progress, titleMissing, remeasure, formRef, formProps: { ref: attachForm, noValidate: true, onSubmit, onInput } };
 }
 
 type StepperState = ReturnType<typeof useFormStepper>;

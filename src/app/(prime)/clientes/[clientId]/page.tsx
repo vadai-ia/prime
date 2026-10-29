@@ -14,6 +14,7 @@ import { PROFILE_STATUS_LABELS, PROFILE_STATUS_TONES, REPORT_TYPE_LABELS, type T
 import { fmtDate, fmtDateLong } from "@/lib/format";
 import type { StageCounts } from "@/lib/queries/types";
 import { NewVacancyDialog } from "./new-vacancy-dialog";
+import { listActiveRecruiters } from "@/lib/queries/assignments";
 
 export const metadata: Metadata = { title: "Cliente · Prime HR Innovation" };
 
@@ -38,6 +39,7 @@ export default async function ClienteDetailPage(props: PageProps<"/clientes/[cli
   const { clientId } = await props.params;
   const client = await getClient(clientId);
   if (!client) notFound();
+  const recruiters = session.role === "admin" ? await listActiveRecruiters() : [];
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -105,6 +107,7 @@ export default async function ClienteDetailPage(props: PageProps<"/clientes/[cli
                   contact_email: client.contact_email,
                   contact_phone: client.contact_phone,
                 }}
+                recruiters={recruiters}
               />
             )
           }

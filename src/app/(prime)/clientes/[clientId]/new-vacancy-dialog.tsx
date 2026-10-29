@@ -2,9 +2,10 @@
 
 import { useRef } from "react";
 import { IntakeForm, type LockedClient } from "../../perfiles/levantamiento/intake-form";
+import type { RecruiterOption } from "@/lib/queries/assignments";
 
 /** "+" junto a Vacantes en la ficha del cliente: abre el levantamiento con la empresa ya fija. */
-export function NewVacancyDialog({ client }: { client: LockedClient }) {
+export function NewVacancyDialog({ client, recruiters }: { client: LockedClient; recruiters: RecruiterOption[] }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   return (
@@ -35,7 +36,7 @@ export function NewVacancyDialog({ client }: { client: LockedClient }) {
           </button>
         </div>
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
-          <IntakeForm clients={[client]} canCreateProfile lockedClient={client} />
+          <IntakeForm clients={[client]} canCreateProfile lockedClient={client} recruiters={recruiters} />
         </div>
       </dialog>
     </>

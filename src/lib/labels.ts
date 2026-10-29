@@ -44,6 +44,9 @@ export const STAGE_TONES: Record<Stage, Tone> = {
 
 export const CHANNEL_LABELS: Record<Enums<"source_channel">, string> = {
   pandape: "Pandape",
+  indeed: "Indeed",
+  occ: "OCC",
+  computrabajo: "Computrabajo",
   facebook: "Facebook",
   linkedin: "LinkedIn",
   prime_pool: "Bolsa Prime",
@@ -265,6 +268,7 @@ export const AI_RUN_KIND_LABELS: Record<Enums<"ai_run_kind">, string> = {
   doc_check: "Revisión de documento",
   weekly_insights: "Insights semanales",
   cv_extract: "Lectura de CV",
+  intake_extract: "Lectura de descriptivo",
 };
 
 export const AI_RUN_STATUS_LABELS: Record<Enums<"ai_run_status">, string> = {

@@ -700,7 +700,7 @@ export const funnelRows: FunnelRow[] = profiles.flatMap((p) =>
 ).filter((r) => r.applications > 0);
 
 export const channelRows: ChannelRow[] = profiles.flatMap((p) =>
-  (["pandape", "facebook", "linkedin", "prime_pool", "referral", "other"] as Channel[]).map((ch) => {
+  (["pandape", "indeed", "occ", "computrabajo", "facebook", "linkedin", "prime_pool", "referral", "other"] as Channel[]).map((ch) => {
     const apps = applications.filter((a) => a.profile_id === p.id && a.source_channel === ch);
     return { client_id: p.client_id, profile_id: p.id, profile_title: p.title, source_channel: ch, applications: apps.length, hired: apps.filter((a) => a.stage === "hired").length, discarded: apps.filter((a) => a.stage === "discarded").length, prefilter_passed: apps.filter((a) => a.prefilter_status === "passed").length };
   }),

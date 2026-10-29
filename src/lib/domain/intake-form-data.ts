@@ -24,3 +24,35 @@ export function positionFromFormData(formData: FormData, title: string): Omit<In
 }
 
 export { str as formString };
+
+type Position = Omit<IntakeForm, "company">;
+
+// "Indistinto" es lo que trae el levantamiento nuevo por omisión: si el descriptivo dice otra cosa, gana el descriptivo.
+const blank = (v: unknown) => v === undefined || v === null || v === "" || v === "Indistinto" || (Array.isArray(v) && v.length === 0);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+function fill(current: unknown, extracted: unknown): unknown {
+  if (blank(current)) return blank(extracted) ? current : extracted;
+  if (isRecord(current) && isRecord(extracted)) {
+    const out: Record<string, unknown> = { ...current };
+    for (const key of Object.keys(extracted)) out[key] = fill(current[key], extracted[key]);
+    return out;
+  }
+  return current;
+}
+
+/**
+ * Lo que leyó la IA del descriptivo, sin pisar lo que ya se capturó a mano: solo llena lo vacío.
+ * Las plazas siempre traen 1 en el formulario; si el descriptivo dice cuántas, se toman.
+ */
+export function fillEmptyPosition(current: Position, extracted: Position): Position {
+  const merged = fill(current, extracted) as Position;
+  const openings = current.position?.openings === 1 && extracted.position?.openings ? extracted.position.openings : merged.position?.openings;
+  return { ...merged, position: { ...merged.position, openings } };
+}
+
+/** Cuántos campos trae lo leído (cada lista cuenta como uno), para decirle a quien captura cuánto se llenó. */
+export function countFilled(form: Position): number {
+  const count = (v: unknown): number => (isRecord(v) ? Object.values(v).reduce<number>((n, x) => n + count(x), 0) : blank(v) ? 0 : 1);
+  return count(form);
+}

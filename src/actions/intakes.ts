@@ -9,6 +9,8 @@ import { MOCK_CORE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { asJson, type IntakeForm } from "@/lib/domain/json";
 import { profileFromIntake } from "@/lib/domain/profile-from-intake";
 import { formString as str, positionFromFormData } from "@/lib/domain/intake-form-data";
+import { aiEnabled } from "@/lib/ai/client";
+import { extractIntakeFromDocument, type IntakeDocument } from "@/lib/ai/tasks/extract-intake";
 
 export type IntakeFormState = { error?: string } | undefined;
 
@@ -33,6 +35,8 @@ const schema = z.object({
   client_id: z.string().uuid().optional().or(z.literal("")),
   title: z.string().trim().min(2, "Nombre del puesto requerido"),
 });
+
+const recruiterIdsSchema = z.array(z.string().uuid());
 
 /** Guarda el levantamiento (secciones I a VI) en job_intakes.form. Con intent=create_profile crea además la vacante. */
 export async function saveIntake(_prev: IntakeFormState, formData: FormData): Promise<IntakeFormState> {
@@ -69,8 +73,17 @@ export async function saveIntake(_prev: IntakeFormState, formData: FormData): Pr
   let target = "/perfiles";
   if (createProfile && clientId) {
     const created = await insertProfile(supabase, { id: intake.id, form }, clientId, session.userId);
-    if (created.error) return { error: `El levantamiento se guardó como borrador, pero no se pudo crear la vacante: ${created.error}` };
+    if (!created.profileId) return { error: `El levantamiento se guardó como borrador, pero no se pudo crear la vacante: ${created.error}` };
     target = `/perfiles/${created.profileId}`;
+    // Los reclutadores marcados al crear: la misma RPC de la pestaña Reclutadores (deja el historial). Si falla, la
+    // vacante ya existe y se sigue a su ficha, donde la pestaña muestra que quedó sin reclutadores.
+    const recruiters = recruiterIdsSchema.safeParse(formData.getAll("recruiter_ids"));
+    if (recruiters.success && recruiters.data.length) {
+      const { error: assignError } = await supabase.rpc("set_profile_recruiters", { p_profile_id: created.profileId, p_recruiter_ids: recruiters.data });
+      if (assignError) console.error("set_profile_recruiters", assignError.message);
+    }
+    revalidatePath("/candidatos");
+    revalidatePath("/tablero");
   }
 
   revalidatePath("/perfiles");
@@ -110,4 +123,40 @@ export async function createProfileFromIntake(_prev: IntakeFormState, formData: 
   revalidatePath("/perfiles");
   revalidatePath(`/clientes/${clientId}`);
   redirect(`/perfiles/${created.profileId}`);
+}
+
+/** Tope del descriptivo: cabe en el límite de las acciones del servidor (next.config.ts) y en el de Vercel (4.5 MB). */
+const MAX_DESCRIPTION_BYTES = 4 * 1024 * 1024;
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export type JobDescriptionResult = { ok: true; form: Omit<IntakeForm, "company">; isJobDescription: boolean } | { ok: false; error: string };
+
+/**
+ * "Subir descriptivo" del levantamiento: Claude lee el D.P. (PDF o Word) y propone las secciones II a VII.
+ * No guarda nada; el formulario solo llena lo que esté vacío y quien captura revisa antes de guardar.
+ * El archivo no se conserva: el levantamiento guarda lo capturado, no el documento.
+ */
+export async function readJobDescription(formData: FormData): Promise<JobDescriptionResult> {
+  try {
+    await assertStaff();
+  } catch (e) {
+    return { ok: false, error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  if (MOCK) return { ok: false, error: MOCK_WRITE_ERROR };
+  if (!aiEnabled()) return { ok: false, error: "La IA no está configurada: falta ANTHROPIC_API_KEY en el servidor." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Elige el archivo del descriptivo." };
+  if (file.size > MAX_DESCRIPTION_BYTES) return { ok: false, error: "El archivo no puede pesar más de 4 MB." };
+
+  const name = file.name.toLowerCase();
+  let kind: IntakeDocument["kind"];
+  if (file.type === "application/pdf" || name.endsWith(".pdf")) kind = "pdf";
+  else if (file.type === DOCX_MIME || name.endsWith(".docx")) kind = "docx";
+  else if (name.endsWith(".doc")) return { ok: false, error: "Es un Word antiguo (.doc). Ábrelo y guárdalo como .docx o como PDF." };
+  else return { ok: false, error: "El descriptivo debe ser PDF o Word (.docx)." };
+
+  const result = await extractIntakeFromDocument({ kind, bytes: Buffer.from(await file.arrayBuffer()), name: file.name });
+  if (!result.ok) return result;
+  return { ok: true, form: result.form, isJobDescription: result.isJobDescription };
 }

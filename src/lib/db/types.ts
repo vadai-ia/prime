@@ -3065,6 +3065,7 @@ export type Database = {
         | "doc_check"
         | "weekly_insights"
         | "cv_extract"
+        | "intake_extract"
       ai_run_status: "ok" | "error" | "refusal"
       application_stage:
         | "new"
@@ -3162,6 +3163,9 @@ export type Database = {
         | "prime_pool"
         | "referral"
         | "other"
+        | "indeed"
+        | "occ"
+        | "computrabajo"
       task_status: "pending" | "running" | "done" | "failed" | "cancelled"
       user_role: "admin" | "recruiter" | "client"
       wa_conversation_status:
@@ -3332,6 +3336,7 @@ export const Constants = {
         "doc_check",
         "weekly_insights",
         "cv_extract",
+        "intake_extract",
       ],
       ai_run_status: ["ok", "error", "refusal"],
       application_stage: [
@@ -3432,6 +3437,9 @@ export const Constants = {
         "prime_pool",
         "referral",
         "other",
+        "indeed",
+        "occ",
+        "computrabajo",
       ],
       task_status: ["pending", "running", "done", "failed", "cancelled"],
       user_role: ["admin", "recruiter", "client"],

@@ -51,6 +51,18 @@ export async function getProfileRecruiters(profileId: string): Promise<ProfileRe
   };
 }
 
+export type RecruiterOption = { id: string; full_name: string | null; email: string };
+
+/** Reclutadores activos para marcar al crear una vacante (levantamiento). Solo admin. */
+export async function listActiveRecruiters(): Promise<RecruiterOption[]> {
+  await requirePermission("manage_assignments");
+  if (MOCK) return mock.users.filter((u) => u.role === "recruiter" && u.is_active).map((u) => ({ id: u.id, full_name: u.full_name, email: u.email }));
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("users").select("id, full_name, email").eq("role", "recruiter").eq("is_active", true).order("full_name");
+  if (error) throw error;
+  return data;
+}
+
 /**
  * Qué vacantes trabaja cada reclutador (id del reclutador → ids de vacantes), para el filtro por
  * reclutador y la carga del Tablero y Entrevistas: desde 0029 el reclutador ve a todos los candidatos

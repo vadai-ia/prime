@@ -5,6 +5,7 @@ import { AI_MODEL } from "@/lib/ai/client";
 import * as profileGeneration from "@/lib/ai/prompts/profile-generation";
 import * as cvScore from "@/lib/ai/prompts/cv-score";
 import * as cvExtract from "@/lib/ai/prompts/cv-extract";
+import * as intakeExtract from "@/lib/ai/prompts/intake-extract";
 import { AI_RUN_KIND_LABELS } from "@/lib/labels";
 import { fmtDateTime } from "@/lib/format";
 import type { Enums } from "@/lib/db/types";
@@ -41,6 +42,14 @@ const PROMPTS: { kind: Enums<"ai_run_kind">; file: string; when: string; version
     version: cvExtract.PROMPT_VERSION,
     effort: cvExtract.EFFORT,
     system: cvExtract.SYSTEM,
+  },
+  {
+    kind: "intake_extract",
+    file: "src/lib/ai/prompts/intake-extract.ts",
+    when: "Levantamiento → Subir descriptivo. Acomoda el descriptivo de puesto del cliente (PDF o Word) en las secciones II a VII; el formulario solo llena lo vacío y se revisa antes de guardar.",
+    version: intakeExtract.PROMPT_VERSION,
+    effort: intakeExtract.EFFORT,
+    system: intakeExtract.SYSTEM,
   },
 ];
 

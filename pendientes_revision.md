@@ -229,7 +229,7 @@ Se llena cuando esté programado. Lo esperado:
 
 ---
 
-## 11. Carga masiva de CV · programada el 24 oct; se prueba ya (necesita la API key)
+## 11. Carga masiva de CV · programada el 24 oct; funciona (confirmado por el usuario el 28 oct)
 
 **Preparar:**
 
@@ -237,12 +237,12 @@ Se llena cuando esté programado. Lo esperado:
 
 **Probar:**
 
-- [ ] Candidatos → **Carga masiva**: elegir la vacante y el canal, soltar 3 a 5 PDF (uno escaneado, y uno que no sea CV).
+- [x] Candidatos → **Carga masiva** (o **Cargar CVs** en la vacante): elegir la vacante y el canal, soltar 3 a 5 PDF (uno escaneado, y uno que no sea CV). *27 oct: probada en producción con 3 CV de prueba; falta un escaneado y uno que no sea CV.*
 - [ ] Cada fila pasa por Subiendo → Leyendo con IA → Listo, tres a la vez, en unos 10 a 20 s cada una.
-- [ ] Nombre, teléfono, correo, municipio y escolaridad salen bien. La edad solo aparece si el CV la dice; si no, vacía (no 15).
+- [x] Nombre, teléfono, correo, municipio y escolaridad salen bien. La edad solo aparece si el CV la dice; si no, vacía (no 15). *27 oct: la IA leyó bien la edad. La ficha mostraba otra porque esas personas ya existían por teléfono (de la prueba anterior) y se conservan sus datos; decidido dejarlo así. Usar teléfonos nuevos en cada prueba.*
 - [ ] El que no es CV dice "Este PDF no parece un CV". Una fila sin teléfono no deja darse de alta hasta capturarlo.
-- [ ] Un teléfono que ya existe muestra "Ya registrado (N postulaciones)".
-- [ ] **Dar de alta**: cada fila queda "Dado de alta · ver ficha"; los candidatos salen en etapa Nuevo, repartidos por turno entre los reclutadores de la vacante, y en unos segundos con su score de CV.
+- [ ] Un teléfono que ya existe muestra "Ya registrado (N postulaciones): se conservan los datos de su ficha…" y la ficha conserva sus datos anteriores.
+- [ ] **Dar de alta**: cada fila queda "Dado de alta · ver ficha"; los candidatos salen en etapa Nuevo, sin reclutador asignado (los ven todos los de la vacante, §17), y en unos segundos con su score de CV si la vacante tiene Evaluación IA.
 - [ ] Alguien de la lista negra: la fila dice que no se puede registrar (al reclutador sin el motivo) y al admin le llega el aviso.
 - [ ] Logs técnicos y Prompts de IA: las lecturas salen como "Lectura de CV" con su costo.
 
@@ -374,3 +374,39 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 - [ ] Configuración → Logs técnicos → Accesos y cambios: "Editó datos de un candidato" con enlace a la ficha y los campos que cambiaron (sin los valores).
 - [ ] Como reclutador, en un candidato de su vacante: puede editar. Un candidato de una vacante que no trabaja ni siquiera se abre (§17).
 - [ ] Si el candidato tiene dos postulaciones, el cambio se ve en las dos fichas.
+
+## 18. Reclutadores al crear la vacante y levantamiento desde el descriptivo · programado el 28 oct
+
+**Preparar:**
+
+- [x] Pegar `supabase/manual/17_lectura_de_descriptivo.sql` en el SQL Editor **antes** de desplegar: checklist con 1 "ok". *28 oct: aplicado, ok.*
+- [ ] `npm install` (se agregó `mammoth` para leer Word).
+
+**Reclutadores al crear (admin):**
+
+- [ ] Perfiles → Nuevo levantamiento: abajo sale "Reclutadores de la vacante" con los reclutadores activos. Marcar dos y **Guardar y crear vacante** → la pestaña Reclutadores de la vacante los trae marcados y el historial dice quién los asignó.
+- [ ] Lo mismo desde el "+" de Vacantes en la ficha del cliente.
+- [ ] Sin marcar a nadie: la vacante queda sin reclutadores (como antes).
+- [ ] Marcar y **Guardar borrador**: no asigna a nadie (se asigna al crear la vacante).
+- [ ] Marcar casillas no mueve la barra de Avance.
+- [ ] Como reclutador: no sale la lista.
+- [ ] Los reclutadores marcados ven la vacante y sus candidatos de inmediato.
+
+**Subir descriptivo (necesita la API key):**
+
+- [ ] Levantamiento → **Subir descriptivo** con un D.P. en PDF: dice "Leyendo…" de 20 a 60 s, lleva al paso 2 y llena los pasos 2 a 7. El mensaje dice cuántos campos se llenaron.
+- [ ] Revisar paso por paso contra el documento: nada inventado (sueldo, edad, horario solo si el D.P. los dice), actividades en orden, competencias con su nivel.
+- [ ] Lo mismo con un Word .docx y con un PDF escaneado.
+- [ ] Capturar antes el nombre del puesto y la edad, y subir el D.P.: esos dos se quedan como estaban; lo vacío se llena.
+- [ ] Un .doc antiguo: pide guardarlo como .docx o PDF. Un archivo de más de 4 MB o una imagen: error claro.
+- [ ] Un CV en lugar de un D.P.: avisa que no parece un descriptivo.
+- [ ] La sección I (empresa) no cambia. Guardar sigue funcionando igual.
+- [ ] Logs técnicos → IA: sale "Lectura de descriptivo" con su costo. Configuración → Prompts de IA: aparece la tarjeta nueva. Anotar el costo para `tasks.md` §2.
+
+## 19. Canales Indeed, OCC y Computrabajo · programado el 28 oct
+
+- [x] Pegar `supabase/manual/18_canales_bolsas.sql` en el SQL Editor **antes** de desplegar: checklist con 3 "ok". **Aplicado (28 oct 2026, 3 ok).**
+- [ ] Agregar candidato y Carga masiva: el selector de canal trae Indeed, OCC y Computrabajo después de Pandape.
+- [ ] Editar vacante → paso 8: se pueden marcar como canales de publicación y salen en el descriptivo con su color.
+- [ ] Candidatos: filtrar por canal Indeed. Reportes y Tablero: el canal sale con su nombre. Exportar a Excel: columna Canal dice "Indeed".
+- [ ] Portal → semanal del cliente: el canal sale con su nombre.
