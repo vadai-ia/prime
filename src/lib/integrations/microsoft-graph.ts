@@ -129,7 +129,7 @@ async function graph<T>(token: string, path: string, init: RequestInit = {}): Pr
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
     if (res.status === 404) throw new MicrosoftGraphError("El evento ya no existe en Outlook (¿lo borraron desde el calendario?).", 404);
-    throw new MicrosoftGraphError(`Outlook respondió ${res.status}: ${json.error?.message ?? json.error?.code ?? "error desconocido"}`, res.status);
+    throw new MicrosoftGraphError(`Outlook respondió ${res.status}: ${json.error?.message || json.error?.code || (res.status === 503 ? "el servicio no está disponible (¿buzón recién creado?)" : "error desconocido")}`, res.status);
   }
   if (res.status === 202 || res.status === 204) return null;
   return (await res.json()) as T;
