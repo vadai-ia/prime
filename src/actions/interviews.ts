@@ -19,7 +19,16 @@ export type InterviewActionState = { error?: string; ok?: boolean; warning?: str
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-const graphMessage = (e: unknown) => (e instanceof MicrosoftGraphError ? e.message : "No se pudo hablar con Outlook.");
+/** Mensaje para la pantalla. Lo que no es respuesta de Graph (cifrado, red, timeout) se registra y se nombra. */
+function graphMessage(e: unknown): string {
+  if (e instanceof MicrosoftGraphError) return e.message;
+  console.error("[microsoft] interviews", e);
+  if (e instanceof Error && e.name === "TimeoutError") return "Outlook tardó demasiado en responder; inténtalo de nuevo.";
+  if (e instanceof Error && /unable to authenticate data|formato desconocido|ENCRYPTION_KEY/i.test(e.message)) {
+    return "No se pudo leer tu conexión con Outlook (¿cambió ENCRYPTION_KEY?). Desconéctala y vuelve a conectarla en Mi cuenta.";
+  }
+  return `No se pudo hablar con Outlook (${e instanceof Error ? e.message : String(e)}).`;
+}
 
 function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

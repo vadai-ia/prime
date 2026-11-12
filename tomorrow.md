@@ -2,7 +2,7 @@
 
 Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo primero.** Después: **`microsoft365-pasos.md`** (guía para la reunión con sistemas de Prime, 12 nov), `junta.md` (junta del 30 oct), **`variables.md`** (variables de Vercel y SMTP de Supabase), `pendientes_revision.md` (qué probar: §11 a §19 son lo más reciente), `tasks.md` (hecho, falta y qué pedir a Prime), `plan.md` §12.14 a §12.18, `requerimientos_estado.md`, `datos_errores.md` y `CLAUDE.md` (reglas).
 
-**No se commitea ni se pushea**: lo hace el usuario. Último commit `a4ad44d features`. Sin commit: `junta.md`, `microsoft365-pasos.md`, `FIREFLIES_INVITEE` en `src/lib/integrations/microsoft-graph.ts`, `tasks.md` y este archivo.
+**No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
 
 ## 12 nov: Microsoft 365 contratado, falta conectarlo
 
@@ -17,7 +17,7 @@ Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo p
   6. Fireflies con `entrevistas@`.
   7. Que nos manden el inquilino, el cliente, el valor del secreto y su vencimiento.
 - **Decidido el 12 nov: primero las claves, las licencias después.** Sistemas hace solo el paso 6 (Entra ID) con `sistemas@` y nos manda los datos; probamos "Conectar Outlook" con `sistemas@`. Sin licencia, conectar funciona (el callback solo lee `/me`), pero **agendar falla** porque `/me/events` necesita buzón de Exchange. Para probar agendar y Teams hace falta 1 licencia (a `sistemas@` temporal o a `entrevistas@`).
-- **12 nov: app registrada en Entra ID** ("Prime HR Reclutamiento", Web, un inquilino, las 2 URI, 5 permisos delegados con consentimiento de admin). El secreto **vence alrededor del 12 nov 2028**: recordatorio en oct 2028. El usuario puso `MICROSOFT_*` en `.env` (está en `.gitignore`) y en Vercel. Falta `ENCRYPTION_KEY` y la prueba "Conectar Outlook" con `sistemas@`.
+- **12 nov: app registrada en Entra ID** ("Prime HR Reclutamiento", Web, un inquilino, las 2 URI, 5 permisos delegados con consentimiento de admin). El secreto **vence alrededor del 12 nov 2028**: recordatorio en oct 2028. Variables en `.env` y en Vercel: `MICROSOFT_*`, `ENCRYPTION_KEY`, `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`. Desplegado en el commit `0326d34 llaves microsoft` (ya incluye `FIREFLIES_INVITEE`). **"Conectar Outlook" probado en producción y funciona** con `sistemas@`, desde un usuario de la app con rol reclutador y sin vacantes (el encargado de sistemas). Desactivar ese usuario si no se va a usar. **Falta:** 1 licencia para probar agendar y Teams; `entrevistas@` y `FIREFLIES_INVITEE` (sin la variable se invita a `fred@fireflies.ai`).
 - **Qué buzón se usa:** la invitación de Teams sale del buzón onmicrosoft del reclutador; las respuestas llegan ahí y se reenvían a cPanel. El correo de todos los días sigue en cPanel. Teams no necesita registro ni permiso aparte: el evento se crea con `isOnlineMeeting` y `Calendars.ReadWrite`.
 - **Al recibir los datos:** commit y despliegue de `FIREFLIES_INVITEE`; en Vercel `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `ENCRYPTION_KEY` y `FIREFLIES_INVITEE=entrevistas@primehrinnovation.onmicrosoft.com`; volver a desplegar y hacer la prueba del paso 9 de `microsoft365-pasos.md`. Sin `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` y `ENCRYPTION_KEY`, la app no habilita "Conectar Outlook" (`microsoft-graph.ts:42`).
 
