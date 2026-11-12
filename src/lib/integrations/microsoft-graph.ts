@@ -13,7 +13,21 @@ import { decrypt, encrypt, encryptionEnabled } from "@/lib/crypto";
 const LOGIN = "https://login.microsoftonline.com";
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const SCOPES = ["openid", "email", "offline_access", "User.Read", "Calendars.ReadWrite"];
-const TIMEOUT_MS = 15_000;
+// Login responde rápido; crear un evento con reunión de Teams puede tardar (sobre todo el primero de un buzón nuevo).
+const LOGIN_TIMEOUT_MS = 15_000;
+const GRAPH_TIMEOUT_MS = 40_000;
+
+/** fetch con límite de tiempo; si se agota, dice en qué paso fue. */
+async function timedFetch(url: string, init: RequestInit, ms: number, step: string): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(ms) });
+  } catch (e) {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      throw new MicrosoftGraphError(`Microsoft no respondió en ${ms / 1000} s (${step}). Revisa en el calendario si el evento ya se creó antes de reintentar.`);
+    }
+    throw new MicrosoftGraphError(`No se pudo conectar con Microsoft (${step}): ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
 const TZ = process.env.APP_TIMEZONE || "America/Mexico_City";
 
 /** Cookie con state, verificador PKCE y usuario mientras dura el ida y vuelta a Microsoft. */
@@ -70,7 +84,7 @@ export function authorizeUrl({ state, codeChallenge, redirect }: { state: string
 type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; scope?: string };
 
 async function tokenRequest(body: Record<string, string>): Promise<TokenResponse> {
-  const res = await fetch(`${LOGIN}/${tenant()}/oauth2/v2.0/token`, {
+  const res = await timedFetch(`${LOGIN}/${tenant()}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -79,8 +93,7 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenResponse
       scope: SCOPES.join(" "),
       ...body,
     }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  }, LOGIN_TIMEOUT_MS, body.grant_type === "refresh_token" ? "renovar la conexión" : "iniciar sesión");
   const json = (await res.json().catch(() => ({}))) as Partial<TokenResponse> & { error?: string; error_description?: string };
   if (!res.ok || !json.access_token) {
     const reason = json.error_description?.split("\r\n")[0] ?? json.error ?? `HTTP ${res.status}`;
@@ -106,11 +119,12 @@ export function integrationColumns(tokens: TokenResponse, accountEmail: string |
 }
 
 async function graph<T>(token: string, path: string, init: RequestInit = {}): Promise<T | null> {
-  const res = await fetch(`${GRAPH}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  const res = await timedFetch(
+    `${GRAPH}${path}`,
+    { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers } },
+    GRAPH_TIMEOUT_MS,
+    `${init.method ?? "GET"} ${path.split("?")[0].replace(/\/events\/[^/]+/, "/events/…")}`,
+  );
   if (res.status === 401) throw new MicrosoftGraphError(RECONNECT, 401);
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };

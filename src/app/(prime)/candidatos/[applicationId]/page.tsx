@@ -25,6 +25,9 @@ import { BlacklistPanel } from "@/components/candidate/blacklist-panel";
 import { PermanenciaPanel } from "@/components/candidate/permanencia-panel";
 import { EditCandidate } from "@/components/candidate/edit-candidate";
 
+// Agendar, mover o cancelar con Outlook espera a Microsoft (hasta 40 s por llamada, más la renovación del token)
+export const maxDuration = 60;
+
 export async function generateMetadata(props: PageProps<"/candidatos/[applicationId]">): Promise<Metadata> {
   const { applicationId } = await props.params;
   const detail = await getApplicationDetail(applicationId);
