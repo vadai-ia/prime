@@ -19,8 +19,12 @@ const TZ = process.env.APP_TIMEZONE || "America/Mexico_City";
 /** Cookie con state, verificador PKCE y usuario mientras dura el ida y vuelta a Microsoft. */
 export const OAUTH_COOKIE = "ms_oauth";
 
-/** Invitado que hace que Fireflies entre a la reunión y la transcriba (plan §4.3). */
-const FIREFLIES_BOT = "fred@fireflies.ai";
+/**
+ * Invitado que hace que Fireflies entre a la reunión y la transcriba (plan §4.3). Con la cuenta maestra
+ * de Prime (FIREFLIES_INVITEE, p. ej. entrevistas@) la entrevista cae en su calendario y su Fireflies entra;
+ * sin la variable se invita al bot genérico.
+ */
+const FIREFLIES_BOT = process.env.FIREFLIES_INVITEE?.trim() || "fred@fireflies.ai";
 
 export class MicrosoftGraphError extends Error {
   constructor(

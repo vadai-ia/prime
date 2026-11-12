@@ -253,7 +253,7 @@ const W_VENDEDOR: CvWeight[] = [
   { key: "service", label: "Atención al cliente", weight: 25 },
 ];
 
-// Quién trabaja cada vacante (plan §2.3). Cobranza la comparten: cada quien ve solo sus candidatos.
+// Quién trabaja cada vacante (plan §2.3). Cobranza la comparten: los dos ven a todos sus candidatos.
 const TEAMS: Record<string, string[]> = {
   "p-cobranza": ["u-roberto", "u-lucia"],
   "p-diseno": ["u-roberto"],

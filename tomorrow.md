@@ -1,63 +1,100 @@
 # Próxima sesión · Prime HR Innovation
 
-Escrito el 27 de octubre de 2026. **Léelo primero.** Después: `pendientes_revision.md` (qué probar: §11 a §17 son lo más reciente), `tasks.md` (hecho, falta y qué pedir a Prime), `plan.md` §12.14 a §12.16 (detalle de lo del 27 oct), `requerimientos_estado.md` (cruce con la lista de requerimientos del 11 sep), `datos_errores.md` (lo que Prime tiene que corregir) y `CLAUDE.md` (reglas).
+Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo primero.** Después: **`microsoft365-pasos.md`** (guía para la reunión con sistemas de Prime, 12 nov), `junta.md` (junta del 30 oct), **`variables.md`** (variables de Vercel y SMTP de Supabase), `pendientes_revision.md` (qué probar: §11 a §19 son lo más reciente), `tasks.md` (hecho, falta y qué pedir a Prime), `plan.md` §12.14 a §12.18, `requerimientos_estado.md`, `datos_errores.md` y `CLAUDE.md` (reglas).
 
-**No se commitea ni se pushea**: lo hace el usuario. El 27 oct hizo push de todo (último commit `1027c84 Reclutadores por vacante y no por persona`).
+**No se commitea ni se pushea**: lo hace el usuario. Último commit `a4ad44d features`. Sin commit: `junta.md`, `microsoft365-pasos.md`, `FIREFLIES_INVITEE` en `src/lib/integrations/microsoft-graph.ts`, `tasks.md` y este archivo.
 
-## Estado al cierre del 27 oct
+## 12 nov: Microsoft 365 contratado, falta conectarlo
 
-- **App en producción:** Vercel con el dominio `app.primehrinnovation.com.mx`. Base hospedada con los archivos manuales **01 a 17** aplicados (17 el 28 oct); falta el **18**.
-- **Regla nueva de visibilidad** (plan §2.3 y §12.16, migración 0029, `CLAUDE.md` actualizado): el reclutador ve a **todos** los candidatos de las vacantes que trabaja. No hay reclutador por candidato ni round robin; quitar a alguien de una vacante solo le quita la vista. Los avisos de un candidato llegan a admins y a todos los reclutadores de su vacante. Lo decidió el usuario; reemplaza lo acordado con Prime el 11 sep (hay que avisarles).
-- **Hecho el 27 oct:**
-  - Periodo en el Tablero (§12.14) y editar los datos del candidato (§12.15).
-  - Botón **Cargar CVs** en la vacante; enlace a la vacante y al cliente en la ficha del candidato.
-  - Levantamiento sin vacante dice "Sin vacante" (no "Perfil generado").
-  - Carga masiva: si el teléfono ya existe, la fila avisa que se conservan los datos de la ficha y solo se llenan los vacíos. **Decidido dejarlo así** (no reemplazar con el CV nuevo).
-  - Configuración → Prompts: "Generar con IA" lee el **descriptivo de la vacante**, no el levantamiento. Las vacantes cargadas por SQL no tienen levantamiento y está bien.
-- **Probado por el usuario en producción:** carga masiva con 3 CV (la IA leyó bien la edad). La edad distinta en la ficha era porque esas personas ya existían por teléfono.
-- **Limpieza por SQL (aplicada):** vacante "PRUEBA Ejecutivo de cobranza" de Telasist borrada con sus postulaciones; su levantamiento borrado; los 3 candidatos de prueba (Mariana López Herrera, Jorge Ramírez Soto, Luis Fernández Cruz) borrados con su rastro (ai_runs, avisos, tareas). El usuario vació el bucket `cvs`, incluida `uploads`.
-- **Vacante de prueba vigente:** "PRUEBA Ejecutivo de cobranza y atención a banca" (cliente "PRUEBA Financiera" si lo creó así). Usar teléfonos nuevos en cada CV de prueba.
+- **Correo (Resend) hecho**, según el usuario. Confirmar que `RESEND_API_KEY` y `RESEND_FROM` están en Vercel y que el SMTP de Supabase manda "Olvidé mi contraseña".
+- **Prime contrató Microsoft 365 Empresa Básico.** La cuenta maestra es **`sistemas@primehrinnovation.onmicrosoft.com`** (no `admin@`; ya se cambió en `junta.md`). Es solo de administración: sin licencia, no agenda ni se conecta en la app.
+- **Outlook y Teams todavía no están conectados.** Falta lo de `microsoft365-pasos.md`, que hace sistemas con `sistemas@`:
+  1. Confirmar que `sistemas@` es **Administrador global** y que hay 7 licencias.
+  2. Crear `entrevistas@` y una cuenta `@primehrinnovation.onmicrosoft.com` por reclutador, con licencia. Propuesta: Gabriela, Eduardo, Mauricio, Patricia Denisse, Diego y Nancy, con el mismo usuario que tienen en cPanel. Falta confirmar Xavier, Edwin y Ulises.
+  3. Reenvío de cada buzón onmicrosoft a su correo de cPanel (Defender, directiva de salida, más el reenvío por usuario).
+  4. Teams: anónimos, omitir la sala de espera para todos, transcripción.
+  5. Entra ID: registrar la app (Web, un solo inquilino) con las URI de redirección `https://app.primehrinnovation.com.mx/api/integrations/microsoft/callback` y `http://localhost:3000/api/integrations/microsoft/callback`. Permisos delegados `openid email offline_access User.Read Calendars.ReadWrite` (y opcional `OnlineMeetingTranscript.Read.All`), consentimiento de admin y secreto a 24 meses.
+  6. Fireflies con `entrevistas@`.
+  7. Que nos manden el inquilino, el cliente, el valor del secreto y su vencimiento.
+- **Decidido el 12 nov: primero las claves, las licencias después.** Sistemas hace solo el paso 6 (Entra ID) con `sistemas@` y nos manda los datos; probamos "Conectar Outlook" con `sistemas@`. Sin licencia, conectar funciona (el callback solo lee `/me`), pero **agendar falla** porque `/me/events` necesita buzón de Exchange. Para probar agendar y Teams hace falta 1 licencia (a `sistemas@` temporal o a `entrevistas@`).
+- **12 nov: app registrada en Entra ID** ("Prime HR Reclutamiento", Web, un inquilino, las 2 URI, 5 permisos delegados con consentimiento de admin). El secreto **vence alrededor del 12 nov 2028**: recordatorio en oct 2028. El usuario puso `MICROSOFT_*` en `.env` (está en `.gitignore`) y en Vercel. Falta `ENCRYPTION_KEY` y la prueba "Conectar Outlook" con `sistemas@`.
+- **Qué buzón se usa:** la invitación de Teams sale del buzón onmicrosoft del reclutador; las respuestas llegan ahí y se reenvían a cPanel. El correo de todos los días sigue en cPanel. Teams no necesita registro ni permiso aparte: el evento se crea con `isOnlineMeeting` y `Calendars.ReadWrite`.
+- **Al recibir los datos:** commit y despliegue de `FIREFLIES_INVITEE`; en Vercel `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `ENCRYPTION_KEY` y `FIREFLIES_INVITEE=entrevistas@primehrinnovation.onmicrosoft.com`; volver a desplegar y hacer la prueba del paso 9 de `microsoft365-pasos.md`. Sin `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` y `ENCRYPTION_KEY`, la app no habilita "Conectar Outlook" (`microsoft-graph.ts:42`).
 
-## Lo primero: pendientes del usuario
+## 30 oct: junta con Prime
 
-1. **Probar en producción** `pendientes_revision.md` §12, §14, §15, §16 y **§17** (reclutador ve su vacante: dos reclutadores de la misma vacante ven lo mismo; uno de otra vacante no; aviso "Nuevo candidato" al subir un CV; filtro por reclutador del Tablero). En §11 faltan un PDF escaneado y uno que no sea CV.
-2. **Revisar CVs huérfanos:** correr la consulta de candidatos con `cv_file_path` sin archivo en `storage.objects` (bucket `cvs`) para saber si al vaciar el bucket se perdió el CV de alguien real. Si sale alguien, volver a subirle el CV o borrarlo si es de prueba.
-3. **Llenar descriptivo y Evaluación IA** (Generar con IA) de cada vacante real; sin pesos, la carga masiva no califica.
-4. **Mandar `datos_errores.md` a Prime** (incluye Grupo Huerta y Chela Chupas) y que **pidan la API de Pandapé** (detalle en `requerimientos_estado.md` §8; `api.hcm.pandape.com` no sirve).
-5. **Avisar a Prime** del cambio de visibilidad (todos los reclutadores de una vacante ven a todos sus candidatos).
-6. Vercel: confirmar que el cron diario aparece en Settings → Cron Jobs y que `CRON_SECRET`, `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y `NEXT_PUBLIC_APP_URL=https://app.primehrinnovation.com.mx` están en las variables.
+Todo lo hace **el encargado de sistemas de Prime** (admin de Microsoft 365 y del DNS), guiado en la llamada con `junta.md` (pasos 0 a 8). Orden: revisar licencias → crear `entrevistas@` con licencia → ajustar Teams → registrar la app en Entra ID → Fireflies con `entrevistas@` → Resend con `entrevistas@` → pegar DNS → clave de Resend → mandarnos los datos.
 
-**Cómo se entregan las queries:** el usuario pega en el SQL Editor de Supabase. Escribir el `.sql` en el scratchpad, re-ejecutable y con checklist o protecciones (se detiene si encuentra más de lo esperado), probarlo dos veces con `boot()` de `scripts/rls-lite/harness.mjs` y darle la ruta completa. Si sale la advertencia de RLS por `supabase_migrations.schema_migrations`, es "Run without RLS" (solo preocupa si nombra una tabla de `public`). Supabase no deja borrar archivos de Storage por SQL: se borran en el panel. Leer el Excel (`excel/`) solo si el usuario lo pide. Preguntar antes de cargar o borrar datos.
+Decidido el 29 oct:
 
-## Hecho el 28 oct (sin commit; falta probar, `pendientes_revision.md` §18)
+- **Una sola cuenta nueva:** `entrevistas@primehrinnovation.com.mx` con licencia Business Basic. Fireflies entra con ella y es la dueña de la cuenta de Resend.
+- **Resend y no el correo de Supabase:** el de Supabase solo manda invitación y reset, con límite de pocos por hora. Resend manda los reportes y, como SMTP de Supabase, también la invitación y el reset.
+- **El remitente no es una cuenta nueva:** Resend verifica el dominio; se manda desde una dirección que ya exista (`recursoshumanos@` o `contacto@`). Sus registros DNS van en `send` y `resend._domainkey` y no tocan los de Microsoft 365.
+- **Site URL de Supabase corregido** por el usuario (tenía `localhost`): el reset de contraseña ya lleva a producción.
 
-- **Reclutadores al crear la vacante:** checklist en el levantamiento (solo admin), se asignan con `set_profile_recruiters` al dar "Guardar y crear vacante".
-- **Subir descriptivo:** PDF o Word .docx → Claude llena los pasos 2 a 7 sin pisar lo capturado (plan §12.17). Migración **0030** y archivo manual **17_lectura_de_descriptivo.sql**: **pegarlo antes de desplegar**. Se agregó la dependencia `mammoth`.
-- El usuario confirmó que la carga masiva funciona.
-- **Canales Indeed, OCC y Computrabajo** (plan §12.18): migración **0031** y archivo manual **18_canales_bolsas.sql**, ya aplicado por el usuario (3 ok); falta probar §19.
-- Archivos manuales 17 y 18 ya aplicados por el usuario. La base va de **01 a 18**.
+## Lo que el usuario me tiene que pasar después de la junta
+
+| Dato | De dónde (`junta.md`) | Dónde va |
+|---|---|---|
+| Id. de directorio (inquilino) | Paso 3.3 | Vercel `MICROSOFT_TENANT_ID` |
+| Id. de aplicación (cliente) | Paso 3.3 | Vercel `MICROSOFT_CLIENT_ID` |
+| Valor del secreto y su fecha de vencimiento | Paso 3.3 | Vercel `MICROSOFT_CLIENT_SECRET`; anotar el vencimiento en `tasks.md` |
+| ¿Se creó `entrevistas@`? | Paso 1 | Vercel `FIREFLIES_INVITEE` |
+| ¿Dominio "Verified" en Resend? Clave `re_…` | Pasos 6 y 7 | Vercel `RESEND_API_KEY` y SMTP de Supabase |
+| Remitente elegido | Paso 0 | Vercel `RESEND_FROM` y SMTP de Supabase |
+| Respuestas de Fireflies (API y webhook, reuniones al mismo tiempo, horas, precio) | Paso 4 | Decide si se paga y qué se programa |
+| ¿Se activó el permiso opcional `OnlineMeetingTranscript.Read.All`? | Paso 3.2 | Si sí, se puede probar la transcripción de Teams |
+| Destinatarios de los correos (interno, por cliente, horas, firma) | "Lo que tiene que decidir Prime" | Contactos de cada cliente en la app; necesario para programar los reportes |
+
+Las claves las pega el usuario (no por chat): Vercel → Settings → Environment Variables, más `ENCRYPTION_KEY` generada con `openssl rand -base64 32`, y volver a desplegar. SMTP en Supabase → Authentication → SMTP Settings (`junta.md` 9.2).
+
+## Si en la junta no se consiguió algo, qué pedir
+
+- **No estaba el admin de M365:** que nos den su nombre y una fecha; sin él no se prueba nada de Outlook ni Teams.
+- **No se creó el secreto o se perdió el valor:** se crea otro (paso 3.3); no hay que repetir lo demás.
+- **Resend no verifica:** pedir captura del panel del DNS; casi siempre el nombre quedó como `send.primehrinnovation.com.mx.primehrinnovation.com.mx`.
+- **Faltaron destinatarios o contactos de clientes:** pedirlos por escrito; no bloquean la prueba de Outlook.
+- Además: `datos_errores.md`, API de Pandapé, aviso de privacidad y consentimientos, CV reales, PDF de Psicotest, guion de entrevista, logotipo.
+
+## Qué va a funcionar al pegar las variables (y qué no)
+
+| Qué | ¿Funciona solo con las variables? | Nota |
+|---|---|---|
+| Conectar Outlook en Mi cuenta | **Sí**, programado (20 oct) | **Nunca probado contra Microsoft real**: el primer recorrido puede sacar errores. La URI de redirección registrada debe ser exacta y el consentimiento de admin dado |
+| Agendar, reagendar y cancelar con evento de Teams | **Sí**, programado | Igual: sin probar. Aviso si el Outlook del dueño se desconectó |
+| Fireflies entra a la entrevista | **Sí**, sin código nuestro | Depende de la configuración de Fireflies en `entrevistas@` (auto-join) y de la sala de espera de Teams |
+| La transcripción llega sola a la ficha | **No** | Falta el webhook de Fireflies (o la lectura de Teams) y `interview_analysis`. Hoy se ve solo en Fireflies |
+| Invitación y "Olvidé mi contraseña" por Resend | **Sí**, sin código | Solo el SMTP de Supabase |
+| Los tres reportes automáticos | **No** | Falta `sendEmail()`, las tareas `report_*`, sus horarios en `recurring.ts` y el PDF semanal. Hoy solo hay plantillas y vista previa |
 
 ## Siguiente: código sin dependencias, en este orden
 
-1. ~~Canales~~ (hecho).
-2. **Outlook antes de probarlo:** avisar al cancelar una entrevista cuando el Outlook de quien la agendó ya no está conectado; invitar a la cuenta maestra (entrevistas@) en lugar de `fred@fireflies.ai` (variable de entorno).
-3. **Calibrar la IA del CV:** alerta "Sin fechas de inicio y fin" en el prompt de `cv_score`, subir `PROMPT_VERSION` y recalificar.
-4. **"Olvidé mi contraseña" en el portal del cliente** (hoy solo admins).
-5. Textos viejos de reparto: `pendientes_revision.md` §14 (Ver → Rol, Elegir vacantes) y `requerimientos_estado.md` §14 todavía dicen "se reparten sus candidatos"; revisar también los textos de Configuración.
+1. **Correos automáticos** (se puede empezar antes de que verifique el dominio): `sendEmail()` con Resend, handlers `report_daily_internal`, `report_daily_client`, `report_weekly_client`, horarios en `recurring.ts`, PDF semanal con `@react-pdf/renderer`, registro en `reports`. Destinatarios desde la app (admins y reclutadores; contacto y hora de cada cliente).
+2. **Calibrar la IA del CV:** alerta "Sin fechas de inicio y fin" en el prompt de `cv_score`, subir `PROMPT_VERSION` y recalificar.
+3. **"Olvidé mi contraseña" en el portal del cliente** (hoy solo admins).
+4. Con la API key de Fireflies (o la decisión de usar Teams): webhook de transcripción e `interview_analysis`.
 
-## Después (`tasks.md` §8)
+Descartado el 29 oct: **importar vacantes desde Excel en la app**; ya se cargaron por SQL y las nuevas se crean con el levantamiento o "Subir descriptivo". Grupo Huerta y Chela Chupas se cargan por SQL cuando lleguen.
 
-Teams, Outlook y Fireflies (cuando Prime tenga el admin de M365) → `psych_parse` (3 o 4 PDF de Psicotest) → webhook de Fireflies e `interview_analysis` → correos (Resend o Graph) → Whaapy (prefiltro, documentos, `doc_check`) → weekly insights. Importar el Excel histórico cuando llegue.
+## Pendientes del usuario que siguen vigentes
 
-Ofrecido y **rechazado por ahora** (27 oct): "Banco de talento" (buscador por texto del CV, una fila por persona, postular a otra vacante). Hoy se busca por nombre y se filtra por vacante, cliente, etapa (incluido Descartado) y canal.
+1. **Probar en producción** `pendientes_revision.md` §12, §14 a §19. En §11 faltan un PDF escaneado y uno que no sea CV.
+2. **Revisar CVs huérfanos:** candidatos con `cv_file_path` sin archivo en `storage.objects` (bucket `cvs`) después de vaciar el bucket.
+3. **Llenar descriptivo y Evaluación IA** (Generar con IA) de cada vacante real; sin pesos, la carga masiva no califica.
+4. Vercel: confirmar el cron en Settings → Cron Jobs y las variables `CRON_SECRET`, `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL=https://app.primehrinnovation.com.mx`.
+5. En Supabase → Authentication → URL Configuration, que **Redirect URLs** tenga `https://app.primehrinnovation.com.mx/**` y `http://localhost:3000/**`.
 
-## Avance estimado (27 oct): ~65 %
+**Cómo se entregan las queries:** el usuario pega en el SQL Editor de Supabase. Escribir el `.sql` en el scratchpad, re-ejecutable y con checklist o protecciones, probarlo dos veces con `boot()` de `scripts/rls-lite/harness.mjs` y darle la ruta completa. Si sale la advertencia de RLS por `supabase_migrations.schema_migrations`, es "Run without RLS". Supabase no deja borrar archivos de Storage por SQL. Leer el Excel (`excel/`) solo si el usuario lo pide. Preguntar antes de cargar o borrar datos.
 
-Operación diaria ~95 %, portal ~90 %, tablero ~85 %, IA ~40 % (3 de 7 usos), Outlook/Teams ~60 % sin probar, correos ~20 %, WhatsApp ~5 %, Fireflies y Pandapé 0 %. Lo que más destraba: el admin de Microsoft 365 de Prime.
+## Avance estimado (29 oct): ~65 %
+
+Operación diaria ~95 %, portal ~90 %, tablero ~85 %, IA ~40 % (cv_score, profile_generation, cv_extract e intake_extract; faltan prefilter_reply, interview_analysis, psych_parse, doc_check, weekly_insights), Outlook/Teams ~60 % sin probar, correos ~20 %, WhatsApp ~5 %, Fireflies y Pandapé 0 %. Lo que más destraba: la junta del 30 oct.
 
 ## Contexto que sigue vigente
 
+- **Visibilidad (0029):** el reclutador ve a todos los candidatos de las vacantes que trabaja; sin reclutador por candidato. Hay que avisarle a Prime.
 - **Los prompts viven en el código** (`src/lib/ai/prompts/`): se edita, se sube `PROMPT_VERSION` y se despliega.
-- **El teléfono es la identidad:** un CV o alta con un teléfono existente agrega una postulación a esa persona y solo llena sus datos vacíos.
-- **Dos responsables, ahora uno:** reclutadores por vacante (pestaña Reclutadores o Configuración → Ver). `applications.assigned_recruiter_id` solo guarda quién capturó a mano; la acción `assignApplicationRecruiter` y `components/candidate/assigned-recruiter.tsx` quedaron sin pantalla.
-- **Bloqueado por Prime:** admin de Microsoft 365 y cuenta entrevistas@, Fireflies con API, número de WhatsApp y Meta, aviso de privacidad y consentimiento, PDF de Psicotest, CV reales, Excel histórico, logotipo, las 11 vacantes de Grupo Huerta, los datos de Chela Chupas y las respuestas de `datos_errores.md`.
+- **El teléfono es la identidad:** un CV con un teléfono existente agrega una postulación a esa persona y solo llena sus datos vacíos.
+- `applications.assigned_recruiter_id` solo guarda quién capturó; `assignApplicationRecruiter` y `components/candidate/assigned-recruiter.tsx` quedaron sin pantalla.
+- Base hospedada con los archivos manuales **01 a 18** aplicados.
+- **Bloqueado por Prime:** lo de `junta.md`, Fireflies con API, número de WhatsApp y Meta, aviso de privacidad y consentimiento, PDF de Psicotest, CV reales, Excel histórico, logotipo, Grupo Huerta, Chela Chupas y `datos_errores.md`.

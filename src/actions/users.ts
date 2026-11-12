@@ -85,8 +85,8 @@ export async function createUserAccount(_prev: UserFormState, formData: FormData
 /**
  * Activar o desactivar. Además de is_active, banea en Auth para que el JWT
  * no se pueda refrescar (la sesión vigente caduca en una hora como máximo).
- * Al desactivar, la base saca al usuario de todas sus vacantes (migración 0014; desde
- * 0029 no reparte candidatos); un desactivado ya no ve nada.
+ * Al desactivar, la base saca al usuario de todas sus vacantes (migración 0014); un
+ * desactivado ya no ve nada y los demás reclutadores de cada vacante siguen viendo a sus candidatos.
  */
 export async function setUserActive(userId: string, active: boolean): Promise<UserFormState> {
   let session;
@@ -143,7 +143,7 @@ export async function setUserName(userId: string, fullName: string): Promise<Use
 /**
  * Cambio de rol o de empresa de un reclutador o un usuario cliente (Configuración → Ver). Nunca el de
  * otro admin ni el propio. Va por app_metadata; el trigger sincroniza el espejo public.users. Si deja
- * de ser reclutador, la base lo saca de todas sus vacantes (sin repartir candidatos, 0029)
+ * de ser reclutador, la base lo saca de todas sus vacantes
  * (users_release_assignments, 0014/0015), como al desactivarlo. La sesión abierta de esa persona toma el rol nuevo al refrescarse (hasta 1 h).
  */
 export async function setUserRole(

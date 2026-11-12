@@ -22,7 +22,7 @@ await as(db, admin, () => q(`select public.set_profile_recruiters($1, $2)`, [PX,
 const notes = (kind) => svc(`select user_id, title, body, href, entity_id from public.notifications where kind = $1 order by created_at`, [kind]);
 const person = (name, phone) => svc(`insert into public.candidates (full_name, phone_e164) values ($1, $2) returning id`, [name, phone]).then((r) => r[0].id);
 
-// --- candidato nuevo (0029: sin round robin, avisa a los reclutadores de la vacante)
+// --- candidato nuevo (0029: entra sin reclutador, avisa a los reclutadores de la vacante)
 const c1 = await person("Ana Nueva", "+524491000001");
 const [app1] = await as(db, admin, () => q(`insert into public.applications (candidate_id, profile_id) values ($1, $2) returning id, assigned_recruiter_id`, [c1, PX]));
 let assigned = await notes("candidate_assigned");
@@ -94,7 +94,7 @@ const inactive = await as(db, admin, () => q(`select candidate_id, full_name, la
 const names = inactive.map((r) => r.full_name);
 check("el admin ve a la descartada", names.includes("Carla Descartada"), names.join(", "));
 check("y a quien se contrató y se fue", names.includes("Beto Manual") && inactive.find((r) => r.full_name === "Beto Manual")?.was_hired === true, names.join(", "));
-check("no a quien sigue en proceso ni a quien sigue trabajando", !names.includes("Ana Round Robin") && !names.includes("Diego Contratado"), names.join(", "));
+check("no a quien sigue en proceso ni a quien sigue trabajando", !names.includes("Ana En Proceso") && !names.includes("Diego Contratado"), names.join(", "));
 check("no a quien está en la lista negra (aunque su postulación quedó descartada)", !names.includes("Persona Vetada"), names.join(", "));
 check("trae la última vacante y el motivo", inactive.find((r) => r.full_name === "Carla Descartada")?.last_discard_reason_key === "salary");
 check("el reclutador no ve la base de inactivos", (await as(db, A, () => q(`select candidate_id from public.v_inactive_candidates`))).length === 0);

@@ -1,5 +1,5 @@
 // Crea los usuarios de desarrollo (un admin, dos reclutadores, un cliente) con auth.admin,
-// que es la única vía para escribir app_metadata, y reparte las vacantes de Telasist
+// que es la única vía para escribir app_metadata, y asigna las vacantes de Telasist
 // entre los dos reclutadores (plan §2.3). Idempotente.
 //
 //   npm run db:seed-users      (usa .env.local)
@@ -62,7 +62,7 @@ const { data: mirror, error } = await admin.from("users").select("id, email, rol
 if (error) throw error;
 console.table(mirror.map(({ email, role, client_id, is_active }) => ({ email, role, client_id, is_active })));
 
-// Vacantes de Telasist (seed.sql) repartidas entre los dos reclutadores; la 2 la comparten.
+// Vacantes de Telasist (seed.sql) asignadas a los dos reclutadores; la 2 la comparten.
 const idOf = (email) => mirror.find((u) => u.email === email)?.id;
 const roberto = idOf("reclutador@prime.local");
 const lucia = idOf("reclutadora@prime.local");

@@ -1,5 +1,5 @@
 // Candidatos por vacante (0015 y 0029): el reclutador ve a todos los candidatos de las vacantes que
-// trabaja; nada de las ajenas. Sin round robin. Portal, avisos y edición de datos.
+// trabaja; nada de las ajenas. Sin reclutador por candidato. Portal, avisos y edición de datos.
 import { boot, as, createUser, check, failed, errorOf } from "./harness.mjs";
 
 const db = await boot();
@@ -38,7 +38,7 @@ await as(db, admin, async () => {
 const apps = [];
 for (const n of ["Uno", "Dos", "Tres", "Cuatro"]) apps.push(await inbound(PX, n));
 const onY = await inbound(PY, "De Y");
-check("sin round robin: la postulación entra sin reclutador", apps.every((x) => x.recruiter === null) && onY.recruiter === null, apps.map((x) => x.recruiter).join());
+check("la postulación entra sin reclutador", apps.every((x) => x.recruiter === null) && onY.recruiter === null, apps.map((x) => x.recruiter).join());
 
 const seen = (user) => as(db, user, async () => ({
   apps: (await q(`select id from public.applications`)).length,
@@ -163,7 +163,7 @@ await as(db, admin, () => q(`select public.set_profile_recruiters($1, $2)`, [PX,
 check("B ya no ve nada de X", (await seen(B)).apps === 0);
 check("A sigue viendo los 5 de X", (await seen(A)).apps === 5);
 const touched = await q(`select count(*)::int as n from public.applications where profile_id = $1 and assigned_recruiter_id is not null`, [PX]);
-check("quitar a alguien no reparte ni asigna a nadie", touched[0].n === 1, String(touched[0].n)); // solo la que capturó A
+check("quitar a alguien no le asigna sus postulaciones a nadie", touched[0].n === 1, String(touched[0].n)); // solo la que capturó A
 
 // --- relevo A→C en X: C ve todo, A nada
 await as(db, admin, () => q(`select public.set_profile_recruiters($1, $2)`, [PX, [C.id]]));

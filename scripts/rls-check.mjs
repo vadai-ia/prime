@@ -5,7 +5,7 @@
 // qué ve y qué puede hacer cada uno. Sale con código 1 si algo falla.
 //
 // Asignación que deja db:seed-users (plan §2.3): Roberto → vacantes 1 y 2 · Lucía → 2 y 3.
-// Los candidatos de prueba entran a la vacante 1, así que el round robin se los da a Roberto.
+// Los candidatos de prueba entran a la vacante 1 sin reclutador (0029): los ve Roberto, no Lucía.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -109,7 +109,7 @@ check("trigger registra la línea de tiempo", events?.length === 7, `${events?.l
   check("admin lee todas las vacantes", profiles?.length === 3, `${profiles?.length}`);
 
   const { data: assigned } = await c.from("v_pipeline").select("assigned_recruiter_name").eq("profile_id", PROFILE_ID);
-  check("round robin: los 3 candidatos de la vacante 1 quedaron con Roberto", assigned?.every((r) => r.assigned_recruiter_name === "Roberto Reclutador"), JSON.stringify(assigned));
+  check("los 3 candidatos de la vacante 1 entran sin reclutador (0029)", (assigned?.length ?? 0) === 3 && assigned.every((r) => r.assigned_recruiter_name === null), JSON.stringify(assigned));
 
   const { data: history } = await c.from("job_profile_assignment_events").select("action, actor_user_id").eq("profile_id", PROFILE_ID);
   check("admin lee el historial de asignaciones", (history?.length ?? 0) > 0, `${history?.length}`);

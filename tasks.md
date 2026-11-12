@@ -207,7 +207,7 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 
 **Base y app (hasta el 23 sep 2026):**
 
-- [x] Supabase hospedado en la migración 0018 (archivos manuales 01 a 07 aplicados): esquema, RLS con visibilidad por reclutador, round robin, vistas, buckets y auth con tres roles.
+- [x] Supabase hospedado en la migración 0018 (archivos manuales 01 a 07 aplicados): esquema, RLS con visibilidad por reclutador, vistas, buckets y auth con tres roles.
 - [x] Todas las vistas de Prime y del portal con datos reales de Telasist.
 - [x] Captura manual completa: clientes y vacantes (alta y edición), levantamiento, alta de candidatos con CV, kanban arrastrable, regresar de etapa, cancelar contratación, entrevistas, psicométrico, expediente, historial de la persona por teléfono.
 - [x] Portal del cliente con Vo.Bo. por RPC y aviso a Prime.
@@ -276,7 +276,7 @@ Regla para todos los webhooks: el handler no tiene lógica de negocio. Valida la
 
 **El reclutador ve toda su vacante (27 oct 2026, plan §12.16), sin probar en la app:**
 
-- [x] Sin reclutador por candidato ni reparto por turno: quien trabaja la vacante ve a todos sus candidatos; filtros y carga por reclutador del Tablero y Entrevistas por vacante (migración 0029).
+- [x] Sin reclutador por candidato: quien trabaja la vacante ve a todos sus candidatos; filtros y carga por reclutador del Tablero y Entrevistas por vacante (migración 0029).
 - [x] Pegar `supabase/manual/16_reclutador_ve_su_vacante.sql` **antes** de desplegar (`pendientes_revision.md` §17). *27 oct: aplicado, checklist 5 ok.*
 - [x] Enlace a la vacante y al cliente en la ficha del candidato; aviso claro en la carga masiva cuando la persona ya existía.
 
@@ -312,7 +312,8 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 - [x] Mi cuenta → Conectar / Desconectar Outlook, y los tres puntos de `src/actions/interviews.ts`. Con Outlook conectado el evento siempre se crea y Fireflies siempre va invitado (20 oct, sin probar).
 - [x] Pegar `supabase/manual/08_microsoft_teams.sql` y `09_lista_negra.sql` en el SQL Editor (aplicados del 01 al 12).
 - [x] Que el admin vea en Configuración quién ya conectó su Outlook (21 oct).
-- [ ] Antes de probar: avisar al cancelar una entrevista cuando el Outlook de quien la agendó ya no está conectado (hoy el evento sigue vivo y el candidato no se entera, sin aviso; al reagendar sí avisa).
+- [x] Aviso al cancelar o reagendar cuando el Outlook de quien la agendó ya no está conectado (ya existía en `src/actions/interviews.ts`).
+- [x] Invitado de Fireflies configurable: `FIREFLIES_INVITEE` (p. ej. entrevistas@); sin la variable se invita a `fred@fireflies.ai` (29 oct). Pasos de la junta con Prime: `junta.md`.
 - [ ] Variables en `.env`: `ENCRYPTION_KEY` (sin ella no aparece Conectar Outlook) y las tres `MICROSOFT_*`.
 - [ ] Recorrido de prueba con un candidato que use un correo propio: conectar, agendar, invitación, Teams, bot de Fireflies, reagendar, cancelar, desconectar y reconectar, refresco después de una hora (`pendientes_revision.md`, sección de Outlook).
 - [ ] Si el candidato no tiene correo, mandarle el enlace de Teams por WhatsApp (con `interview_confirm`).
@@ -359,7 +360,7 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 
 **Hecho el 28 oct (falta probar, `pendientes_revision.md` §18 y §19):** selector de reclutadores al crear la vacante, "Subir descriptivo" en el levantamiento (Claude llena los pasos 2 a 7; migración 0030, archivo manual 17, ya aplicado) y canales Indeed, OCC y Computrabajo (migración 0031, archivo manual 18). Carga masiva confirmada por el usuario.
 
-**Siguiente, sin dependencias:** aviso al cancelar una entrevista con el Outlook desconectado e invitar a la cuenta maestra en lugar de `fred@fireflies.ai`; alerta "Sin fechas de inicio y fin" en el prompt del CV; "Olvidé mi contraseña" en el portal del cliente. Detalle en `tomorrow.md`.
+**Siguiente, sin dependencias:** alerta "Sin fechas de inicio y fin" en el prompt del CV; "Olvidé mi contraseña" en el portal del cliente. Detalle en `tomorrow.md`.
 
 Orden acordado el 26 oct 2026:
 
@@ -405,7 +406,7 @@ Configuración que no bloquea: Vercel (proyecto, dominio, variables), Supabase A
 - [ ] Después de cuánto tiempo un candidato pasa a inactivo.
 - [ ] Residencia fuera de la zona: ¿alerta en el score del CV (sin restar puntos) o pregunta del prefiltro? Hoy no la revisa nadie.
 - [ ] Sueldo pedido arriba del tope: ¿bloquea o solo avisa? La IA puso bloqueo con el sueldo base aunque el puesto paga más con comisiones.
-- [ ] Confirmar: solo los reclutadores reciben candidatos por turno; al quitar a un reclutador sus candidatos se reparten solos; el reclutador no ve quién más trabaja su vacante.
+- [ ] Confirmar: el reclutador no ve quién más trabaja su vacante.
 
 **Archivos:**
 

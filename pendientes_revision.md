@@ -321,8 +321,8 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 - [ ] Filas de color por rol (admin azul tenue, reclutador verde, cliente naranja) con franja a la izquierda. Arriba, la leyenda con el número de cada rol: al dar clic filtra y otro clic quita el filtro ("Todos" también). Buscador por nombre o correo.
 - [ ] Ver → Datos: editar nombre; correo, empresa (cliente), alta, última vez y Outlook.
 - [ ] Ver → Contraseña: explica que no se puede ver (está cifrada); **Restablecer contraseña** pone una temporal y la muestra. El reclutador entra con ella y la cambia en Mi cuenta.
-- [ ] Ver → Rol: reclutador ↔ cliente (pide empresa) o reclutador → admin. Al dejar de ser reclutador avisa que sale de sus N vacantes y se reparten sus candidatos; después de pasar a admin ya no tiene botón Ver.
-- [ ] Ver → Vacantes asignadas (reclutador activo) con enlace a cada vacante. **Elegir vacantes** abre un checklist de todas las vacantes no cerradas agrupadas por cliente, con buscador; al desmarcar avisa que sus candidatos se reparten. Guardar y ver el cambio también en Perfiles → vacante → Reclutadores.
+- [ ] Ver → Rol: reclutador ↔ cliente (pide empresa) o reclutador → admin. Al dejar de ser reclutador avisa que sale de sus N vacantes y que los demás reclutadores de cada una siguen viendo a sus candidatos; después de pasar a admin ya no tiene botón Ver.
+- [ ] Ver → Vacantes asignadas (reclutador activo) con enlace a cada vacante. **Elegir vacantes** abre un checklist de todas las vacantes no cerradas agrupadas por cliente, con buscador; al desmarcar avisa que deja de ver sus candidatos. Guardar y ver el cambio también en Perfiles → vacante → Reclutadores.
 - [ ] Ver → Acceso: desactivar y activar.
 
 ## 15. Periodo en el Tablero · programado el 27 oct; se prueba ya, sin llaves
@@ -351,7 +351,7 @@ El Excel "Lista de Rol y Vacante" está en `excel/` (en `.gitignore`: trae corre
 
 - [ ] Dos reclutadores en la misma vacante: los dos ven a **todos** sus candidatos (Candidatos, Tablero, ficha, entrevistas, documentos).
 - [ ] Un reclutador de otra vacante no los ve ni abre su ficha.
-- [ ] La ficha ya no tiene "Reclutador asignado". La pestaña Reclutadores de la vacante ya no habla de repartir.
+- [ ] La ficha ya no tiene "Reclutador asignado".
 - [ ] Subir CVs: no se asignan a nadie; a cada reclutador de la vacante le llega "Nuevo candidato: …".
 - [ ] Quitar a un reclutador de la vacante: deja de verla; los demás siguen viendo todo.
 - [ ] Tablero como admin → filtro por reclutador: muestra lo de sus vacantes. "Carga por reclutador" cuenta por vacante. "Vacantes sin reclutador" muestra lo de las vacantes que nadie trabaja.

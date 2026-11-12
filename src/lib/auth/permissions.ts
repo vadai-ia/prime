@@ -4,7 +4,7 @@
 import type { Role } from "./roles";
 
 export const PERMISSIONS = {
-  /** Marcar qué reclutadores trabajan una vacante y reasignar candidatos. */
+  /** Marcar qué reclutadores trabajan una vacante. */
   manage_assignments: ["admin"],
   /** Exportar o descargar bases (Excel, PDF). */
   export: ["admin"],

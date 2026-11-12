@@ -74,7 +74,7 @@ if (OLD && existsSync(OLD)) {
 
   const rows = await runManual(db);
   check("B · la versión nueva corre encima de la anterior: checklist completo", allOk(rows), missing(rows));
-  check("B · asignaciones, historial, candidatos repartidos y turnos intactos", (await snapshot()) === before, `${before} → ${await snapshot()}`);
+  check("B · asignaciones, historial, reclutador de cada postulación y turnos intactos", (await snapshot()) === before, `${before} → ${await snapshot()}`);
   const seen = await as(db, r1, () => db.query(`select count(*)::int as n from public.applications`));
   check("B · el reclutador sigue viendo solo sus 2 candidatos", seen.rows[0].n === 2, `${seen.rows[0].n}`);
 } else {

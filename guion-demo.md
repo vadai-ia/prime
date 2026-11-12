@@ -39,7 +39,7 @@ Después entra a **Reclutadores** dentro de la vacante.
 
 **Qué enseñar:** captura un candidato con su CV.
 
-> "No elegí reclutador: el sistema lo asigna por turno entre los reclutadores de la vacante. Si un reclutador se va, sus candidatos se reparten solos."
+> "No elegí reclutador: a este candidato lo ven todos los reclutadores que trabajan la vacante. Si uno se va, los demás lo siguen viendo."
 
 ### 4. Ficha del candidato · 5 min
 
@@ -154,10 +154,7 @@ Sal de la junta con un responsable y una fecha para cada punto.
 - [ ] Texto del aviso de privacidad y cuánto tiempo se guardan los datos de los descartados.
 - [ ] Quién captura la permanencia a 30, 90 y 180 días: el reclutador o el cliente.
 - [ ] Después de cuánto tiempo un candidato pasa a inactivo.
-- [ ] Confirmar tres reglas que ya dejamos así:
-  - Solo los reclutadores reciben candidatos por turno; un admin no.
-  - Al quitar a un reclutador, sus candidatos se reparten solos.
-  - El reclutador no ve quién más trabaja su vacante.
+- [ ] Confirmar una regla que ya dejamos así: el reclutador no ve quién más trabaja su vacante.
 
 ---
 
@@ -165,5 +162,5 @@ Sal de la junta con un responsable y una fecha para cada punto.
 
 - **"¿Y la inteligencia con historia que venía en la propuesta?"** Se llena cuando importemos su Excel histórico. Por eso lo necesitamos pronto.
 - **"¿El cliente puede ver candidatos antes del psicométrico?"** Hoy no. Si lo quieren, es un cambio de regla, no de pantallas.
-- **"¿Un reclutador puede asignarse candidatos?"** No. Solo un admin asigna o reasigna; si el reclutador captura a alguien a mano, ese candidato es suyo.
+- **"¿Un reclutador puede asignarse vacantes?"** No. Solo un admin decide qué vacantes trabaja cada reclutador, y el reclutador ve a todos los candidatos de esas vacantes.
 - **"¿Cuándo sale la IA?"** En cuanto tengamos la cuenta de Anthropic. Es lo primero de la lista.
