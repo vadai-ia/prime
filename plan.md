@@ -341,10 +341,11 @@ El detalle operativo de cada servicio, llave, tarea de IA y tarea de la cola est
 - **Enviar texto:** `POST /messages/v1` con `{to, content}`. Solo funciona dentro de la ventana de 24 h desde el último mensaje del candidato; fuera de ella responde error `131047` y hay que mandar template.
 - **Template:** `POST /messages/v1` con `type: "template"`, `template.name`, `template.language: "es_MX"`, `components[].parameters`. Se usa para primer contacto, recordatorios y cierres.
 - **Botones:** `type: "interactive"` con hasta 3 botones `reply` (`id` regresa en el webhook). Útil para "Sí / No" y para elegir horario de entrevista sin texto libre.
-- **Webhooks:** `POST /user-webhooks` para suscribir `message.received`, `message.sent`, `message.delivered`, `message.read`, `message.failed`, `conversation.created`, `conversation.handoff` a `/api/webhooks/whaapy`. Firma HMAC-SHA256 en `X-Webhook-Signature` con el `secret` que devuelve al crear el webhook (se ve una sola vez). `X-Webhook-ID` sirve para idempotencia.
+- **Webhooks:** se dan de alta en el panel de Whaapy (o `POST /user-webhooks`) hacia `https://app.primehrinnovation.com.mx/api/webhooks/whaapy` con los 5 eventos `message.*` y `conversation.created`, `reopened`, `assigned`, `unassigned` y `closed` (no hay `conversation.handoff`: la toma humana es `conversation.assigned`). Firma HMAC-SHA256 en `X-Webhook-Signature` con el `secret` que devuelve al crear el webhook (se ve una sola vez). `X-Webhook-ID` es el id del webhook, no del aviso: la idempotencia va por el id del mensaje (`webhook_events.external_id` = `evento:id`). Whaapy reintenta 3 veces y apaga el webhook tras 10 fallos seguidos.
 - **Media entrante:** el webhook trae `media_url` con token de 24 h. Descargar de inmediato a Storage y guardar el path; nunca guardar la URL.
 - **Límites:** imagen 5 MB, documento 100 MB.
 - **Convivencia con humanos:** IA nativa de Whaapy apagada para el número (o pausada por conversación vía la API de control). Cuando un reclutador contesta desde el inbox de Whaapy, nuestro orquestador pausa la conversación (`wa_conversations.ai_paused`) al detectar un `message.sent` que no originó nuestra API, o un `conversation.handoff`.
+- **Leer:** `GET /conversations/v1/by-phone/{tel}` y `GET /conversations/v1/{id}/messages` (100 por página, más recientes primero); plantillas aprobadas en `GET /templates/v1`.
 - **Batching:** al recibir `message.received`, esperar 6 a 8 s con `after()` y contestar solo si no llegó otro mensaje después (`last_inbound_at`).
 - **Templates que hay que crear y mandar a aprobación (semana 1):** `prime_primer_contacto`, `prime_confirmacion_entrevista`, `prime_enlace_psicometrico`, `prime_recordatorio`, `prime_solicitud_documentos`, `prime_cierre_cortes`. Variables: nombre, vacante, fecha/hora, enlace.
 
@@ -844,3 +845,12 @@ Decisión del usuario: no se asigna reclutador a cada persona; quien trabaja una
 - Las cuentas son `@primehrinnovation.onmicrosoft.com`. No se conecta el dominio ni se cambian los MX; el correo de cPanel sigue igual y las respuestas de Microsoft se reenvían ahí. `admin@` administra y no lleva licencia. El dominio propio se puede conectar después a las mismas licencias.
 - Fireflies entra con `entrevistas@primehrinnovation.onmicrosoft.com` (`FIREFLIES_INVITEE`). Resend sigue con `primehrinnovation.com.mx`, se abre con `contacto@` y sus registros van en el Zone Editor de cPanel.
 - Sin confirmar: si una cuenta de Fireflies graba reuniones simultáneas. Pasos en `junta.md`.
+
+### 12.20 WhatsApp por Whaapy: envío manual y webhook (13 de noviembre de 2026)
+
+- `src/lib/integrations/whaapy.ts`: cliente (texto, plantilla, conversación por teléfono, historial, plantillas, descarga de archivos y firma del webhook). Envía la plantilla en formato Meta con `language.code`.
+- `/api/webhooks/whaapy` guarda cada aviso en `webhook_events` y lo procesa con `src/lib/whatsapp/ingest.ts` (service role). Un número que no es de ningún candidato no abre conversación ni da de alta a nadie (la lista negra no entra en juego). Un `message.sent` que no salió de Prime (inbox de Whaapy) pausa a Vale; `conversation.assigned` pasa la conversación a "Con reclutador".
+- Los archivos entrantes se bajan a `wa-media/{candidate_id}/whatsapp/{message_id}.{ext}` con la tarea `wa_media_fetch`, que el webhook corre en el momento (la URL de Whaapy dura 24 h).
+- Ficha → WhatsApp: caja para mandar texto (ventana de 24 h) o una plantilla aprobada en Whaapy, y "Traer de Whaapy" para copiar los últimos 100 mensajes. Todo con la sesión del usuario: RLS (`can_access_candidate`) decide. Mandar desde Prime no pausa a Vale.
+- Sin migración: las tablas son de 0006 y sus políticas de 0015.
+- Pendiente: abrir los archivos desde la ficha (URL firmada con `log_audit`), aviso al reclutador cuando el candidato contesta (`notify_application`), botón para reanudar a Vale, y el agente de prefiltro con `wa_first_contact`.

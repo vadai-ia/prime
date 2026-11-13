@@ -4,6 +4,14 @@ Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo p
 
 **No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
 
+## 13 nov: WhatsApp por Whaapy programado (sin commit, sin probar)
+
+- Hecho (plan §12.20): `src/lib/integrations/whaapy.ts`, `src/lib/whatsapp/ingest.ts`, `/api/webhooks/whaapy`, tarea `wa_media_fetch`, `src/actions/whatsapp.ts` y la caja de la ficha (`whatsapp-composer.tsx`: texto, plantilla, "Traer de Whaapy"). Sin migración ni SQL manual.
+- El usuario va a probar en producción. Orden: `WHAAPY_API_KEY` en Vercel y `.env` → desplegar → crear el webhook en Whaapy con la URL `https://app.primehrinnovation.com.mx/api/webhooks/whaapy` (5 de `message.*` y 5 de `conversation.*`) → copiar el `secret` a `WHAAPY_WEBHOOK_SECRET` → volver a desplegar.
+- **La API key se pegó en el chat el 13 nov: hay que rotarla** después de probar.
+- Revisar en Configuración → Logs los avisos que lleguen (columna error = lo que no se pudo guardar). Un número sin candidato se registra y no se guarda.
+- Pendiente: abrir archivos desde la ficha (URL firmada + `log_audit`), aviso al reclutador cuando contesta el candidato, reanudar a Vale, agente de prefiltro.
+
 ## 12 nov: Microsoft 365 contratado, falta conectarlo
 
 - **Correo (Resend) hecho**, según el usuario. Confirmar que `RESEND_API_KEY` y `RESEND_FROM` están en Vercel y que el SMTP de Supabase manda "Olvidé mi contraseña".

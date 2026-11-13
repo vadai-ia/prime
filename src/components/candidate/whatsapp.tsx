@@ -5,6 +5,9 @@ import { WA_FLOW_LABELS, WA_STATUS_LABELS } from "@/lib/labels";
 import { fmtDateTime, fmtTime, timeAgo } from "@/lib/format";
 import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/ui/empty-state";
+import { whaapyEnabled } from "@/lib/integrations/whaapy";
+import { MOCK } from "@/lib/mock";
+import { WhatsAppComposer } from "./whatsapp-composer";
 
 const STATUS_TEXT: Record<WaMessage["status"], string> = {
   queued: "en cola",
@@ -18,11 +21,28 @@ type InteractivePayload = { buttons?: { id: string; title: string }[] };
 
 export function WhatsApp({ detail }: { detail: ApplicationDetail }) {
   const conv = detail.conversation;
-  if (!conv) {
-    return <EmptyState title="Sin conversación de WhatsApp" hint="Se abre cuando Vale manda el template de primer contacto." />;
-  }
+  const windowOpen = !!conv?.window_expires_at && new Date(conv.window_expires_at) > new Date();
+  const composer =
+    whaapyEnabled() && !MOCK ? (
+      <WhatsAppComposer
+        applicationId={detail.application.id}
+        firstName={detail.candidate.first_name ?? detail.candidate.full_name.split(/\s+/)[0] ?? ""}
+        jobTitle={detail.pipeline.profile_title ?? ""}
+        windowOpen={windowOpen}
+      />
+    ) : null;
 
-  const windowOpen = !!conv.window_expires_at && new Date(conv.window_expires_at) > new Date();
+  if (!conv) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          title="Sin conversación de WhatsApp"
+          hint={composer ? "Manda una plantilla para abrirla, o trae el historial si el candidato ya escribió al número de Prime." : "Se abre cuando se conecte Whaapy (falta WHAAPY_API_KEY)."}
+        />
+        {composer}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-5 lg:grid-cols-5">
@@ -35,6 +55,7 @@ export function WhatsApp({ detail }: { detail: ApplicationDetail }) {
             {conv.messages.length === 0 && <p className="py-6 text-center text-sm text-ink-muted">Sin mensajes.</p>}
           </div>
         </div>
+        {composer && <div className="mt-4">{composer}</div>}
       </div>
 
       <aside className="space-y-4 lg:col-span-2">

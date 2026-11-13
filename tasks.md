@@ -39,6 +39,7 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 - **Para qué lo usamos:** es el transporte del agente "Vale". Envía texto, templates y botones; recibe mensajes y media por webhook; pausa la IA nativa cuando contesta un humano.
 - **Qué necesita:** el número dado de alta, API key `wha_…`, secret del webhook, y la IA nativa de Whaapy apagada en ese número para que no contesten dos agentes.
 - **Variables:** `WHAAPY_API_KEY`, `WHAAPY_WEBHOOK_SECRET`, `WHAAPY_PHONE_E164`.
+- **Estado (13 nov 2026):** cliente, webhook (`/api/webhooks/whaapy`) y envío manual desde la ficha programados (plan §12.20). Falta el agente Vale y las tareas automáticas.
 - **Costo:** plan de Whaapy más la tarifa de Meta por conversación de 24 horas.
 - **Quién contrata:** Prime, a través de Whaapy.
 
@@ -183,6 +184,7 @@ La cola vive en Postgres (`enqueue_task`, `claim_scheduled_tasks`, `finish_sched
 - **`fireflies_fetch_transcript`.** Descarga la transcripción, la guarda en `interview_transcripts` y encola `interview_analyze`. Toca Fireflies (o Graph, si se usa la transcripción de Teams).
 - **`interview_analyze`.** Corre la tarea de IA `interview_analysis`. Toca Anthropic.
 - **`psych_parse`.** Corre la tarea de IA y calcula el veredicto. Toca Anthropic y Storage.
+- **`wa_media_fetch`** · **hecho.** Baja a `wa-media` el archivo que mandó un candidato; la encola el webhook o "Traer de Whaapy" y corre en el momento (4 intentos). Toca Whaapy y Storage.
 - **`doc_check`.** Descarga la media a `wa-media`, corre la tarea de IA, mueve el archivo a `documents` y crea la fila en `candidate_documents`. Toca Whaapy, Anthropic y Storage.
 - **`report_daily_internal`, `report_daily_client`, `report_weekly_client`.** Los tres correos. Toca Resend (o Graph).
 - **`weekly_insights`.** Corre la tarea de IA del mismo nombre. Toca Anthropic.
