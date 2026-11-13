@@ -115,6 +115,7 @@ function Bubble({ message: m }: { message: WaMessage }) {
           </div>
         )}
         <p className={`mt-1 text-[10px] ${outbound ? "text-forest/70" : "text-ink-faint"}`}>
+          {outbound && (m.sent_by === "agent" ? "IA · " : "Reclutador · ")}
           {fmtTime(m.created_at)}
           {outbound && ` · ${STATUS_TEXT[m.status]}`}
           {m.error && ` · ${m.error}`}

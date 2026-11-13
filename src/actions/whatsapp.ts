@@ -234,9 +234,21 @@ export async function syncWhatsAppConversation(applicationId: string): Promise<W
 
   const ids = messages.map((m) => m.id);
   const { data: known } = ids.length
-    ? await supabase.from("wa_messages").select("whaapy_message_id").eq("conversation_id", conv.id).in("whaapy_message_id", ids)
+    ? await supabase.from("wa_messages").select("id, whaapy_message_id, body").eq("conversation_id", conv.id).in("whaapy_message_id", ids)
     : { data: [] };
   const seen = new Set((known ?? []).map((k) => k.whaapy_message_id));
+
+  // Filas que llegaron sin texto por el webhook (las respuestas de la IA de Whaapy): se completan.
+  const remoteById = new Map(messages.map((m) => [m.id, m]));
+  for (const k of known ?? []) {
+    const m = k.whaapy_message_id ? remoteById.get(k.whaapy_message_id) : undefined;
+    if (k.body || !m?.content) continue;
+    const { error } = await supabase
+      .from("wa_messages")
+      .update({ body: m.content, type: mapMessageType(m.messageType), ...(m.direction === "outbound" ? { sent_by: m.sentByAi ? "agent" : "recruiter" } : {}) })
+      .eq("id", k.id);
+    if (error) return { ok: false, error: error.message };
+  }
   const missing = messages.filter((m) => !seen.has(m.id) && m.messageType !== "reaction");
 
   const rows: TablesInsert<"wa_messages">[] = missing.map((m) => ({

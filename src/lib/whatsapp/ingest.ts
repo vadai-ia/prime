@@ -4,6 +4,7 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 import type { Enums, Tables } from "@/lib/db/types";
 import { toE164Mx } from "@/lib/domain/phone";
 import { enqueue } from "@/lib/queue/run";
+import { listMessages, whaapyEnabled } from "@/lib/integrations/whaapy";
 
 // Lo que hace cada evento del webhook de Whaapy con wa_conversations y wa_messages
 // (plan §4.1, docs.whaapy.com/api-reference/webhooks/payloads). Corre con service role desde
@@ -238,15 +239,36 @@ async function onReceived(admin: Admin, raw: unknown, receivedAt: string): Promi
 }
 
 /**
+ * Whaapy manda el message.sent de su IA sin texto, tipo ni sent_by_ai (solo message_id, conversation_id
+ * y status; visto el 13 nov 2026). Se completa leyendo el mensaje de su API. Si no se puede, se deja
+ * como llegó.
+ */
+async function completeSent(d: z.infer<typeof sentSchema>): Promise<z.infer<typeof sentSchema>> {
+  if ((d.content != null && d.sent_by_ai != null) || !d.conversation_id || !whaapyEnabled()) return d;
+  try {
+    const { messages } = await listMessages(d.conversation_id, { limit: 20 });
+    const m = messages.find((x) => x.id === d.message_id);
+    if (!m) return d;
+    return { ...d, content: d.content ?? m.content, type: d.type ?? m.messageType, sent_by_ai: d.sent_by_ai ?? m.sentByAi, timestamp: d.timestamp ?? m.timestamp };
+  } catch (e) {
+    console.error("[whaapy] completar message.sent", d.message_id, e);
+    return d;
+  }
+}
+
+/**
  * Mensaje que salió del número de Prime. Si lo mandamos nosotros (src/actions/whatsapp.ts) ya existe
  * su fila, o una en cola sin id de Whaapy que se reclama aquí. Si no, lo mandó una persona desde el
  * inbox de Whaapy: se guarda y se pausa a Vale en esa conversación.
  */
 async function onSent(admin: Admin, raw: unknown, receivedAt: string): Promise<IngestResult> {
-  const d = sentSchema.parse(raw);
-  const { data: existing } = await admin.from("wa_messages").select("id, status").eq("whaapy_message_id", d.message_id).maybeSingle();
+  const d = await completeSent(sentSchema.parse(raw));
+  const { data: existing } = await admin.from("wa_messages").select("id, status, body").eq("whaapy_message_id", d.message_id).maybeSingle();
   if (existing) {
-    if (statusAdvances(existing.status, "sent")) await admin.from("wa_messages").update({ status: "sent" }).eq("id", existing.id);
+    const patch: Partial<Tables<"wa_messages">> = {};
+    if (statusAdvances(existing.status, "sent")) patch.status = "sent";
+    if (!existing.body && d.content) Object.assign(patch, { body: d.content, sent_by: d.sent_by_ai ? "agent" : "recruiter" });
+    if (Object.keys(patch).length) await admin.from("wa_messages").update(patch).eq("id", existing.id);
     return { detail: "Mensaje propio confirmado" };
   }
 
@@ -279,13 +301,15 @@ async function onSent(admin: Admin, raw: unknown, receivedAt: string): Promise<I
     type: mapMessageType(d.type),
     body: d.content ?? null,
     status: "sent",
-    sent_by: d.sent_by_ai ? "agent" : "recruiter",
+    sent_by: d.sent_by_ai === false ? "recruiter" : "agent",
     created_at: at,
   });
   if (error?.code === UNIQUE_VIOLATION) return { detail: "Mensaje ya guardado" };
   if (error) throw new Error(error.message);
 
-  const fromInbox = !d.sent_by_ai;
+  // Sin sent_by_ai (aviso incompleto que Whaapy no pudo completar) no se pausa a Vale: el inbox y la
+  // API siempre lo mandan en false.
+  const fromInbox = d.sent_by_ai === false;
   await admin
     .from("wa_conversations")
     .update({ last_outbound_at: at, ...(fromInbox ? { ai_paused: true, paused_by: null } : {}) })
