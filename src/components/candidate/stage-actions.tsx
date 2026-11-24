@@ -102,6 +102,10 @@ export function StageActions({ applicationId, stage, discardedFrom }: { applicat
             Detalle
             <textarea name="reason" rows={3} maxLength={500} placeholder="Qué se le dice al candidato y por qué" className={inputClass} />
           </label>
+          <label className="mt-3 flex items-center gap-2 text-xs text-ink">
+            <input name="notify_whatsapp" type="checkbox" defaultChecked className="h-3.5 w-3.5 accent-forest" />
+            Avisar por WhatsApp (agradecimiento y que no continúa en el proceso)
+          </label>
           <div className="mt-3 flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setDiscarding(false)}>
               Cancelar

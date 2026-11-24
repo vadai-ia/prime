@@ -176,17 +176,17 @@ La cola vive en Postgres (`enqueue_task`, `claim_scheduled_tasks`, `finish_sched
 
 - **`followups_due`** · **hecho.** Diario a las 8:00: avisa al reclutador y a los admins cuando vence un corte de permanencia (30, 90 o 180 días), una sola vez por corte.
 
-- **`wa_first_contact`.** Template de primer contacto con el aviso de privacidad; abre `wa_conversations` en flujo `prefilter`. Toca Whaapy.
+- **`wa_first_contact`.** ✅ (23 nov, plan §12.22) Template de primer contacto con el aviso de privacidad, automático al dar de alta. Por ahora abre la conversación en flujo `manual`; pasa a `prefilter` cuando exista el agente.
 - **`wa_send`.** Manda un texto, template o botones; si la ventana de 24 horas cerró, cambia a template. Toca Whaapy.
-- **`wa_reminder`.** Recordatorio a las 12 horas (psicométrico) o 24 horas (documentos); segundo a las 48 horas. Toca Whaapy.
+- **`wa_reminder`.** ✅ (23 nov, plan §12.22, como `wa_psych_reminder` y `wa_docs_reminder` con el barrido `wa_reminders`) Recordatorio a las 12 horas (psicométrico) o 24 horas (documentos); segundo a las 48 horas.
 - **`cv_score`** · **hecho.** El alta la encola y la corre en cuanto responde; si falla, el cron la reintenta (3 intentos). Toca Anthropic y Storage.
-- **`interview_confirm`.** Un día antes manda el template de confirmación con fecha, hora y enlace de Teams. Toca Whaapy.
+- **`interview_confirm`.** ✅ (23 nov, plan §12.21) Un día antes, a las 8:00, manda la plantilla `confirmacion_entrevista_utility` con fecha, hora y enlace de Teams; si se agenda después de esa hora, sale en el momento.
 - **`fireflies_fetch_transcript`.** Descarga la transcripción, la guarda en `interview_transcripts` y encola `interview_analyze`. Toca Fireflies (o Graph, si se usa la transcripción de Teams).
 - **`interview_analyze`.** Corre la tarea de IA `interview_analysis`. Toca Anthropic.
 - **`psych_parse`.** Corre la tarea de IA y calcula el veredicto. Toca Anthropic y Storage.
 - **`wa_media_fetch`** · **hecho.** Baja a `wa-media` el archivo que mandó un candidato; la encola el webhook o "Traer de Whaapy" y corre en el momento (4 intentos). Toca Whaapy y Storage.
 - **`doc_check`.** Descarga la media a `wa-media`, corre la tarea de IA, mueve el archivo a `documents` y crea la fila en `candidate_documents`. Toca Whaapy, Anthropic y Storage.
-- **`report_daily_internal`, `report_daily_client`, `report_weekly_client`.** Los tres correos. Toca Resend (o Graph).
+- **`report_daily_internal`, `report_daily_client`, `report_weekly_client`.** ✅ (23 nov, plan §12.23) Los tres correos por Resend, a las 8:00 con lo del día anterior; el semanal con PDF.
 - **`weekly_insights`.** Corre la tarea de IA del mismo nombre. Toca Anthropic.
 
 Lo que no va por la cola porque corre al momento: generar la evaluación de la vacante (Server Action; el reclutador espera el resultado) y responder en WhatsApp (el webhook contesta con `after()`, con 6 a 8 segundos de espera por si el candidato manda varios mensajes seguidos).
@@ -318,7 +318,7 @@ Cada reclutador entra a **Mi cuenta → Conectar Outlook** una sola vez con su c
 - [x] Invitado de Fireflies configurable: `FIREFLIES_INVITEE` (p. ej. entrevistas@); sin la variable se invita a `fred@fireflies.ai` (29 oct). Pasos de la junta con Prime: `junta.md`.
 - [ ] Variables en `.env`: `ENCRYPTION_KEY` (sin ella no aparece Conectar Outlook) y las tres `MICROSOFT_*`.
 - [ ] Recorrido de prueba con un candidato que use un correo propio: conectar, agendar, invitación, Teams, bot de Fireflies, reagendar, cancelar, desconectar y reconectar, refresco después de una hora (`pendientes_revision.md`, sección de Outlook).
-- [ ] Si el candidato no tiene correo, mandarle el enlace de Teams por WhatsApp (con `interview_confirm`).
+- [x] Si el candidato no tiene correo, mandarle el enlace de Teams por WhatsApp (con `interview_confirm`, 23 nov).
 - [ ] Spike de medio día: evento con Teams desde Graph → Fireflies entra → webhook → transcripción. Probar también la transcripción nativa de Teams para decidir si se queda Fireflies.
 - [ ] Webhook de Fireflies y tarea `interview_analysis`.
 - [ ] Actualizar `plan.md` con lo que salga del spike.

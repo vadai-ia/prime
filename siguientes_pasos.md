@@ -1,0 +1,85 @@
+# Siguientes pasos · Prime HR Innovation
+
+Escrito el 18 de noviembre de 2026, después de agendar en producción la primera entrevista con Outlook. La invitación llegó por correo. **Actualizado el 23 nov:** recordatorio de entrevista por WhatsApp programado (plan §12.21) y Pandapé fuera del alcance. Complementa a `tomorrow.md` y `tasks.md` §6 a §9.
+
+## 1. Terminar de probar la entrevista
+
+Con la misma entrevista que se agendó:
+
+- [ ] El evento trae el enlace de Teams y el candidato entra desde el navegador, sin cuenta y sin sala de espera.
+- [ ] No hay eventos duplicados en el calendario (el 12 nov Graph respondía 503).
+- [ ] Reagendar desde la ficha: el evento cambia en Outlook y al candidato le llega la actualización.
+- [ ] Cancelar desde la ficha: el evento se cancela y al candidato le llega el aviso.
+- [ ] Más de una hora después, agendar otra: la conexión con Outlook se renueva sola.
+- [ ] Fireflies: hoy se invita a `fred@fireflies.ai` porque falta `FIREFLIES_INVITEE`.
+
+Recorrido completo: `pendientes_revision.md`, sección de Outlook.
+
+## 2. Conexiones pendientes (dependen de Prime o del usuario)
+
+| Conexión | Qué falta |
+|---|---|
+| Cuentas de Microsoft 365 | Crear `entrevistas@` y una cuenta con licencia por reclutador; cada uno hace **Mi cuenta → Conectar Outlook**. Hoy solo está conectada `sistemas@`. Falta confirmar a Xavier, Edwin y Ulises. |
+| Fireflies | Cuenta con `entrevistas@`, su API key, y `FIREFLIES_INVITEE` en Vercel. Sin eso la transcripción no llega a la ficha. |
+| WhatsApp (Whaapy) | Probar que un mensaje de un candidato llegue a la ficha (y revisar Configuración → Logs). **Rotar la API key**, que se pegó en el chat el 13 nov. |
+| Resend | **No está configurado (23 nov).** Crear la cuenta, pegar 3 registros DNS en cPanel, crear la clave, ponerla en Vercel (`RESEND_API_KEY`, `RESEND_FROM`) y en el SMTP de Supabase (`junta.md` pasos 5 a 7 y 9.2). Sin esto no salen los reportes. |
+| ~~Pandapé~~ | **Descartado el 23 nov**: no se integra. Los candidatos entran a mano o por carga masiva de CV. |
+| Psicotest | Ver §5 de este archivo. |
+
+## 3. Lo que falta programar, en orden
+
+1. ✅ **Correos automáticos** (23 nov, plan §12.23, sin probar con correos reales): a las 8:00 con lo del día anterior; el semanal con PDF el día de cada cliente. **Falta de Prime:** destinatarios de cada cliente (Clientes → cliente → contacto y correos de reportes).
+2. **Calibrar la IA del CV:** alerta "Sin fechas de inicio y fin" en el prompt de `cv_score`, subir `PROMPT_VERSION` y recalificar.
+3. **"Olvidé mi contraseña" en el portal del cliente.** Hoy solo lo tienen los admins.
+4. **Fireflies:** webhook `/api/webhooks/fireflies`, tarea `fireflies_fetch_transcript` y análisis de la entrevista con IA (`interview_analysis`). Necesita la API key.
+5. **WhatsApp:**
+   - ✅ Primer contacto con aviso de privacidad, enlace del psicométrico, recordatorios (psicométrico 12 y 48 h, documentos 24 y 48 h), solicitud de documentos y aviso de descarte (23 nov, plan §12.22, sin probar). **Falta:** dar de alta en Whaapy las 2 plantillas nuevas (§4).
+   - ✅ `interview_confirm` (23 nov, sin probar): recordatorio a las 8:00 del día anterior con fecha, hora y enlace de Teams; si se agenda después, sale en el momento. **Probar:** agendar una entrevista para mañana a un candidato con tu teléfono y revisar que llegue el WhatsApp y que aparezca en la ficha (y en Configuración → Logs, tarea "Recordatorio de entrevista").
+   - Abrir desde la ficha los archivos que manda el candidato (URL firmada + `log_audit`).
+   - Aviso al reclutador cuando el candidato contesta.
+   - Después: agente de prefiltro (`prefilter_reply`).
+6. **Psicotest:** lectura del PDF con IA (`psych_parse`). Necesita 3 o 4 PDF reales.
+7. **Documentos y resumen semanal:** `doc_check` (verificar INE, comprobantes, etc.) y `weekly_insights`.
+
+## 4. Plantillas: dónde se ven
+
+| Plantilla | Dónde verla | Dónde se edita | Estado |
+|---|---|---|---|
+| Correo diario interno | App → **Reportes → Vista previa de correos** | `src/lib/email/templates.tsx` (`DailyInternalEmail`) | Solo vista previa; todavía no se envía |
+| Correo diario al cliente | App → **Reportes → Vista previa de correos** (elegir cliente) | `src/lib/email/templates.tsx` (`DailyClientEmail`) | Solo vista previa |
+| Reporte semanal al cliente | App → **Reportes → Vista previa de correos** | `src/lib/email/templates.tsx` (`WeeklyClientEmail`) | Solo vista previa; falta el PDF |
+| Invitación de entrevista (Outlook) | El correo que ya llegó | `src/actions/interviews.ts:59-60` (asunto y cuerpo) | Funciona |
+| Plantillas de WhatsApp | Panel de Whaapy → Plantillas; en la app, ficha del candidato → WhatsApp → "Plantilla" | Se crean y aprueban en Whaapy (Meta las aprueba); la app las lee con `listTemplates()` | Funciona el envío manual; faltan las de primer contacto, confirmación de entrevista y recordatorios |
+| "Olvidé mi contraseña" e invitación de usuario | Supabase → Authentication → Email Templates | Ahí mismo | Salen por el SMTP de Resend |
+
+Aprobadas en Whaapy al 23 nov: `primer_contacto_utility`, `confirmacion_entrevista_utility`, `enlace_psicometrico_utility`, `cierre_corte_utility` y `hola`.
+
+### Plantillas nuevas para dar de alta en Whaapy (23 nov): solo 2
+
+Panel de Whaapy → Plantillas → Nueva. Categoría **Utilidad**, idioma **Español (MX)** (`es_MX`), con el nombre exacto. Meta las revisa (horas o un día). Mientras no estén aprobadas, ese mensaje no sale y queda en Configuración → Logs; lo demás funciona.
+
+| Nombre | Texto | Variables |
+|---|---|---|
+| `primer_contacto_aviso_utility` | Hola {{1}}, te escribimos de Prime HR Innovation por tu postulación a la vacante de {{2}}. Antes de continuar, consulta nuestro aviso de privacidad: {{3}} ¿Podemos comenzar con unas preguntas breves por este medio? | nombre, vacante, enlace del aviso |
+| `solicitud_documentos_utility` | Hola {{1}}, para continuar tu proceso para la vacante de {{2}} necesitamos estos documentos: {{3}}. Puedes enviarlos por este medio como foto o PDF. | nombre, vacante, lista de documentos |
+
+Ejemplos para Meta (los pide al crear): nombre "Ana", vacante "Ejecutivo de cobranza", enlace "https://psicotest.mx/abc123", fecha "jueves 26 de noviembre", documentos "INE (frente y reverso), CURP y Comprobante de domicilio".
+
+**Descarte:** por ahora se usa `cierre_corte_utility`, ya aprobada: *"Hola {{1}}, gracias por tu interés en la vacante de {{2}}. En esta ocasión no continuarás en el proceso, pero conservaremos tus datos para futuras oportunidades."* Si Prime prefiere otro texto, por ejemplo *"Hola {{1}}, gracias por tu interés en la vacante de {{2}}. Hemos concluido el proceso y en esta ocasión no fuiste seleccionado. Agradecemos tu tiempo y conservaremos tus datos para futuras oportunidades."*, se da de alta como `descarte_utility` y se pone `WHAAPY_TEMPLATE_DISCARD=descarte_utility` en Vercel.
+
+El primer contacto de antes (`primer_contacto_utility`) ya no lo usa el sistema porque no lleva el aviso de privacidad. Los recordatorios reusan plantillas: el del psicométrico vuelve a mandar `enlace_psicometrico_utility` y el de documentos vuelve a mandar `solicitud_documentos_utility` con lo que sigue faltando.
+
+
+## 5. Psicotest: acceso
+
+- **No hay integración ni API.** En la app, el reclutador abre la ficha del candidato → **Psicométrico**, pega el enlace de la evaluación (`https://psicotest.mx/…`), sube el PDF de resultados y captura el veredicto (`src/components/candidate/psych-forms.tsx`).
+- **La cuenta es de Prime.** Pedirles usuario y contraseña por un canal seguro (no por chat) o una cuenta de reclutador, para:
+  - [ ] Ver cómo se crea una evaluación y qué enlace genera (para mandarlo después por WhatsApp).
+  - [ ] Confirmar si tiene API, exportación o aviso por correo al terminar la prueba.
+  - [ ] Descargar 3 o 4 PDF de resultados reales para calibrar `psych_parse`.
+  - [ ] Revisar créditos disponibles y costo por evaluación.
+- Pendiente legal: formato de consentimiento para datos sensibles, que va antes del enlace en WhatsApp.
+
+## 6. Lo que Prime sigue debiendo
+
+Aviso de privacidad y consentimiento, acceso a Psicotest y PDF de resultados, CV reales, Excel histórico de candidatos, logotipo, destinatarios de los correos por cliente, correcciones de `datos_errores.md`, Grupo Huerta y Chela Chupas.

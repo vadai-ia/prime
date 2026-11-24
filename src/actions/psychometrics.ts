@@ -7,11 +7,14 @@ import { createClient } from "@/lib/supabase/server";
 import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { zonedToUtcIso } from "@/lib/domain/time";
 import { createUploadTicket, isOwnUpload, moveUpload, removeFile, type UploadTicket } from "@/lib/uploads";
+import { whaapyEnabled } from "@/lib/integrations/whaapy";
+import { triggerWhatsApp } from "@/lib/whatsapp/trigger";
+import { enqueuePsychLink } from "@/lib/whatsapp/candidate-flows";
 
 const BUCKET = "psychometrics";
 const MAX_BYTES = 32 * 1024 * 1024; // límite del bucket
 
-export type PsychActionState = { error?: string; ok?: boolean } | undefined;
+export type PsychActionState = { error?: string; ok?: boolean; notice?: string } | undefined;
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -42,6 +45,7 @@ const sentSchema = z.object({
   application_id: z.string().uuid(),
   test_link: z.string().trim().url("El enlace de Psicotest no es válido"),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha límite no válida").or(z.literal("")),
+  send_whatsapp: z.boolean(),
 });
 
 /** El reclutador crea la evaluación en Psicotest y registra aquí el enlace que le mandó al candidato. */
@@ -52,7 +56,7 @@ export async function savePsychSent(_prev: PsychActionState, formData: FormData)
     return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
   }
   if (MOCK) return { error: MOCK_WRITE_ERROR };
-  const parsed = sentSchema.safeParse({ application_id: formData.get("application_id"), test_link: formData.get("test_link"), due_date: formData.get("due_date") ?? "" });
+  const parsed = sentSchema.safeParse({ application_id: formData.get("application_id"), test_link: formData.get("test_link"), due_date: formData.get("due_date") ?? "", send_whatsapp: formData.get("send_whatsapp") === "on" });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
   const d = parsed.data;
 
@@ -62,12 +66,22 @@ export async function savePsychSent(_prev: PsychActionState, formData: FormData)
   const due_at = d.due_date ? zonedToUtcIso(d.due_date, "23:59") : null;
   const current = await latestTest(supabase, d.application_id);
   // Una evaluación ya con resultado no se pisa: un enlace nuevo es una evaluación nueva.
-  const { error } =
+  const { data: saved, error } =
     current && current.status !== "parsed"
-      ? await supabase.from("psychometric_tests").update({ test_link: d.test_link, due_at, status: current.report_file_path ? "completed" : "sent" }).eq("id", current.id)
-      : await supabase.from("psychometric_tests").insert({ application_id: d.application_id, test_link: d.test_link, due_at, sent_at: new Date().toISOString(), status: "sent" });
-  if (error) return { error: error.message };
-  return done(d.application_id);
+      ? await supabase.from("psychometric_tests").update({ test_link: d.test_link, due_at, status: current.report_file_path ? "completed" : "sent" }).eq("id", current.id).select("id, status").single()
+      : await supabase.from("psychometric_tests").insert({ application_id: d.application_id, test_link: d.test_link, due_at, sent_at: new Date().toISOString(), status: "sent" }).select("id, status").single();
+  if (error || !saved) return { error: error?.message ?? "No se pudo guardar la evaluación" };
+
+  // Por WhatsApp (plan §12.22): una vez por enlace; si se corrige el enlace, sale el nuevo.
+  let notice: string | undefined;
+  if (d.send_whatsapp && saved.status === "sent") {
+    if (!whaapyEnabled()) notice = "Enlace guardado. WhatsApp no está configurado: mándalo a mano.";
+    else {
+      await triggerWhatsApp("enlace del psicométrico", (admin) => enqueuePsychLink(admin, saved.id, d.test_link));
+      notice = "Enlace guardado y enviado por WhatsApp (si ya se había mandado este mismo enlace, no se repite).";
+    }
+  }
+  return { ...done(d.application_id), notice };
 }
 
 /** Paso 1 de la carga del reporte de Psicotest (PDF). */

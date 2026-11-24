@@ -45,7 +45,7 @@ o, en Git Bash, `openssl rand -base64 32`.
 | `RESEND_API_KEY` | La clave `re_…` | La crea sistemas de Prime en Resend → API Keys |
 | `RESEND_FROM` | `Prime HR Innovation <recursoshumanos@primehrinnovation.com.mx>` | O el remitente que elija Prime (`contacto@`) |
 
-Hoy estas dos solo hacen que Configuración marque Resend como "configurado": **el envío de los reportes falta programarlo**. La invitación y el "Olvidé mi contraseña" no las usan; esos van por el SMTP de Supabase:
+Con estas dos salen los tres reportes automáticos (programados el 23 nov, plan §12.23). La invitación y el "Olvidé mi contraseña" no las usan; esos van por el SMTP de Supabase:
 
 | Supabase → Authentication → SMTP Settings | Valor |
 |---|---|
@@ -70,3 +70,20 @@ Hoy estas dos solo hacen que Configuración marque Resend como "configurado": **
 |---|---|
 | Site URL | `https://app.primehrinnovation.com.mx` (corregido el 29 oct) |
 | Redirect URLs | `https://app.primehrinnovation.com.mx/**` y `http://localhost:3000/**` |
+
+## WhatsApp automático y correos (23 nov 2026, plan §12.21 a §12.23)
+
+Todas son **opcionales**: sin ellas se usan los valores de la derecha. Solo hacen falta si Prime cambia el nombre de una plantilla en Whaapy o el enlace del aviso.
+
+| Variable | Valor por defecto | Para qué |
+|---|---|---|
+| `PRIVACY_NOTICE_URL` | `https://catch-your-talent-sa-cv.pandape.computrabajo.com/Privacy` | Enlace del aviso de privacidad en el primer contacto |
+| `WHAAPY_TEMPLATE_FIRST_CONTACT` | `primer_contacto_aviso_utility` | Primer contacto con aviso de privacidad |
+| `WHAAPY_TEMPLATE_INTERVIEW` | `confirmacion_entrevista_utility` | Recordatorio de entrevista un día antes |
+| `WHAAPY_TEMPLATE_PSYCH_LINK` | `enlace_psicometrico_utility` | Enlace del psicométrico |
+| `WHAAPY_TEMPLATE_PSYCH_REMINDER` | `enlace_psicometrico_utility` | Recordatorios del psicométrico (12 y 48 h): se vuelve a mandar el enlace |
+| `WHAAPY_TEMPLATE_DOCS_REQUEST` | `solicitud_documentos_utility` | Lista de documentos al llegar a Documentos |
+| `WHAAPY_TEMPLATE_DOCS_REMINDER` | `solicitud_documentos_utility` | Recordatorios de documentos (24 y 48 h): se vuelve a mandar la lista de lo que falta |
+| `WHAAPY_TEMPLATE_DISCARD` | `cierre_corte_utility` | Agradecimiento al descartar |
+
+Los correos usan `RESEND_API_KEY` y `RESEND_FROM` (§3; al 23 nov todavía no están). Sin ellas el cron no manda correos, no falla y lo anota en Configuración → Logs.

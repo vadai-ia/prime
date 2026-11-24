@@ -53,7 +53,8 @@ export async function runDueTasks({ budgetMs = 45_000, worker = `tick-${randomUU
     const batch = await claim(CONCURRENCY, worker);
     if (batch.length === 0) break;
     reports.push(...(await Promise.all(batch.map(async (t) => finish(t, await execute(t))))));
-    if (batch.length < CONCURRENCY) break;
+    // Sin cortar cuando el lote viene incompleto: una tarea puede encolar otras (el barrido de
+    // recordatorios) y, con un solo cron al día, tienen que correr en esta misma vuelta.
   }
   return reports;
 }

@@ -1,8 +1,27 @@
 # Próxima sesión · Prime HR Innovation
 
-Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo primero.** Después: **`microsoft365-pasos.md`** (guía para la reunión con sistemas de Prime, 12 nov), `junta.md` (junta del 30 oct), **`variables.md`** (variables de Vercel y SMTP de Supabase), `pendientes_revision.md` (qué probar: §11 a §19 son lo más reciente), `tasks.md` (hecho, falta y qué pedir a Prime), `plan.md` §12.14 a §12.18, `requerimientos_estado.md`, `datos_errores.md` y `CLAUDE.md` (reglas).
+Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo primero.** Después: **`siguientes_pasos.md`** (18 nov: qué sigue, plantillas y Psicotest), **`microsoft365-pasos.md`** (guía para la reunión con sistemas de Prime, 12 nov), `junta.md` (junta del 30 oct), **`variables.md`** (variables de Vercel y SMTP de Supabase), `pendientes_revision.md` (qué probar: §11 a §19 son lo más reciente), `tasks.md` (hecho, falta y qué pedir a Prime), `plan.md` §12.14 a §12.18, `requerimientos_estado.md`, `datos_errores.md` y `CLAUDE.md` (reglas).
 
 **No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
+
+## 23 nov (2): WhatsApp automático y correos (sin commit, sin probar)
+
+- WhatsApp (plan §12.22): primer contacto con aviso de privacidad al dar de alta, enlace del psicométrico con casilla, recordatorios del psicométrico (12 y 48 h) y de documentos (24 y 48 h), lista de documentos al pasar a Documentos y agradecimiento al descartar (casilla marcada). **Antes de probar:** dar de alta en Whaapy las 2 plantillas nuevas (`siguientes_pasos.md` §4).
+- Correos (plan §12.23, **no salen hasta configurar Resend**): resumen diario interno (admins todo, cada reclutador lo suyo), diario a cada cliente y semanal con PDF, todo a las 8:00 con lo de ayer. Cada envío en `report_runs`. Nueva dependencia `@react-pdf/renderer`.
+- Checks: typecheck, eslint, `db:rls-lite` y build pasan. Correos y PDF renderizados con datos de demo; no se mandó ningún correo ni WhatsApp real.
+- Avance: **~82 %**.
+
+## 23 nov: recordatorio de entrevista por WhatsApp (sin commit, sin probar)
+
+- `interview_confirm` + barrido diario `interview_reminders` (plan §12.21): a las 8:00 se le manda a cada candidato con entrevista mañana la plantilla `confirmacion_entrevista_utility` (ya aprobada en Whaapy). Si se agenda o reagenda después de las 8:00 para hoy o mañana, sale en el momento. No se duplica y no sale si la entrevista se canceló o cambió de hora.
+- Typecheck, eslint, `db:rls-lite` y build pasan. Sin migración ni SQL manual. Falta probarlo en producción con un teléfono propio.
+- **Pandapé descartado** por el usuario: sale del alcance y del avance.
+- Avance recalculado: **~76 %** (ver abajo).
+
+## 18 nov: agendar entrevista ya funciona en producción
+
+- El usuario creó una entrevista desde la ficha con Outlook conectado y **le llegó el correo de invitación**. Falta revisar en ese mismo recorrido: que el evento traiga enlace de Teams, que el candidato entre sin cuenta, reagendar, cancelar, que no haya eventos duplicados y que el token se refresque pasada una hora (`pendientes_revision.md`, Outlook).
+- Siguiente en código: correos automáticos (`sendEmail()` + `report_*`), luego Fireflies (webhook + `interview_analysis`) cuando haya API key, y lo que falta de WhatsApp (abrir archivos, aviso al reclutador, `interview_confirm`).
 
 ## 13 nov: WhatsApp por Whaapy programado (sin commit, sin probar)
 
@@ -15,7 +34,7 @@ Escrito el 29 de octubre de 2026; actualizado el **12 de noviembre**. **Léelo p
 
 ## 12 nov: Microsoft 365 contratado, falta conectarlo
 
-- **Correo (Resend) hecho**, según el usuario. Confirmar que `RESEND_API_KEY` y `RESEND_FROM` están en Vercel y que el SMTP de Supabase manda "Olvidé mi contraseña".
+- ~~Correo (Resend) hecho~~ **Corregido el 23 nov: Resend NO está configurado** (el usuario solo tiene Supabase y Outlook; no hay `RESEND_*` en `.env`). Falta todo: cuenta, DNS en cPanel, clave, variables en Vercel y SMTP de Supabase (`junta.md` pasos 5 a 7 y 9.2).
 - **Prime contrató Microsoft 365 Empresa Básico.** La cuenta maestra es **`sistemas@primehrinnovation.onmicrosoft.com`** (no `admin@`; ya se cambió en `junta.md`). Es solo de administración: sin licencia, no agenda ni se conecta en la app.
 - **Outlook y Teams todavía no están conectados.** Falta lo de `microsoft365-pasos.md`, que hace sistemas con `sistemas@`:
   1. Confirmar que `sistemas@` es **Administrador global** y que hay 7 licencias.
@@ -95,7 +114,13 @@ Descartado el 29 oct: **importar vacantes desde Excel en la app**; ya se cargaro
 
 **Cómo se entregan las queries:** el usuario pega en el SQL Editor de Supabase. Escribir el `.sql` en el scratchpad, re-ejecutable y con checklist o protecciones, probarlo dos veces con `boot()` de `scripts/rls-lite/harness.mjs` y darle la ruta completa. Si sale la advertencia de RLS por `supabase_migrations.schema_migrations`, es "Run without RLS". Supabase no deja borrar archivos de Storage por SQL. Leer el Excel (`excel/`) solo si el usuario lo pide. Preguntar antes de cargar o borrar datos.
 
-## Avance estimado (29 oct): ~65 %
+## Avance estimado (23 nov, tarde): ~82 %
+
+Sin Pandapé. Operación diaria ~95 %, portal ~90 %, tablero ~85 %, Outlook/Teams ~85 %, WhatsApp ~75 % (falta probar, aprobar 4 plantillas, abrir archivos, aviso al reclutador y agente de prefiltro), correos ~85 % (programados; falta probar y los destinatarios de cada cliente; "Olvidé mi contraseña" del portal), Psicotest ~65 % (envío y recordatorios listos; faltan `psych_parse`, acceso y PDF reales), IA ~40 %, Fireflies 0 %.
+
+## Avance estimado (23 nov, mañana): ~76 %
+
+## Avance estimado anterior (29 oct): ~65 %
 
 Operación diaria ~95 %, portal ~90 %, tablero ~85 %, IA ~40 % (cv_score, profile_generation, cv_extract e intake_extract; faltan prefilter_reply, interview_analysis, psych_parse, doc_check, weekly_insights), Outlook/Teams ~60 % sin probar, correos ~20 %, WhatsApp ~5 %, Fireflies y Pandapé 0 %. Lo que más destraba: la junta del 30 oct.
 

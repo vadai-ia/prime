@@ -9,6 +9,8 @@ import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { STAGES } from "@/lib/labels";
 import { zonedToUtcIso } from "@/lib/domain/time";
 import { cancelEvent, createTeamsEvent, getAccessToken, MicrosoftGraphError, moveEvent } from "@/lib/integrations/microsoft-graph";
+import { enqueueInterviewReminder, sweepAlreadyPassed } from "@/lib/whatsapp/interview-reminder";
+import { triggerWhatsApp } from "@/lib/whatsapp/trigger";
 
 // Entrevistas por Teams con Outlook (plan §4.4, opción B). Si quien agenda conectó su Outlook en
 // Mi cuenta, el evento siempre se crea en su calendario con reunión de Teams e invita al candidato
@@ -68,6 +70,16 @@ async function createCalendarEvent(
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida");
 const time = z.string().regex(/^\d{2}:\d{2}$/, "Hora no válida");
 const url = z.string().trim().url("El enlace de la reunión no es válido").or(z.literal(""));
+
+/**
+ * Recordatorio por WhatsApp: lo manda el barrido de las 8:00 del día anterior. Si ese barrido ya
+ * pasó (se agendó hoy para mañana o para hoy), se encola aquí y sale en el momento. La entrevista ya
+ * quedó guardada: un fallo aquí no la deshace; la tarea queda en Configuración → Logs.
+ */
+async function remindIfSweepPassed(interview: { id: string; scheduled_at: string }) {
+  if (!sweepAlreadyPassed(interview.scheduled_at)) return;
+  await triggerWhatsApp("recordatorio de entrevista", (admin) => enqueueInterviewReminder(admin, interview));
+}
 
 function done(applicationId: string): InterviewActionState {
   revalidatePath(`/candidatos/${applicationId}`);
@@ -163,6 +175,7 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
     if (token && eventId) await cancelEvent(token, eventId, "Se canceló al agendar.").catch(() => undefined);
     return { error: error.message };
   }
+  await remindIfSweepPassed({ id: interviewId, scheduled_at: scheduledAt });
 
   const target = d.type === "prime" ? "prime_interview" : "client_interview";
   const open = application.stage !== "discarded" && application.stage !== "hired";
@@ -245,6 +258,7 @@ export async function rescheduleInterview(_prev: InterviewActionState, formData:
     .maybeSingle();
   if (error) return { error: error.message };
   if (!data) return { error: "Entrevista no encontrada" };
+  await remindIfSweepPassed({ id: d.interview_id, scheduled_at: scheduledAt });
   return { ...done(d.application_id), warning };
 }
 

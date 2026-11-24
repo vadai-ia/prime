@@ -40,10 +40,15 @@ export function PsychManual({ applicationId, testLink, dueDate, hasReport, verdi
           Fecha límite
           <input name="due_date" type="date" defaultValue={dueDate} className={inputClass} />
         </label>
+        <label className="flex items-center gap-2 text-xs text-ink">
+          <input name="send_whatsapp" type="checkbox" defaultChecked className="h-3.5 w-3.5 accent-forest" />
+          Mandar el enlace por WhatsApp (con recordatorios a las 12 y 48 horas si no la contesta)
+        </label>
         <button type="submit" disabled={sentPending} className={smallButton}>
           {sentPending ? "Guardando…" : "Guardar enlace"}
         </button>
         {sent?.error && <p role="alert" className="text-xs text-danger">{sent.error}</p>}
+        {sent?.ok && sent.notice && <p className="text-xs text-ink-muted">{sent.notice}</p>}
       </form>
 
       <div className="space-y-2 border-t border-line pt-4">

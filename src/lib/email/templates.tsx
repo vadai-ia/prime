@@ -135,7 +135,7 @@ export function dailyInternalSubject(d: DailyInternalData) {
 export function DailyInternalEmail({ data, appUrl }: { data: DailyInternalData; appUrl: string }) {
   const t = data.totals;
   return (
-    <Shell subtitle="Resumen diario interno" footer={<>Se envía todos los días a las 18:00 al equipo de Prime. Cada reclutador recibe solo sus vacantes y candidatos.</>}>
+    <Shell subtitle="Resumen diario interno" footer={<>Se envía todos los días a las 8:00 al equipo de Prime con lo del día anterior. Cada reclutador recibe solo sus vacantes y candidatos.</>}>
       <p style={p}>
         Hola equipo, así cerró el día en {plural(data.vacancies.length, "vacante activa", "vacantes activas")}: {plural(t.newToday, "postulación nueva", "postulaciones nuevas")}, {plural(t.advancedToday, "candidato avanzó", "candidatos avanzaron")} de etapa y{" "}
         {plural(t.hiredToday, "contratación", "contrataciones")}. Hay {plural(t.active, "candidato", "candidatos")} en proceso.
@@ -189,7 +189,7 @@ export function DailyInternalEmail({ data, appUrl }: { data: DailyInternalData; 
         </ul>
       )}
 
-      <H>Mañana</H>
+      <H>Entrevistas de hoy</H>
       {data.tomorrow.length === 0 ? (
         <p style={{ ...p, color: C.slate }}>Sin entrevistas agendadas.</p>
       ) : (
@@ -215,7 +215,7 @@ const CLIENT_STATUS: Partial<Record<Stage, { text: string; tone: "info" | "mint"
 };
 
 export function dailyClientSubject(d: DailyClientData) {
-  return `Candidatos que avanzaron hoy · ${d.client.name}`;
+  return `Avance de sus candidatos · ${fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" })} · ${d.client.name}`;
 }
 
 export function DailyClientEmail({ data, appUrl }: { data: DailyClientData; appUrl: string }) {
@@ -226,7 +226,7 @@ export function DailyClientEmail({ data, appUrl }: { data: DailyClientData; appU
         Hola{firstName(data.client.contact_name) ? ` ${firstName(data.client.contact_name)}` : ""},{" "}
         {total === 0
           ? "por ahora no hay candidatos en las etapas finales de sus vacantes. Les avisamos en cuanto alguien pase la entrevista con Prime."
-          : `estos candidatos ya pasaron la entrevista con Prime y siguen en proceso para sus vacantes${data.advancedToday ? `; ${plural(data.advancedToday, "avanzó", "avanzaron")} hoy` : ""}:`}
+          : `estos candidatos ya pasaron la entrevista con Prime y siguen en proceso para sus vacantes${data.advancedToday ? `; ${plural(data.advancedToday, "avanzó", "avanzaron")} ayer` : ""}:`}
       </p>
       {data.groups.map((g) => (
         <div key={g.vacancy}>
@@ -254,7 +254,7 @@ export function DailyClientEmail({ data, appUrl }: { data: DailyClientData; appU
                     </div>
                     <div style={{ marginTop: 5 }}>
                       <Tag tone={CLIENT_STATUS[l.stage]?.tone ?? "info"}>{CLIENT_STATUS[l.stage]?.text ?? STAGE_LABELS[l.stage]}</Tag>{" "}
-                      {l.advanced_today && <Tag tone="amber">Avanzó hoy</Tag>}
+                      {l.advanced_today && <Tag tone="amber">Avanzó ayer</Tag>}
                       {l.client_interview_at && <span style={{ ...muted, marginLeft: 6 }}>Entrevista {fmtDate(l.client_interview_at, { weekday: "short" })} {fmtTime(l.client_interview_at)}</span>}
                     </div>
                   </td>

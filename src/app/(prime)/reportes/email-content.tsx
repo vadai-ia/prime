@@ -6,16 +6,17 @@ import { listStaff } from "@/lib/queries/users";
 import { WEEKDAY_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/auth/roles";
 import { buildDailyClient, buildDailyInternal, buildWeeklyClient } from "@/lib/email/data";
+import { reportReferenceNow } from "@/lib/email/schedule";
 import { DailyClientEmail, DailyInternalEmail, WeeklyClientEmail, dailyClientSubject, dailyInternalSubject, weeklyClientSubject } from "@/lib/email/templates";
 import { EmailPreview, type EmailEnvelope, type EmailKind } from "./email-preview";
 
 const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-const hhmm = (t: string) => t.slice(0, 5);
 
 /** Pestaña "Vista previa de correos": arma el correo elegido con los datos que el usuario puede ver. */
 export async function EmailPreviewSection({ kind, clientId, role, email }: { kind: EmailKind; clientId?: string; role: Role; email: string | null }) {
   const [rows, interviews, profiles] = await Promise.all([listPipeline({ includeDiscarded: true }), listInterviews("all"), listProfiles({ status: "active" })]);
-  const now = new Date();
+  // Igual que el envío real: a las 8:00 con lo de ayer (src/lib/email/reports.ts).
+  const now = reportReferenceNow();
   const isAdmin = role === "admin";
   const clientNote = isAdmin ? undefined : "Vista con tus permisos: solo aparecen tus candidatos. El correo real al cliente incluye los de todo el equipo.";
 
@@ -29,7 +30,7 @@ export async function EmailPreviewSection({ kind, clientId, role, email }: { kin
     const envelope: EmailEnvelope = {
       to: isAdmin ? admins : email ? [email] : [],
       subject: dailyInternalSubject(data),
-      schedule: "Diario a las 18:00, automático",
+      schedule: "Diario a las 8:00 con lo del día anterior, automático",
       note: isAdmin ? "Versión de administración. Cada reclutador recibe la suya, solo con sus vacantes y candidatos." : "Así te llegará a ti: solo con tus vacantes y candidatos.",
     };
     return (
@@ -48,7 +49,7 @@ export async function EmailPreviewSection({ kind, clientId, role, email }: { kin
   if (kind === "cliente") {
     const data = buildDailyClient({ rows, client, now });
     return (
-      <EmailPreview kind={kind} clientId={client.id} clients={clientOptions} envelope={{ to, subject: dailyClientSubject(data), schedule: `Diario a las ${hhmm(client.daily_report_time)}, automático`, note: clientNote }}>
+      <EmailPreview kind={kind} clientId={client.id} clients={clientOptions} envelope={{ to, subject: dailyClientSubject(data), schedule: "Diario a las 8:00 con lo del día anterior, solo si hay candidatos que reportar", note: clientNote }}>
         <DailyClientEmail data={data} appUrl={appUrl()} />
       </EmailPreview>
     );
@@ -61,7 +62,7 @@ export async function EmailPreviewSection({ kind, clientId, role, email }: { kin
       kind={kind}
       clientId={client.id}
       clients={clientOptions}
-      envelope={{ to, subject: weeklyClientSubject(data), schedule: `${day} a las ${hhmm(client.weekly_report_time)}, automático, con PDF adjunto`, note: clientNote }}
+      envelope={{ to, subject: weeklyClientSubject(data), schedule: `${day} a las 8:00, automático, con PDF adjunto`, note: clientNote }}
     >
       <WeeklyClientEmail data={data} appUrl={appUrl()} />
     </EmailPreview>

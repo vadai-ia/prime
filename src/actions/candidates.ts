@@ -14,6 +14,8 @@ import { aiEnabled } from "@/lib/ai/client";
 import { extractCvContact } from "@/lib/ai/tasks/extract-cv";
 import { relinkAiRuns } from "@/lib/ai/run";
 import { enqueue, runTaskNow } from "@/lib/queue/run";
+import { triggerWhatsApp } from "@/lib/whatsapp/trigger";
+import { enqueueFirstContact } from "@/lib/whatsapp/candidate-flows";
 import { AGE_MAX, AGE_MIN, isValidAge, type CvFields } from "@/lib/cv/parse";
 import { toE164Mx } from "@/lib/domain/phone";
 import { CHANNEL_LABELS } from "@/lib/labels";
@@ -242,6 +244,9 @@ async function registerCandidate(session: Session, raw: Record<string, unknown>)
       console.error("cv_score", application.id, e);
     }
   }
+
+  // Primer contacto por WhatsApp con el aviso de privacidad (plan §12.22). Sale solo, una vez por postulación.
+  await triggerWhatsApp("primer contacto", (admin) => enqueueFirstContact(admin, application.id));
 
   return { applicationId: application.id };
 }

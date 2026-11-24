@@ -4,6 +4,17 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 import { aiEnabled } from "@/lib/ai/client";
 import { scoreApplicationCv } from "@/lib/ai/tasks/score-cv";
 import { downloadMedia, WhaapyError } from "@/lib/integrations/whaapy";
+import { sendInterviewReminder, sweepTomorrowInterviews } from "@/lib/whatsapp/interview-reminder";
+import {
+  sendDiscardNotice,
+  sendDocsReminder,
+  sendDocsRequest,
+  sendFirstContact,
+  sendPsychLink,
+  sendPsychReminder,
+  sweepWhatsAppReminders,
+} from "@/lib/whatsapp/candidate-flows";
+import { runDailyClient, runDailyInternal, runWeeklyClient } from "@/lib/email/reports";
 
 const MEDIA_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -91,6 +102,105 @@ export const HANDLERS = {
       if (error) return { ok: false, error: error.message, retry: true };
       return { ok: true, detail: path };
     },
+  }),
+
+  /** Barrido diario (8:00): encola un recordatorio por cada entrevista de mañana. */
+  interview_reminders: handler({
+    label: "Recordatorios de entrevista",
+    payload: z.object({}).passthrough(),
+    async run(_payload, admin) {
+      return sweepTomorrowInterviews(admin);
+    },
+  }),
+
+  /**
+   * Recordatorio por WhatsApp de una entrevista (plantilla con fecha, hora y enlace de Teams). Lo
+   * encolan el barrido diario y, si el barrido ya pasó, scheduleInterview / rescheduleInterview.
+   */
+  interview_confirm: handler({
+    label: "Recordatorio de entrevista",
+    payload: z.object({ interview_id: z.string().uuid(), scheduled_at: z.string() }),
+    maxAttempts: 3,
+    async run({ interview_id, scheduled_at }, admin) {
+      return sendInterviewReminder(admin, interview_id, scheduled_at);
+    },
+  }),
+
+  /** Primer contacto con aviso de privacidad. Lo encola el alta del candidato (individual o masiva). */
+  wa_first_contact: handler({
+    label: "WhatsApp: primer contacto",
+    payload: z.object({ application_id: z.string().uuid() }),
+    maxAttempts: 3,
+    run: ({ application_id }, admin) => sendFirstContact(admin, application_id),
+  }),
+
+  /** Enlace del psicométrico. Lo encola savePsychSent cuando el reclutador deja la casilla marcada. */
+  wa_psych_link: handler({
+    label: "WhatsApp: enlace del psicométrico",
+    payload: z.object({ test_id: z.string().uuid(), link: z.string().url() }),
+    maxAttempts: 3,
+    run: ({ test_id, link }, admin) => sendPsychLink(admin, test_id, link),
+  }),
+
+  wa_psych_reminder: handler({
+    label: "WhatsApp: recordatorio del psicométrico",
+    payload: z.object({ test_id: z.string().uuid(), link: z.string().url(), n: z.number().int() }),
+    maxAttempts: 3,
+    run: ({ test_id, link, n }, admin) => sendPsychReminder(admin, test_id, link, n),
+  }),
+
+  /** Lista de documentos que faltan. Lo encola el cambio a la etapa Documentos. */
+  wa_docs_request: handler({
+    label: "WhatsApp: solicitud de documentos",
+    payload: z.object({ application_id: z.string().uuid() }),
+    maxAttempts: 3,
+    run: ({ application_id }, admin) => sendDocsRequest(admin, application_id),
+  }),
+
+  wa_docs_reminder: handler({
+    label: "WhatsApp: recordatorio de documentos",
+    payload: z.object({ application_id: z.string().uuid(), n: z.number().int() }),
+    maxAttempts: 3,
+    run: ({ application_id }, admin) => sendDocsReminder(admin, application_id),
+  }),
+
+  /** Agradecimiento al descartar. Lo encola setStage cuando "Avisar por WhatsApp" queda marcada. */
+  wa_discard: handler({
+    label: "WhatsApp: aviso de descarte",
+    payload: z.object({ application_id: z.string().uuid() }),
+    maxAttempts: 3,
+    run: ({ application_id }, admin) => sendDiscardNotice(admin, application_id),
+  }),
+
+  /** Barrido diario (8:00): recordatorios del psicométrico y de documentos que ya tocan. */
+  wa_reminders: handler({
+    label: "WhatsApp: recordatorios del día",
+    payload: z.object({}).passthrough(),
+    run: (_payload, admin) => sweepWhatsAppReminders(admin),
+  }),
+
+  /** Resumen diario interno (8:00, del día anterior): admins todo, cada reclutador sus vacantes. */
+  report_daily_internal: handler({
+    label: "Correo: resumen diario interno",
+    payload: z.object({}).passthrough(),
+    maxAttempts: 3,
+    run: (_payload, admin) => runDailyInternal(admin),
+  }),
+
+  /** Correo diario a cada cliente con candidatos desde Psicométrico (8:00, del día anterior). */
+  report_daily_client: handler({
+    label: "Correo: diario a clientes",
+    payload: z.object({}).passthrough(),
+    maxAttempts: 3,
+    run: (_payload, admin) => runDailyClient(admin),
+  }),
+
+  /** Reporte semanal con PDF, a cada cliente en su día (clients.weekly_report_dow), a las 8:00. */
+  report_weekly_client: handler({
+    label: "Correo: reporte semanal a clientes",
+    payload: z.object({}).passthrough(),
+    maxAttempts: 3,
+    run: (_payload, admin) => runWeeklyClient(admin),
   }),
 
   /** Avisos de permanencia: cortes de 30, 90 y 180 días que vencieron (una vez al día). */

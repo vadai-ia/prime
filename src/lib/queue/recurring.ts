@@ -4,13 +4,23 @@ import type { TaskType } from "./handlers";
 
 // Tareas que se repiten. El cron (diario en Hobby) revisa esta lista y encola la que ya toca, una sola
 // vez por día: la llave `tipo:fecha` se busca en toda la cola (no solo en pendientes), así que una
-// tarea ya terminada hoy no se vuelve a encolar. Aquí entrarán los tres correos (tasks.md §3).
+// tarea ya terminada hoy no se vuelve a encolar. Los tres correos van aquí (plan §12.23).
 
 const TZ = process.env.APP_TIMEZONE || "America/Mexico_City";
 
 type Recurring = { type: TaskType; /** Hora local "HH:MM" a partir de la cual corre ese día. */ dailyAt: string };
 
-export const RECURRING: Recurring[] = [{ type: "followups_due", dailyAt: "08:00" }];
+export const RECURRING: Recurring[] = [
+  { type: "followups_due", dailyAt: "08:00" },
+  // Misma hora que SWEEP_AT en src/lib/whatsapp/interview-reminder.ts.
+  { type: "interview_reminders", dailyAt: "08:00" },
+  { type: "wa_reminders", dailyAt: "08:00" },
+  // Correos del día anterior (decidido el 23 nov: todo a las 8:00 con el único cron del plan Hobby).
+  // El semanal corre diario y solo manda a los clientes cuyo día de envío es hoy.
+  { type: "report_daily_internal", dailyAt: "08:00" },
+  { type: "report_daily_client", dailyAt: "08:00" },
+  { type: "report_weekly_client", dailyAt: "08:00" },
+];
 
 /** Fecha y hora en la zona de la app: { date: "2026-10-20", time: "08:05" }. */
 export function localNow(now = new Date()): { date: string; time: string } {

@@ -854,3 +854,41 @@ Decisión del usuario: no se asigna reclutador a cada persona; quien trabaja una
 - Ficha → WhatsApp: caja para mandar texto (ventana de 24 h) o una plantilla aprobada en Whaapy, y "Traer de Whaapy" para copiar los últimos 100 mensajes. Todo con la sesión del usuario: RLS (`can_access_candidate`) decide. Mandar desde Prime no pausa a Vale.
 - Sin migración: las tablas son de 0006 y sus políticas de 0015.
 - Pendiente: abrir los archivos desde la ficha (URL firmada con `log_audit`), aviso al reclutador cuando el candidato contesta (`notify_application`), botón para reanudar a Vale, y el agente de prefiltro con `wa_first_contact`.
+
+### 12.21 Recordatorio de entrevista por WhatsApp un día antes (23 de noviembre de 2026)
+
+- Plantilla aprobada en Whaapy: `confirmacion_entrevista_utility` (es_MX): {{1}} nombre, {{2}} vacante, {{3}} fecha y hora ("martes 24 de noviembre a las 10:30 (hora del centro de México)"), {{4}} enlace de Teams. Se puede cambiar con `WHAAPY_TEMPLATE_INTERVIEW`. La fila `prime_confirmacion_entrevista` de `wa_templates` (0017) no se usa.
+- `interview_reminders` (diaria, 8:00 en `recurring.ts`, la misma hora del cron) encola un `interview_confirm` por cada entrevista `scheduled` o `confirmed` de mañana (día local). Si se agenda o reagenda cuando ese barrido ya pasó (hoy para mañana o para hoy), `scheduleInterview` / `rescheduleInterview` lo encolan y sale en el momento.
+- Llave `interview_confirm:{interview_id}:{scheduled_at}`, buscada en pendientes, corriendo y terminadas: no se manda dos veces, y reagendar a otra hora deja salir uno nuevo. Antes de mandar se relee la entrevista: si se canceló, cambió de hora o ya empezó, no se manda. Sin teléfono o sin enlace falla sin reintentar (queda en Logs).
+- El mensaje se guarda en `wa_messages` con `sent_by = 'system'` en la conversación más reciente del candidato (o una nueva), y se ve en la ficha.
+- `runDueTasks` ya no corta cuando un lote viene incompleto: las tareas que encola el barrido corren en el mismo cron.
+- Lógica en `src/lib/whatsapp/interview-reminder.ts`. Sin migración (`scheduled_tasks.type` es texto).
+
+### 12.22 WhatsApp automático al candidato (23 de noviembre de 2026)
+
+Decidido con el usuario el 23 nov: primer contacto automático al dar de alta, casilla marcada al descartar, aviso de privacidad en `https://catch-your-talent-sa-cv.pandape.computrabajo.com/Privacy` (`PRIVACY_NOTICE_URL`). Pandapé (la integración del ATS) queda fuera del alcance.
+
+- `src/lib/whatsapp/system-send.ts`: `sendSystemTemplate()` manda una plantilla del sistema (service role), la guarda en `wa_messages` con `sent_by = 'system'` en la conversación más reciente del candidato y valida que la plantilla esté aprobada y tenga las variables esperadas. Nombres por variable de entorno (`variables.md`).
+- `src/lib/whatsapp/candidate-flows.ts`, tareas de la cola:
+  - `wa_first_contact`: lo encola `registerCandidate` (alta individual y carga masiva), una vez por postulación. No sale si ya está descartada o contratada.
+  - `wa_psych_link`: lo encola `savePsychSent` con la casilla "Mandar el enlace por WhatsApp" (marcada). Una vez por enlace; si se corrige el enlace, sale el nuevo. Sin fecha límite capturada pone 2 días y la guarda.
+  - `wa_psych_reminder`: a las 12 h y a las 48 h de mandar el enlace, mientras no tenga resultado ni haya pasado la fecha límite. Reusa `enlace_psicometrico_utility`.
+  - `wa_docs_request`: al pasar a Documentos (`setStage`, desde la ficha o el tablero) manda la lista de obligatorios que faltan (`document_types.required`; recibido, en revisión o validado ya cuentan).
+  - `wa_docs_reminder`: a las 24 h y a las 48 h de pedirlos, mientras siga en Documentos y falte algo. Reusa `solicitud_documentos_utility`.
+  - `wa_discard`: al descartar con "Avisar por WhatsApp" marcada. Si se reabre antes de que salga, no sale.
+  - `wa_reminders` (diaria, 8:00) encola los recordatorios que ya tocan. Con un solo cron al día, un recordatorio "de 12 h" sale en el primer cron después de cumplirse.
+- Todo se relee justo antes de mandar; las llaves de la cola (`wa_*:{id}`) se buscan también en tareas terminadas, así que nada sale dos veces. Si la plantilla todavía no está aprobada en Whaapy, la tarea falla sin reintentar y queda en Logs.
+- Plantillas nuevas para dar de alta en Whaapy: `siguientes_pasos.md` §4.
+
+### 12.23 Correos automáticos por Resend (23 de noviembre de 2026)
+
+Decidido con el usuario el 23 nov: todo sale con el cron de las 8:00 (plan Hobby) y cuenta el día que terminó ayer. `clients.daily_report_time` y `weekly_report_time` quedan sin uso; `weekly_report_dow` sí decide el día del semanal.
+
+- `src/lib/email/send.ts`: Resend por su API REST (sin SDK), `RESEND_API_KEY` y `RESEND_FROM`.
+- `src/lib/email/reports.ts`, tareas diarias en `recurring.ts`:
+  - `report_daily_internal`: los admins reciben todo en un correo; cada reclutador activo con vacantes, su versión solo con esas vacantes (misma regla que `app.assigned_profile_ids()`, filtrada a mano porque corre con service role).
+  - `report_daily_client`: a cada cliente con vacantes activas y candidatos desde Psicométrico; sin candidatos no se manda. Destinatarios: `report_recipients` o, si está vacío, `contact_email`.
+  - `report_weekly_client`: a los clientes cuyo `weekly_report_dow` es hoy, con el PDF adjunto (`src/lib/email/weekly-pdf.tsx`, `@react-pdf/renderer`, en `serverExternalPackages`). El PDF se guarda en el bucket `reports` (`{client_id}/{report_run_id}.pdf`).
+- Cada envío queda en `report_runs`. Antes de mandar se busca el mismo tipo, cliente, periodo y destinatarios ya enviado: reintentar no duplica correos.
+- `src/lib/email/schedule.ts`: `reportReferenceNow()` (ayer a las 23:59) lo usan el envío y la vista previa de Reportes, que ahora muestra exactamente lo que sale. Textos: "Entrevistas de hoy", "Avanzó ayer".
+- `/api/cron/tick` se vuelve a llamar solo (hasta 6 vueltas, `?hop=`) si la cola no terminó en sus 60 s.
