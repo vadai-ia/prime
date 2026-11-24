@@ -138,7 +138,7 @@ export function DateRangePicker({ path, today, value, keep = {} }: { path: strin
     return (
       <div key={month} className={className}>
         <p className="mb-2 h-8 text-center text-sm font-semibold leading-8 text-ink">{monthLabel(month)}</p>
-        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-ink-faint" aria-hidden>
+        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-ink-faint md:text-xs" aria-hidden>
           {WEEKDAYS.map((w, i) => (
             <span key={i} className="pb-1">
               {w}
@@ -147,7 +147,7 @@ export function DateRangePicker({ path, today, value, keep = {} }: { path: strin
         </div>
         <div role="grid" aria-label={monthLabel(month)} className="grid grid-cols-7 gap-y-0.5">
           {cells.map((d, i) => {
-            if (d === null) return <span key={`e${i}`} className="size-9" />;
+            if (d === null) return <span key={`e${i}`} className="size-9 md:size-10 lg:size-11" />;
             const future = d > today;
             const inBand = lo !== null && hi !== null && d >= lo && d <= hi;
             const isEdge = d === lo || d === hi;
@@ -168,7 +168,7 @@ export function DateRangePicker({ path, today, value, keep = {} }: { path: strin
                   onKeyDown={(e) => onDayKey(e, d)}
                   aria-label={`${WEEKDAY_NAMES[weekdayMon(d)]} ${fmtDay(d)}${d === today ? ", hoy" : ""}`}
                   aria-current={d === today ? "date" : undefined}
-                  className={`relative size-9 rounded-lg text-sm tabular-nums outline-none transition focus-visible:ring-2 focus-visible:ring-leaf ${
+                  className={`relative size-9 shrink-0 rounded-lg text-sm tabular-nums md:size-10 lg:size-11 outline-none transition focus-visible:ring-2 focus-visible:ring-leaf ${
                     isEdge && inBand
                       ? "bg-forest font-semibold text-on-forest"
                       : future
@@ -220,7 +220,7 @@ export function DateRangePicker({ path, today, value, keep = {} }: { path: strin
           <div
             role="dialog"
             aria-label="Elegir periodo"
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:overflow-visible md:rounded-card"
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:w-max md:max-w-[calc(100vw-2rem)] md:max-h-none md:overflow-visible md:rounded-card"
           >
             <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line md:hidden" aria-hidden />
             <div className="flex flex-col md:flex-row">
@@ -246,8 +246,8 @@ export function DateRangePicker({ path, today, value, keep = {} }: { path: strin
                 <li className="hidden px-3 pt-2 text-[11px] leading-snug text-ink-faint md:block">O elige el día inicial y el final en el calendario.</li>
               </ul>
 
-              <div className="p-4">
-                <div ref={gridRef} className="relative flex justify-center gap-6">
+              <div className="p-4 md:p-5">
+                <div ref={gridRef} className="relative flex justify-center gap-6 lg:gap-10">
                   <button
                     type="button"
                     onClick={() => setView((v) => v - 1)}

@@ -15,6 +15,8 @@ import {
   sweepWhatsAppReminders,
 } from "@/lib/whatsapp/candidate-flows";
 import { runDailyClient, runDailyInternal, runWeeklyClient } from "@/lib/email/reports";
+import { fetchInterviewTranscript, sweepTeamsTranscripts } from "@/lib/teams/transcripts";
+import { enqueueOnce } from "@/lib/whatsapp/system-send";
 
 const MEDIA_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -124,6 +126,25 @@ export const HANDLERS = {
     async run({ interview_id, scheduled_at }, admin) {
       return sendInterviewReminder(admin, interview_id, scheduled_at);
     },
+  }),
+
+  /**
+   * Transcripción de Teams de una entrevista (plan §12.24). La encolan el barrido diario, cerrar la
+   * entrevista como realizada y el botón de la ficha. Reintenta mientras Teams no la tenga.
+   */
+  teams_transcript: handler({
+    label: "Transcripción de Teams",
+    payload: z.object({ interview_id: z.string().uuid() }),
+    maxAttempts: 4,
+    run: ({ interview_id }, admin) => fetchInterviewTranscript(admin, interview_id),
+  }),
+
+  /** Barrido diario (8:00): busca la transcripción de las entrevistas de los últimos 3 días. */
+  teams_transcripts: handler({
+    label: "Transcripciones de Teams",
+    payload: z.object({}).passthrough(),
+    run: (_payload, admin) =>
+      sweepTeamsTranscripts(admin, async (id) => !!(await enqueueOnce(admin, "teams_transcript", { interview_id: id }, `teams_transcript:${id}:${new Date().toISOString().slice(0, 10)}`, 4))),
   }),
 
   /** Primer contacto con aviso de privacidad. Lo encola el alta del candidato (individual o masiva). */

@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { CalendarPlus } from "lucide-react";
-import { rescheduleInterview, scheduleInterview, setInterviewStatus } from "@/actions/interviews";
+import { fetchTranscriptNow, rescheduleInterview, scheduleInterview, setInterviewStatus } from "@/actions/interviews";
 import { alertErrorClass, buttonPrimaryClass, inputClass, labelClass } from "@/components/ui/form";
 import type { Enums } from "@/lib/db/types";
 
@@ -43,7 +43,7 @@ export function ScheduleInterviewForm({ applicationId, staff, currentUserId, def
         </label>
         {outlookConnected ? (
           <p className="rounded-lg bg-mint px-3 py-2 text-sm text-forest sm:col-span-2 lg:col-span-3">
-            Se crea en tu Outlook con enlace de Teams, se invita al candidato (si tiene correo) y a Fireflies para grabarla.
+            Se crea en tu Outlook con enlace de Teams y se invita al candidato (si tiene correo). Teams la graba y transcribe, y la transcripción llega a esta ficha.
           </p>
         ) : (
           <label className={`${labelClass} sm:col-span-2 lg:col-span-3`}>
@@ -54,7 +54,7 @@ export function ScheduleInterviewForm({ applicationId, staff, currentUserId, def
               <a href="/mi-cuenta" className="font-medium text-forest hover:underline">
                 Mi cuenta
               </a>{" "}
-              y el evento, el enlace y la invitación a Fireflies salen solos.
+              y el evento, el enlace y la grabación de Teams salen solos.
             </span>
           </label>
         )}
@@ -90,6 +90,11 @@ export function ScheduleInterviewForm({ applicationId, staff, currentUserId, def
             {state.error}
           </p>
         )}
+        {state?.warning && (
+          <p role="status" className="rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber sm:col-span-2 lg:col-span-4">
+            {state.warning}
+          </p>
+        )}
       </form>
     </details>
   );
@@ -114,7 +119,7 @@ export function InterviewActions({ applicationId, interview: iv }: { application
   const live = iv.status === "scheduled" || iv.status === "confirmed";
   const canReschedule = live || iv.status === "no_show" || iv.status === "cancelled";
   const canNote = live || iv.status === "completed";
-  if (!canReschedule && !canNote) return null; // grabada, transcrita o analizada: ya es de Fireflies y la IA
+  if (!canReschedule && !canNote) return null; // grabada, transcrita o analizada: ya es de Teams y la IA
 
   const ids = (
     <>
@@ -210,5 +215,25 @@ export function InterviewActions({ applicationId, interview: iv }: { application
         </p>
       )}
     </div>
+  );
+}
+
+/** "Traer transcripción de Teams": la busca en el momento; si todavía no está, lo dice. */
+export function FetchTranscriptButton({ applicationId, interviewId }: { applicationId: string; interviewId: string }) {
+  const [state, action, pending] = useActionState(fetchTranscriptNow, undefined);
+  return (
+    <form action={action} className="mt-4 flex flex-wrap items-center gap-3">
+      <input type="hidden" name="application_id" value={applicationId} />
+      <input type="hidden" name="interview_id" value={interviewId} />
+      <button type="submit" disabled={pending} className={smallButton}>
+        {pending ? "Buscando en Teams…" : "Traer transcripción de Teams"}
+      </button>
+      <span className="text-xs text-ink-faint">Si no la traes, llega sola al día siguiente a las 8:00.</span>
+      {state?.error && (
+        <p role="alert" className={`${alertErrorClass} w-full`}>
+          {state.error}
+        </p>
+      )}
+    </form>
   );
 }

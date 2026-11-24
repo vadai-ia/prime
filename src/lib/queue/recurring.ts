@@ -15,6 +15,7 @@ export const RECURRING: Recurring[] = [
   // Misma hora que SWEEP_AT en src/lib/whatsapp/interview-reminder.ts.
   { type: "interview_reminders", dailyAt: "08:00" },
   { type: "wa_reminders", dailyAt: "08:00" },
+  { type: "teams_transcripts", dailyAt: "08:00" },
   // Correos del día anterior (decidido el 23 nov: todo a las 8:00 con el único cron del plan Hobby).
   // El semanal corre diario y solo manda a los clientes cuyo día de envío es hoy.
   { type: "report_daily_internal", dailyAt: "08:00" },

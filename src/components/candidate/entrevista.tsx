@@ -1,5 +1,5 @@
 import { Check, ExternalLink, X } from "lucide-react";
-import type { ApplicationDetail, Interview } from "@/lib/queries/types";
+import type { ApplicationDetail, Interview, InterviewTranscript } from "@/lib/queries/types";
 import { asArray } from "@/lib/domain/json";
 import type { InterviewFinding } from "@/lib/domain/json";
 import { INTERVIEW_STATUS_LABELS, INTERVIEW_STATUS_TONES as STATUS_TONE, INTERVIEW_TYPE_LABELS, PLATFORM_LABELS } from "@/lib/labels";
@@ -9,10 +9,12 @@ import { Pill } from "@/components/ui/pill";
 import { Ring } from "@/components/ui/ring";
 import { EmptyState } from "@/components/ui/empty-state";
 import { utcIsoToZoned } from "@/lib/domain/time";
-import { InterviewActions, ScheduleInterviewForm, type StaffOption } from "./interview-forms";
+import { teamsTranscriptsEnabled } from "@/lib/integrations/microsoft-graph";
+import { FetchTranscriptButton, InterviewActions, ScheduleInterviewForm, type StaffOption } from "./interview-forms";
 
 export function Entrevista({ detail, staff, currentUserId, outlookConnected }: { detail: ApplicationDetail; staff: StaffOption[]; currentUserId: string; outlookConnected: boolean }) {
-  const { application, interviews } = detail;
+  const { application, interviews, transcripts } = detail;
+  const teams = teamsTranscriptsEnabled();
   const closed = application.stage === "discarded" || application.stage === "hired";
   // pasada la entrevista Prime, lo siguiente que se agenda es la del cliente
   const defaultType = ["documents", "client_interview"].includes(application.stage) ? "client" : "prime";
@@ -20,18 +22,30 @@ export function Entrevista({ detail, staff, currentUserId, outlookConnected }: {
   return (
     <div className="space-y-5">
       {!closed && <ScheduleInterviewForm applicationId={application.id} staff={staff} currentUserId={currentUserId} defaultType={defaultType} open={interviews.length === 0} outlookConnected={outlookConnected} />}
-      {interviews.length === 0 && <EmptyState title="Sin entrevistas" hint="Agéndala aquí arriba. Con tu Outlook conectado se crea el evento en tu calendario con Teams y Fireflies." />}
+      {interviews.length === 0 && <EmptyState title="Sin entrevistas" hint="Agéndala aquí arriba. Con tu Outlook conectado se crea el evento en tu calendario con Teams, que la graba y transcribe." />}
       {interviews
         .slice()
         .reverse()
         .map((iv) => (
-          <InterviewCard key={iv.id} interview={iv} applicationId={application.id} staff={staff} />
+          <InterviewCard key={iv.id} interview={iv} applicationId={application.id} staff={staff} transcript={transcripts.find((t) => t.interview_id === iv.id) ?? null} teams={teams} />
         ))}
     </div>
   );
 }
 
-function InterviewCard({ interview: iv, applicationId, staff }: { interview: Interview; applicationId: string; staff: StaffOption[] }) {
+function InterviewCard({
+  interview: iv,
+  applicationId,
+  staff,
+  transcript,
+  teams,
+}: {
+  interview: Interview;
+  applicationId: string;
+  staff: StaffOption[];
+  transcript: InterviewTranscript | null;
+  teams: boolean;
+}) {
   const findings = asArray<InterviewFinding>(iv.findings);
   // "Realizada" trae notas y calificación del entrevistador; "Analizada", además, los hallazgos de la IA
   const analyzed = iv.status === "analyzed" || iv.status === "completed";
@@ -100,6 +114,17 @@ function InterviewCard({ interview: iv, applicationId, staff }: { interview: Int
         <p className="mt-4 text-sm text-ink-muted">Grabación recibida; el análisis de Claude aparece aquí cuando termina.</p>
       )}
 
+      {transcript ? (
+        <Transcript transcript={transcript} />
+      ) : (
+        teams &&
+        iv.calendar_event_id &&
+        iv.meeting_url &&
+        iv.status !== "cancelled" &&
+        iv.scheduled_at &&
+        new Date(iv.scheduled_at) <= new Date() && <FetchTranscriptButton applicationId={applicationId} interviewId={iv.id} />
+      )}
+
       <InterviewActions
         applicationId={applicationId}
         interview={{ id: iv.id, status: iv.status, date: when.date, time: when.time, meetingUrl: iv.meeting_url, summary: iv.summary, score: iv.score }}
@@ -114,5 +139,40 @@ function Field({ label, value }: { label: string; value: string }) {
       <dt className="text-xs text-ink-muted">{label}</dt>
       <dd className="mt-0.5 font-medium text-ink">{value}</dd>
     </div>
+  );
+}
+
+type Sentence = { speaker_name: string; text: string; start_time: number };
+
+function clock(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  const h = Math.floor(s / 3600);
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Transcripción de Teams: intervenciones por persona con su minuto. Solo staff (RLS). */
+function Transcript({ transcript }: { transcript: InterviewTranscript }) {
+  const sentences = asArray<Sentence>(transcript.sentences);
+  const minutes = transcript.duration_sec ? Math.max(1, Math.round(transcript.duration_sec / 60)) : null;
+  return (
+    <details className="mt-5 border-t border-line pt-4">
+      <summary className="cursor-pointer text-sm font-semibold text-forest">
+        Transcripción de Teams{minutes ? ` · ${minutes} min` : ""} · {sentences.length} intervenciones
+      </summary>
+      {sentences.length > 0 ? (
+        <ol className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-2">
+          {sentences.map((s, i) => (
+            <li key={i} className="text-sm">
+              <span className="mr-2 text-xs tabular-nums text-ink-faint">{clock(s.start_time)}</span>
+              <span className="font-medium text-ink">{s.speaker_name}:</span> <span className="text-ink-muted">{s.text}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-3 whitespace-pre-wrap text-sm text-ink-muted">{transcript.text}</p>
+      )}
+    </details>
   );
 }

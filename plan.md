@@ -892,3 +892,15 @@ Decidido con el usuario el 23 nov: todo sale con el cron de las 8:00 (plan Hobby
 - Cada envío queda en `report_runs`. Antes de mandar se busca el mismo tipo, cliente, periodo y destinatarios ya enviado: reintentar no duplica correos.
 - `src/lib/email/schedule.ts`: `reportReferenceNow()` (ayer a las 23:59) lo usan el envío y la vista previa de Reportes, que ahora muestra exactamente lo que sale. Textos: "Entrevistas de hoy", "Avanzó ayer".
 - `/api/cron/tick` se vuelve a llamar solo (hasta 6 vueltas, `?hop=`) si la cola no terminó en sus 60 s.
+
+### 12.24 Transcripción de Teams en lugar de Fireflies (24 de noviembre de 2026)
+
+Decidido con el usuario el 24 nov: Fireflies graba como máximo 1 reunión a la vez (3 en Business) y Prime quiere grabar **todas**, aunque se empalmen. Se usa la grabación y transcripción de Teams, que vienen en la licencia de cada reclutador. Fireflies queda fuera salvo que se ponga `FIREFLIES_INVITEE` (ya no se invita a `fred@fireflies.ai` por omisión).
+
+- Permisos delegados nuevos con consentimiento de admin: `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All`. Se piden solo con `TEAMS_TRANSCRIPTS=1`: sin el consentimiento, pedirlos haría fallar el refresh del token y con él agendar.
+- Al agendar (y al recrear al reagendar), `enableAutoRecording()` busca la reunión por su enlace (`/me/onlineMeetings?$filter=JoinWebUrl eq …`) y le pone `recordAutomatically` y `allowTranscription`. Si falla, la entrevista queda agendada y el aviso pide grabar a mano.
+- `src/lib/teams/transcripts.ts`: lee las transcripciones de la reunión con el token del organizador (`calendar_owner_id`), convierte el WebVTT en intervenciones y guarda `interview_transcripts` (`text`, `sentences`, `duration_sec`) con service role. Sin migración: la tabla ya existía; `fireflies_transcript_id` queda vacío.
+- Tareas: `teams_transcript` (una entrevista, 4 intentos) y `teams_transcripts` (barrido diario 8:00, entrevistas de los últimos 3 días sin transcripción). Cerrar la entrevista como realizada la encola y la intenta al momento; la ficha tiene "Traer transcripción de Teams".
+- Ficha → Entrevista: la transcripción por persona y minuto, solo staff (RLS de `interview_transcripts`). El estado de la entrevista no cambia.
+- Reagendar reescribe el cuerpo del evento con el enlace de Teams: la actualización que manda Exchange no siempre conservaba el bloque de Teams.
+- Siguiente: `interview_analysis` con la transcripción (hallazgos en `interviews.findings`).

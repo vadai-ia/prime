@@ -79,6 +79,7 @@ export async function getApplicationDetail(applicationId: string): Promise<Appli
       prefilterAnswers: mock.prefilterAnswers.filter((p) => p.application_id === applicationId),
       conversation: conv ? { ...conv, messages: mock.waMessages.filter((m) => m.conversation_id === conv.id).sort((a, b) => a.created_at.localeCompare(b.created_at)) } : null,
       interviews: mock.interviews.filter((i) => i.application_id === applicationId).sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? "")),
+      transcripts: [],
       psych: mock.psychTests.filter((t) => t.application_id === applicationId).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null,
       documents: withTypes(mock.candidateDocuments.filter((d) => d.candidate_id === candidate.id), mock.documentTypes),
       documentTypes: mock.documentTypes,
@@ -106,6 +107,9 @@ export async function getApplicationDetail(applicationId: string): Promise<Appli
   ]);
   if (candidate.error) throw candidate.error;
 
+  const interviewIds = (interviews.data ?? []).map((i) => i.id);
+  const transcripts = interviewIds.length ? await supabase.from("interview_transcripts").select("*").in("interview_id", interviewIds) : { data: [] };
+
   let messages: ApplicationDetail["conversation"] = null;
   if (conv.data) {
     const { data } = await supabase.from("wa_messages").select("*").eq("conversation_id", conv.data.id).order("created_at");
@@ -120,6 +124,7 @@ export async function getApplicationDetail(applicationId: string): Promise<Appli
     prefilterAnswers: answers.data ?? [],
     conversation: messages,
     interviews: interviews.data ?? [],
+    transcripts: transcripts.data ?? [],
     psych: psych.data ?? null,
     documents: withTypes(docs.data ?? [], docTypes.data ?? []),
     documentTypes: docTypes.data ?? [],

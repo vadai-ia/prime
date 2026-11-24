@@ -14,7 +14,7 @@ import { disconnectOutlook } from "@/actions/integrations";
 export const metadata: Metadata = { title: "Mi cuenta · Prime HR Innovation" };
 
 const NOTICES: Record<string, { ok: boolean; text: string }> = {
-  conectado: { ok: true, text: "Outlook conectado. Las entrevistas que agendes se crean en tu calendario con reunión de Teams y Fireflies invitado." },
+  conectado: { ok: true, text: "Outlook conectado. Las entrevistas que agendes se crean en tu calendario con reunión de Teams, que la graba y transcribe." },
   "sin-permiso": { ok: false, text: "Microsoft no dio el permiso. Si sale \"Se necesita aprobación del administrador\", el admin de Microsoft 365 de Prime tiene que aprobar la app una vez." },
   "sin-configurar": { ok: false, text: "La conexión con Microsoft todavía no está configurada en el servidor." },
   error: { ok: false, text: "No se pudo conectar Outlook. Vuelve a intentarlo; si sigue fallando, avisa al admin." },
@@ -39,7 +39,7 @@ export default async function MiCuentaPage({ searchParams }: PageProps<"/mi-cuen
       <div className="space-y-5">
         <Card
           title="Outlook y Teams"
-          subtitle="Con tu cuenta conectada, al agendar una entrevista se crea el evento en tu Outlook con enlace de Teams, se invita a Fireflies para grabarla y la invitación al candidato sale de tu correo."
+          subtitle="Con tu cuenta conectada, al agendar una entrevista se crea el evento en tu Outlook con enlace de Teams, Teams la graba y transcribe, y la invitación al candidato sale de tu correo."
           action={<Pill tone={outlook ? "mint" : "amber"}>{outlook ? "Conectado" : "Sin conectar"}</Pill>}
         >
           {outlook ? (

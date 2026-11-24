@@ -128,7 +128,8 @@ No hace falta suscripción de pago de Azure.
 | ☐ | `offline_access` | Que la conexión no caduque cada hora |
 | ☐ | `User.Read` | Leer el nombre del reclutador (suele venir ya agregado) |
 | ☐ | `Calendars.ReadWrite` | Crear, mover y cancelar la entrevista con enlace de Teams |
-| ☐ | `OnlineMeetingTranscript.Read.All` | *Opcional:* leer la transcripción de Teams si se elige en lugar de Fireflies |
+| ☐ | `OnlineMeetings.ReadWrite` | Activar la grabación y transcripción automáticas de cada entrevista (24 nov) |
+| ☐ | `OnlineMeetingTranscript.Read.All` | Leer la transcripción de Teams y ponerla en la ficha del candidato (24 nov: reemplaza a Fireflies) |
 | ☐ | **Conceder consentimiento de administrador para Prime** → Sí | Todos con **palomita verde**. Sin esto a cada reclutador le sale "Se necesita aprobación del administrador" |
 
 **6.3 Secreto y datos** · Menú **Certificados y secretos** → **Nuevo secreto de cliente**

@@ -8,7 +8,21 @@ import { createClient } from "@/lib/supabase/server";
 import { MOCK_PIPELINE as MOCK, MOCK_WRITE_ERROR } from "@/lib/mock";
 import { STAGES } from "@/lib/labels";
 import { zonedToUtcIso } from "@/lib/domain/time";
-import { cancelEvent, createTeamsEvent, getAccessToken, MicrosoftGraphError, moveEvent } from "@/lib/integrations/microsoft-graph";
+import { after } from "next/server";
+import {
+  cancelEvent,
+  createTeamsEvent,
+  enableAutoRecording,
+  getAccessToken,
+  getEventJoinUrl,
+  MicrosoftGraphError,
+  moveEvent,
+  teamsTranscriptsEnabled,
+} from "@/lib/integrations/microsoft-graph";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchInterviewTranscript } from "@/lib/teams/transcripts";
+import { enqueueOnce } from "@/lib/whatsapp/system-send";
+import { runTaskNow } from "@/lib/queue/run";
 import { enqueueInterviewReminder, sweepAlreadyPassed } from "@/lib/whatsapp/interview-reminder";
 import { triggerWhatsApp } from "@/lib/whatsapp/trigger";
 
@@ -36,12 +50,13 @@ function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-/** Crea el evento de Teams de una entrevista. Lee candidato y vacante con la sesión del usuario (RLS). */
-async function createCalendarEvent(
+type EventDetails = { subject: string; bodyHtml: (joinUrl?: string | null) => string; attendees: { email: string; name?: string | null }[] };
+
+/** Asunto, cuerpo e invitados del evento. Lee candidato y vacante con la sesión del usuario (RLS). */
+async function eventDetails(
   supabase: Supabase,
-  token: string,
-  iv: { id: string; application_id: string; type: "prime" | "client"; scheduled_at: string; duration_min: number; interviewer_user_id: string | null; owner_id: string },
-): Promise<{ eventId: string; joinUrl: string | null }> {
+  iv: { application_id: string; type: "prime" | "client"; interviewer_user_id: string | null; owner_id: string },
+): Promise<EventDetails> {
   const { data: app } = await supabase.from("applications").select("candidates(full_name, email), job_profiles(title)").eq("id", iv.application_id).maybeSingle();
   const candidate = app?.candidates;
   const title = app?.job_profiles?.title ?? "vacante";
@@ -56,15 +71,63 @@ async function createCalendarEvent(
   // El candidato ve el asunto y el cuerpo: nada interno (cliente, score, notas)
   const who = candidate?.full_name ?? "Candidato";
   const kind = iv.type === "prime" ? "Entrevista" : "Entrevista con la empresa";
-  return createTeamsEvent(token, {
-    transactionId: iv.id,
+  return {
     subject: `${kind} · ${title} · ${who}`,
-    bodyHtml: `<p>Hola ${escapeHtml(who.split(" ")[0])}:</p><p>Te esperamos en tu ${kind.toLowerCase()} para la vacante <b>${escapeHtml(title)}</b>. Únete con el enlace de Teams de esta invitación unos minutos antes.</p><p>Prime HR Innovation</p>`,
+    bodyHtml: (joinUrl) =>
+      `<p>Hola ${escapeHtml(who.split(" ")[0])}:</p><p>Te esperamos en tu ${kind.toLowerCase()} para la vacante <b>${escapeHtml(title)}</b>. ` +
+      (joinUrl
+        ? `Únete unos minutos antes con este enlace de Teams (no necesitas cuenta):</p><p><a href="${escapeHtml(joinUrl)}">Unirse a la reunión de Teams</a></p>`
+        : `Únete con el enlace de Teams de esta invitación unos minutos antes.</p>`) +
+      `<p>Prime HR Innovation</p>`,
+    attendees,
+  };
+}
+
+/** Crea el evento de Teams de una entrevista. */
+async function createCalendarEvent(
+  supabase: Supabase,
+  token: string,
+  iv: { id: string; application_id: string; type: "prime" | "client"; scheduled_at: string; duration_min: number; interviewer_user_id: string | null; owner_id: string },
+): Promise<{ eventId: string; joinUrl: string | null; recordingWarning?: string }> {
+  const details = await eventDetails(supabase, iv);
+  const event = await createTeamsEvent(token, {
+    transactionId: iv.id,
+    subject: details.subject,
+    bodyHtml: details.bodyHtml(),
     startIso: iv.scheduled_at,
     durationMin: iv.duration_min,
-    attendees,
+    attendees: details.attendees,
     inviteFireflies: true,
   });
+  return { ...event, recordingWarning: await recordAutomatically(token, event.joinUrl) };
+}
+
+/**
+ * Grabación y transcripción automáticas en Teams (plan §12.24). Si falla, la entrevista queda igual:
+ * el aviso pide grabar a mano al empezar.
+ */
+async function recordAutomatically(token: string, joinUrl: string | null): Promise<string | undefined> {
+  if (!teamsTranscriptsEnabled()) return undefined;
+  const manual = "Al empezar la reunión, dale a Grabar y transcribir en Teams.";
+  if (!joinUrl) return `Outlook no devolvió el enlace de Teams, así que no se activó la grabación automática. ${manual}`;
+  try {
+    if (await enableAutoRecording(token, joinUrl)) return undefined;
+    return `Teams no encontró la reunión para activar la grabación automática. ${manual}`;
+  } catch (e) {
+    console.error("[microsoft] grabación automática", e);
+    return `No se pudo activar la grabación automática (${graphMessage(e)}). ${manual}`;
+  }
+}
+
+/** Encola la búsqueda de la transcripción y la intenta al responder; si aún no está, la cola reintenta. */
+async function queueTranscript(interviewId: string): Promise<void> {
+  if (!teamsTranscriptsEnabled()) return;
+  try {
+    const taskId = await enqueueOnce(createAdminClient(), "teams_transcript", { interview_id: interviewId }, `teams_transcript:${interviewId}:${new Date().toISOString().slice(0, 10)}`, 4);
+    if (taskId) after(() => runTaskNow(taskId).then(() => undefined, (e) => console.error("[microsoft] transcripción", taskId, e)));
+  } catch (e) {
+    console.error("[microsoft] no se pudo encolar la transcripción", e);
+  }
 }
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida");
@@ -137,6 +200,7 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
   let meetingUrl = d.meeting_url || null;
   let eventId: string | null = null;
   let token: string | null = null;
+  let recordingWarning: string | undefined;
   try {
     token = await getAccessToken(session.userId);
     if (token) {
@@ -151,6 +215,7 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
       });
       eventId = event.eventId;
       meetingUrl = event.joinUrl;
+      recordingWarning = event.recordingWarning;
     }
   } catch (e) {
     return { error: `No se pudo crear la entrevista en Outlook: ${graphMessage(e)} Si sigue fallando, desconecta Outlook en Mi cuenta y agenda pegando el enlace de Teams.` };
@@ -183,7 +248,7 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
     const { error: stageError } = await supabase.rpc("set_application_stage", { p_application_id: application.id, p_to_stage: target, p_reason: "Entrevista agendada" });
     if (stageError) return { error: `La entrevista quedó agendada, pero no se pudo mover de etapa: ${stageError.message}` };
   }
-  return done(application.id);
+  return { ...done(application.id), warning: recordingWarning };
 }
 
 const rescheduleSchema = z.object({ application_id: z.string().uuid(), interview_id: z.string().uuid(), date, time, meeting_url: url });
@@ -211,7 +276,7 @@ export async function rescheduleInterview(_prev: InterviewActionState, formData:
   const supabase = await createClient();
   const { data: current } = await supabase
     .from("interviews")
-    .select("id, application_id, type, status, duration_min, calendar_event_id, calendar_owner_id, interviewer_user_id")
+    .select("id, application_id, type, status, duration_min, meeting_url, calendar_event_id, calendar_owner_id, interviewer_user_id")
     .eq("id", d.interview_id)
     .maybeSingle();
   if (!current) return { error: "Entrevista no encontrada" };
@@ -237,13 +302,23 @@ export async function rescheduleInterview(_prev: InterviewActionState, formData:
             owner_id: ownerId,
           });
           calendar = { calendar_event_id: event.eventId, ...(event.joinUrl ? { meeting_url: event.joinUrl } : {}) };
+          warning = event.recordingWarning;
         };
         if (current.status === "cancelled") await recreate();
-        else
-          await moveEvent(token, current.calendar_event_id, scheduledAt, current.duration_min).catch((e) => {
+        else {
+          const eventId = current.calendar_event_id;
+          const move = async () => {
+            // La actualización a los invitados lleva el enlace de Teams en el cuerpo (si no, puede llegar sin él)
+            const joinUrl = current.meeting_url ?? (await getEventJoinUrl(token, eventId));
+            const details = await eventDetails(supabase, { ...current, owner_id: ownerId });
+            await moveEvent(token, eventId, scheduledAt, current.duration_min, details.bodyHtml(joinUrl));
+            if (joinUrl && !current.meeting_url) calendar = { meeting_url: joinUrl };
+          };
+          await move().catch((e) => {
             if (e instanceof MicrosoftGraphError && e.status === 404) return recreate();
             throw e;
           });
+        }
       }
     } catch (e) {
       return { error: `No se pudo mover el evento en Outlook: ${graphMessage(e)}` };
@@ -309,5 +384,30 @@ export async function setInterviewStatus(_prev: InterviewActionState, formData: 
   const { data, error } = await supabase.from("interviews").update({ status: d.status, ...notes }).eq("id", d.interview_id).select("id").maybeSingle();
   if (error) return { error: error.message };
   if (!data) return { error: "Entrevista no encontrada" };
+  if (d.status === "completed") await queueTranscript(d.interview_id);
   return { ...done(d.application_id), warning };
+}
+
+const transcriptSchema = z.object({ application_id: z.string().uuid(), interview_id: z.string().uuid() });
+
+/** Botón "Traer transcripción de Teams" de la ficha. La entrevista se lee con la sesión (RLS decide). */
+export async function fetchTranscriptNow(_prev: InterviewActionState, formData: FormData): Promise<InterviewActionState> {
+  try {
+    await assertStaff();
+  } catch (e) {
+    return { error: e instanceof UnauthorizedError ? e.message : "No autorizado" };
+  }
+  if (MOCK) return { error: MOCK_WRITE_ERROR };
+  const parsed = transcriptSchema.safeParse({ application_id: formData.get("application_id"), interview_id: formData.get("interview_id") });
+  if (!parsed.success) return { error: "Datos no válidos" };
+  const d = parsed.data;
+
+  const supabase = await createClient();
+  const { data: iv } = await supabase.from("interviews").select("id").eq("id", d.interview_id).eq("application_id", d.application_id).maybeSingle();
+  if (!iv) return { error: "Entrevista no encontrada" };
+
+  // Service role solo después de que RLS confirmó que el usuario ve esta entrevista.
+  const result = await fetchInterviewTranscript(createAdminClient(), iv.id);
+  if (!result.ok) return { error: result.error };
+  return done(d.application_id);
 }

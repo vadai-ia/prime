@@ -19,6 +19,7 @@ export type WaConversation = Tables<"wa_conversations">;
 export type WaMessage = Tables<"wa_messages">;
 export type WaTemplate = Tables<"wa_templates">;
 export type Interview = Tables<"interviews">;
+export type InterviewTranscript = Tables<"interview_transcripts">;
 export type PsychTest = Tables<"psychometric_tests">;
 export type DocumentType = Tables<"document_types">;
 export type CandidateDocument = Tables<"candidate_documents">;
@@ -98,6 +99,8 @@ export type ApplicationDetail = {
   prefilterAnswers: PrefilterAnswer[];
   conversation: (WaConversation & { messages: WaMessage[] }) | null;
   interviews: Interview[];
+  /** Transcripción de Teams por entrevista (solo las que ya llegaron). */
+  transcripts: InterviewTranscript[];
   psych: PsychTest | null;
   documents: DocumentWithType[];
   documentTypes: DocumentType[];

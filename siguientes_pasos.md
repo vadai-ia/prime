@@ -2,6 +2,15 @@
 
 Escrito el 18 de noviembre de 2026, después de agendar en producción la primera entrevista con Outlook. La invitación llegó por correo. **Actualizado el 23 nov:** recordatorio de entrevista por WhatsApp programado (plan §12.21) y Pandapé fuera del alcance. Complementa a `tomorrow.md` y `tasks.md` §6 a §9.
 
+## Prioridad (24 nov, del usuario)
+
+1. Agendar entrevista y ver el enlace de Teams; el evento queda en el calendario de Outlook del reclutador que agenda.
+2. Si el evento se mueve o se cancela en Outlook, que la app se entere y avise. **No programado:** hace falta suscripción de Graph al calendario de cada reclutador (`/api/webhooks/microsoft`, renovación cada ~3 días en `recurring.ts`), actualizar `interviews` y avisar con `app.notify_application()`.
+3. Conectar el Outlook de cada usuario: cuenta onmicrosoft con licencia, reenvío a cPanel, entrar una vez a outlook.office.com y Mi cuenta → Conectar Outlook; el admin lo asigna a sus vacantes.
+4. ~~Fireflies~~ **Transcripción de Teams** (24 nov, plan §12.24, sin probar): sistemas agrega `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All` con consentimiento de admin → `TEAMS_TRANSCRIPTS=1` en Vercel → desplegar → agendar con `sistemas@`, entrar, hablar 2 min, salir y en la ficha "Traer transcripción de Teams". Revisar en el centro de Teams que la directiva de reuniones permita grabar y transcribir. Siguiente: análisis de la entrevista con IA.
+5. Reportes a clientes: envío por Graph (`Mail.Send` de aplicación desde `entrevistas@`) en lugar de Resend, y destinatarios de cada cliente.
+6. **Cambiar logos**: menú lateral (`sidebar.tsx`), login, correos, PDF semanal y portal del cliente. Necesita el logotipo de Prime en SVG o PNG.
+
 ## 1. Terminar de probar la entrevista
 
 Con la misma entrevista que se agendó:

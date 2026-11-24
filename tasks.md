@@ -64,6 +64,8 @@ Complemento operativo de `plan.md`. Responde qué servicio externo hace qué, qu
 
 ### Fireflies
 
+> **24 nov 2026: reemplazado por la transcripción de Teams** (plan §12.24). Fireflies graba 1 reunión a la vez (3 en Business) y Prime quiere grabar todas aunque se empalmen. Lo de abajo queda como referencia.
+
 - **Qué es:** grabación y transcripción de videollamadas.
 - **Para qué lo usamos:** entra a la reunión de **Teams** como un participante más (se invita a `fred@fireflies.ai` al evento de Outlook), transcribe en español y avisa por webhook. El sistema descarga la transcripción y se la pasa a Claude. Funciona igual con Teams que con Meet.
 - **Qué necesita:** cuenta con plan que incluya API, API key, el webhook apuntando a la app, y que la sala de espera de Teams deje entrar al bot (§6).
@@ -181,7 +183,8 @@ La cola vive en Postgres (`enqueue_task`, `claim_scheduled_tasks`, `finish_sched
 - **`wa_reminder`.** ✅ (23 nov, plan §12.22, como `wa_psych_reminder` y `wa_docs_reminder` con el barrido `wa_reminders`) Recordatorio a las 12 horas (psicométrico) o 24 horas (documentos); segundo a las 48 horas.
 - **`cv_score`** · **hecho.** El alta la encola y la corre en cuanto responde; si falla, el cron la reintenta (3 intentos). Toca Anthropic y Storage.
 - **`interview_confirm`.** ✅ (23 nov, plan §12.21) Un día antes, a las 8:00, manda la plantilla `confirmacion_entrevista_utility` con fecha, hora y enlace de Teams; si se agenda después de esa hora, sale en el momento.
-- **`fireflies_fetch_transcript`.** Descarga la transcripción, la guarda en `interview_transcripts` y encola `interview_analyze`. Toca Fireflies (o Graph, si se usa la transcripción de Teams).
+- [x] **`teams_transcript` / `teams_transcripts`** (24 nov, sin probar): transcripción de Teams a `interview_transcripts`, barrido diario y botón en la ficha. Falta `interview_analyze`.
+- **`fireflies_fetch_transcript`** (reemplazado por Teams). Descarga la transcripción, la guarda en `interview_transcripts` y encola `interview_analyze`. Toca Fireflies (o Graph, si se usa la transcripción de Teams).
 - **`interview_analyze`.** Corre la tarea de IA `interview_analysis`. Toca Anthropic.
 - **`psych_parse`.** Corre la tarea de IA y calcula el veredicto. Toca Anthropic y Storage.
 - **`wa_media_fetch`** · **hecho.** Baja a `wa-media` el archivo que mandó un candidato; la encola el webhook o "Traer de Whaapy" y corre en el momento (4 intentos). Toca Whaapy y Storage.

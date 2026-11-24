@@ -12,7 +12,22 @@ import { decrypt, encrypt, encryptionEnabled } from "@/lib/crypto";
 
 const LOGIN = "https://login.microsoftonline.com";
 const GRAPH = "https://graph.microsoft.com/v1.0";
-const SCOPES = ["openid", "email", "offline_access", "User.Read", "Calendars.ReadWrite"];
+/**
+ * Grabación y transcripción de Teams (plan §12.24). Los dos permisos delegados necesitan consentimiento
+ * de admin en Entra ID; hasta darlo, TEAMS_TRANSCRIPTS queda apagado: pedir un permiso sin consentimiento
+ * haría fallar el refresh del token y, con él, agendar.
+ */
+export function teamsTranscriptsEnabled(): boolean {
+  return process.env.TEAMS_TRANSCRIPTS === "1";
+}
+const SCOPES = [
+  "openid",
+  "email",
+  "offline_access",
+  "User.Read",
+  "Calendars.ReadWrite",
+  ...(teamsTranscriptsEnabled() ? ["OnlineMeetings.ReadWrite", "OnlineMeetingTranscript.Read.All"] : []),
+];
 // Login responde rápido; crear un evento con reunión de Teams puede tardar (sobre todo el primero de un buzón nuevo).
 const LOGIN_TIMEOUT_MS = 15_000;
 const GRAPH_TIMEOUT_MS = 40_000;
@@ -34,11 +49,10 @@ const TZ = process.env.APP_TIMEZONE || "America/Mexico_City";
 export const OAUTH_COOKIE = "ms_oauth";
 
 /**
- * Invitado que hace que Fireflies entre a la reunión y la transcriba (plan §4.3). Con la cuenta maestra
- * de Prime (FIREFLIES_INVITEE, p. ej. entrevistas@) la entrevista cae en su calendario y su Fireflies entra;
- * sin la variable se invita al bot genérico.
+ * Invitado que hace que Fireflies entre a la reunión (plan §4.3). Desde el 24 nov la transcripción es
+ * la de Teams; Fireflies solo se invita si FIREFLIES_INVITEE está puesta (una cuenta con Fireflies).
  */
-const FIREFLIES_BOT = process.env.FIREFLIES_INVITEE?.trim() || "fred@fireflies.ai";
+const FIREFLIES_BOT = process.env.FIREFLIES_INVITEE?.trim() || null;
 
 export class MicrosoftGraphError extends Error {
   constructor(
@@ -119,6 +133,12 @@ export function integrationColumns(tokens: TokenResponse, accountEmail: string |
 }
 
 async function graph<T>(token: string, path: string, init: RequestInit = {}): Promise<T | null> {
+  const res = await graphResponse(token, path, init);
+  if (res.status === 202 || res.status === 204) return null;
+  return (await res.json()) as T;
+}
+
+async function graphResponse(token: string, path: string, init: RequestInit = {}): Promise<Response> {
   const res = await timedFetch(
     `${GRAPH}${path}`,
     { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers } },
@@ -131,8 +151,7 @@ async function graph<T>(token: string, path: string, init: RequestInit = {}): Pr
     if (res.status === 404) throw new MicrosoftGraphError("El evento ya no existe en Outlook (¿lo borraron desde el calendario?).", 404);
     throw new MicrosoftGraphError(`Outlook respondió ${res.status}: ${json.error?.message || json.error?.code || (res.status === 503 ? "el servicio no está disponible (¿buzón recién creado?)" : "error desconocido")}`, res.status);
   }
-  if (res.status === 202 || res.status === 204) return null;
-  return (await res.json()) as T;
+  return res;
 }
 
 export async function fetchAccountEmail(accessToken: string): Promise<string | null> {
@@ -201,7 +220,7 @@ function graphDate(iso: string, plusMin = 0) {
 
 function attendeeList(attendees: Attendee[], inviteFireflies: boolean) {
   const seen = new Set<string>();
-  const list = [...attendees, ...(inviteFireflies ? [{ email: FIREFLIES_BOT, name: "Fireflies" }] : [])];
+  const list = [...attendees, ...(inviteFireflies && FIREFLIES_BOT ? [{ email: FIREFLIES_BOT, name: "Fireflies" }] : [])];
   return list
     .filter((a) => {
       const key = a.email.trim().toLowerCase();
@@ -241,14 +260,71 @@ export async function createTeamsEvent(token: string, input: EventInput): Promis
   return { eventId: event.id, joinUrl };
 }
 
-export async function moveEvent(token: string, eventId: string, startIso: string, durationMin: number): Promise<void> {
+/** Enlace de Teams del evento (null si Outlook no lo generó). */
+export async function getEventJoinUrl(token: string, eventId: string): Promise<string | null> {
+  const event = await graph<GraphEvent>(token, `/me/events/${encodeURIComponent(eventId)}?$select=id,onlineMeeting`);
+  return event?.onlineMeeting?.joinUrl ?? null;
+}
+
+/**
+ * Mueve el evento. Con `bodyHtml` también reescribe el cuerpo: la actualización que Exchange manda a
+ * los invitados no siempre conserva el bloque de Teams, así que el cuerpo lleva el enlace explícito.
+ */
+export async function moveEvent(token: string, eventId: string, startIso: string, durationMin: number, bodyHtml?: string): Promise<void> {
   await graph(token, `/me/events/${encodeURIComponent(eventId)}`, {
     method: "PATCH",
-    body: JSON.stringify({ start: graphDate(startIso), end: graphDate(startIso, durationMin) }),
+    body: JSON.stringify({
+      start: graphDate(startIso),
+      end: graphDate(startIso, durationMin),
+      ...(bodyHtml ? { body: { contentType: "HTML", content: bodyHtml } } : {}),
+    }),
   });
 }
 
 /** Cancela el evento y Exchange avisa a los invitados. */
 export async function cancelEvent(token: string, eventId: string, comment: string): Promise<void> {
   await graph(token, `/me/events/${encodeURIComponent(eventId)}/cancel`, { method: "POST", body: JSON.stringify({ comment }) });
+}
+
+// ── Grabación y transcripción de Teams (plan §12.24) ─────────────────────────────────────────────
+// La reunión la crea Exchange al crear el evento; se localiza por su enlace. Solo el organizador (el
+// dueño del calendario) puede activar la grabación automática y leer la transcripción.
+
+type OnlineMeeting = { id: string; recordAutomatically?: boolean | null };
+
+/** Reunión de Teams a partir de su enlace; null si Graph no la encuentra. */
+export async function findOnlineMeeting(token: string, joinUrl: string): Promise<OnlineMeeting | null> {
+  const filter = encodeURIComponent(`JoinWebUrl eq '${joinUrl.replace(/'/g, "''")}'`);
+  const res = await graph<{ value: OnlineMeeting[] }>(token, `/me/onlineMeetings?$filter=${filter}`);
+  return res?.value?.[0] ?? null;
+}
+
+/**
+ * Pide a Teams que grabe y transcriba en cuanto empiece la reunión. Devuelve false si no encontró la
+ * reunión. La transcripción sale si la directiva de reuniones del inquilino la permite.
+ */
+export async function enableAutoRecording(token: string, joinUrl: string): Promise<boolean> {
+  const meeting = await findOnlineMeeting(token, joinUrl);
+  if (!meeting) return false;
+  if (meeting.recordAutomatically) return true;
+  await graph(token, `/me/onlineMeetings/${encodeURIComponent(meeting.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ recordAutomatically: true, allowTranscription: true }),
+  });
+  return true;
+}
+
+export type TeamsTranscript = { id: string; createdDateTime: string };
+
+export async function listTranscripts(token: string, meetingId: string): Promise<TeamsTranscript[]> {
+  const res = await graph<{ value: TeamsTranscript[] }>(token, `/me/onlineMeetings/${encodeURIComponent(meetingId)}/transcripts`);
+  return (res?.value ?? []).slice().sort((a, b) => a.createdDateTime.localeCompare(b.createdDateTime));
+}
+
+/** Contenido de una transcripción en WebVTT (`<v Nombre>texto</v>` por intervención). */
+export async function transcriptVtt(token: string, meetingId: string, transcriptId: string): Promise<string> {
+  const res = await graphResponse(token, `/me/onlineMeetings/${encodeURIComponent(meetingId)}/transcripts/${encodeURIComponent(transcriptId)}/content?$format=text/vtt`, {
+    headers: { Accept: "text/vtt" },
+  });
+  return res.text();
 }

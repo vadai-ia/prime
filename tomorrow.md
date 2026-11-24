@@ -4,6 +4,16 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 
 **No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
 
+## 24 nov: transcripción de Teams en lugar de Fireflies (sin commit, sin probar)
+
+- El push de lo del 23 nov ya está (`57e1ee8 ultimas`). Prioridades del usuario: `siguientes_pasos.md` arriba.
+- **Reagendar no mandaba el enlace de Teams** (lo vio el usuario): ahora el cuerpo del evento lleva el enlace al mover.
+- **Fireflies fuera** (graba 1 reunión a la vez, 3 en Business; Prime quiere todas aunque se empalmen). Plan §12.24: grabación automática de Teams al agendar, transcripción a `interview_transcripts`, barrido diario `teams_transcripts`, botón "Traer transcripción de Teams" en la ficha. Apagado hasta `TEAMS_TRANSCRIPTS=1`, que va **después** de que sistemas agregue `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All` con consentimiento de admin.
+- Solo `sistemas@` tiene licencia y Outlook conectado; `entrevistas@` no existe y ya no hace falta para Fireflies.
+- Correos: el usuario no quiere Resend; propuesta de mandar los reportes por Graph (`Mail.Send` de aplicación) desde un buzón con licencia. Sin programar.
+- Falta programar: aviso cuando mueven o cancelan la entrevista en Outlook (suscripción de Graph), reportes por Graph, análisis de la entrevista con IA, cambiar logos.
+- Typecheck, eslint, `db:rls-lite` y build pasan.
+
 ## 23 nov (2): WhatsApp automático y correos (sin commit, sin probar)
 
 - WhatsApp (plan §12.22): primer contacto con aviso de privacidad al dar de alta, enlace del psicométrico con casilla, recordatorios del psicométrico (12 y 48 h) y de documentos (24 y 48 h), lista de documentos al pasar a Documentos y agradecimiento al descartar (casilla marcada). **Antes de probar:** dar de alta en Whaapy las 2 plantillas nuevas (`siguientes_pasos.md` §4).
