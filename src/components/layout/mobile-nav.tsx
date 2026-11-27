@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -28,7 +29,7 @@ export function MobileNav({ items, bell, userName, userRole }: { items: Item[]; 
           {open ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
         </button>
         {bell}
-        <p className="ml-1 text-base font-semibold">Prime HR</p>
+        <Image src="/brand/logo-light.png" alt="Prime HR Innovation" width={800} height={302} loading="eager" className="ml-1 h-9 w-auto" />
       </div>
       {open && (
         <nav className="flex flex-col gap-1 border-t border-white/15 px-3 pb-4 pt-2">

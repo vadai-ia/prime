@@ -24,6 +24,8 @@ const C = {
   danger: "#b93a32",
   dangerSoft: "#fbe7e5",
 };
+// Las imágenes en correo van por URL absoluta: la del despliegue (public/brand).
+const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.primehrinnovation.com.mx"}/brand/logo-light.png`;
 const FONT = '"IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif';
 
 const p: CSSProperties = { margin: "0 0 14px", fontSize: 14, lineHeight: 1.6, color: C.ink };
@@ -39,7 +41,8 @@ function Shell({ subtitle, children, footer }: { subtitle: string; children: Rea
         <tbody>
           <tr>
             <td style={{ background: C.forest, backgroundImage: `linear-gradient(160deg, ${C.forest}, ${C.forest2})`, padding: "18px 24px" }}>
-              <div style={{ color: "#ffffff", fontSize: 16, fontWeight: 700 }}>Prime HR Innovation</div>
+              {/* eslint-disable-next-line @next/next/no-img-element -- HTML de correo: next/image no aplica */}
+              <img src={LOGO_URL} alt="Prime HR Innovation" width={160} height={60} style={{ display: "block", width: 160, height: "auto", border: 0, marginBottom: 8 }} />
               <div style={{ color: C.lime, fontSize: 12.5, marginTop: 2 }}>{subtitle}</div>
             </td>
           </tr>

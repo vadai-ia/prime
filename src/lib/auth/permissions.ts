@@ -12,6 +12,8 @@ export const PERMISSIONS = {
   view_inactive_candidates: ["admin"],
   /** Ver la lista negra y sus motivos. */
   view_blacklist: ["admin"],
+  /** Ver y decidir los candidatos sugeridos de otras vacantes (y otros clientes). */
+  suggest_candidates: ["admin"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

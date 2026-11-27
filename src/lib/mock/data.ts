@@ -81,7 +81,7 @@ function mkAiConfig(p: Partial<AiConfig> & Pick<AiConfig, "profile_id">): AiConf
 function mkCandidate(p: Partial<Candidate> & Pick<Candidate, "id" | "full_name" | "phone_e164">): Candidate {
   return {
     first_name: p.full_name.split(" ")[0] ?? null, email: null, birth_date: null, age_reported: null, gender: null, zone: null, municipality: "Aguascalientes",
-    education_level: null, cv_file_path: `${p.id}/cv/cv.pdf`, cv_text: null, cv_summary: null, privacy_consent_at: daysAgo(10), privacy_consent_via: "whatsapp",
+    education_level: null, cv_file_path: `${p.id}/cv/cv.pdf`, cv_text: null, cv_tsv: null, cv_summary: null, privacy_consent_at: daysAgo(10), privacy_consent_via: "whatsapp",
     whaapy_contact_id: null, in_prime_pool: false, notes: null, curp: null, rfc: null, nss: null, address_line: null, retention_until: null,
     created_at: daysAgo(10), updated_at: daysAgo(1), ...p,
   };

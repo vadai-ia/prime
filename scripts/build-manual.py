@@ -705,6 +705,56 @@ from checks
 order by orden;
 """
 
+
+HEAD_19 = """-- Prime HR · migración 0032 para pegar en el SQL Editor (después de 18_*.sql).
+-- Candidatos sugeridos de otras vacantes (solo admin): búsqueda por texto del CV, tabla de
+-- sugerencias con RLS de admin y la función que arma la lista (solo la usa la cola).
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Al final sale un checklist: debe decir "ok".
+-- La primera vez tarda un poco más: calcula el índice de texto de todos los CVs.
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0032.
+
+begin;
+
+"""
+
+TAIL_19 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0032', 'cross_client_suggestions')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'candidates.cv_tsv (búsqueda en el CV)',
+          exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'candidates' and column_name = 'cv_tsv')),
+      (2, 'tabla profile_candidate_suggestions con RLS',
+          exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                  where n.nspname = 'public' and c.relname = 'profile_candidate_suggestions' and c.relrowsecurity)),
+      (3, 'solo el admin ve las sugerencias',
+          exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'profile_candidate_suggestions'
+                  and policyname = 'profile_candidate_suggestions_select_admin')),
+      (4, 'permiso suggest_candidates',
+          exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'app' and p.proname = 'has_permission' and pg_get_functiondef(p.oid) like '%suggest_candidates%')),
+      (5, 'función suggestion_pool (solo service role)',
+          exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'suggestion_pool')
+          and not has_function_privilege('authenticated', 'public.suggestion_pool(uuid, int)', 'execute'))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+
 TARGETS = [
     {
         "out": "04_asignacion_reclutadores_y_alcance.sql",
@@ -812,6 +862,13 @@ TARGETS = [
         "head": HEAD_18,
         "tail": TAIL_18,
         "expected": {},  # solo alter type ... add value if not exists: ya es re-ejecutable
+    },
+    {
+        "out": "19_sugeridos_otras_vacantes.sql",
+        "migrations": ["0032_cross_client_suggestions.sql"],
+        "head": HEAD_19,
+        "tail": TAIL_19,
+        "expected": {"type": 1, "table": 1, "index": 2, "column": 1, "trigger": 1, "policy": 2},
     },
 ]
 

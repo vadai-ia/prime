@@ -67,7 +67,7 @@ Decisiones de Next 16 que aplican aquí:
 ### 2.2 Implementación
 
 - **Supabase Auth.** Los tres roles entran con correo y contraseña. Sin registro público: todas las cuentas las crea un admin desde Configuración, con contraseña temporal (sin correo) o por invitación por correo. Decisión del 16 sep 2026: se descartó el magic link para el cliente.
-- **Contraseña olvidada** (decisión del 26 oct 2026). Si el login falla, el mensaje depende del correo: si no existe, "No hay una cuenta con ese correo"; si es de un admin, aparece "Olvidé mi contraseña" y Supabase le manda el enlace de recuperación (entra por `/auth/callback` a `/cuenta/password`); si es de un reclutador o un cliente, "Pide a un administrador que te pase o te reinicie tu contraseña". El admin restablece la de reclutadores y clientes desde Configuración → Usuarios → Ver con una temporal (las contraseñas no se pueden ver: están cifradas); la de otro admin no. En la misma ficha cambia el rol de reclutadores y clientes (nunca el de otro admin ni el propio); al dejar de ser reclutador, la base lo saca de sus vacantes y deja de ver sus candidatos. Cada quien cambia la suya en Mi cuenta. El login lee el rol del correo con service role (`src/actions/auth.ts`). Revelar si un correo tiene cuenta es aceptado por Prime: es un sistema interno.
+- **Contraseña olvidada** (decisión del 26 oct 2026). Si el login falla, el mensaje depende del correo: si no existe, "No hay una cuenta con ese correo"; si es de un admin, aparece "Olvidé mi contraseña" y Supabase le manda el enlace de recuperación (entra por `/auth/confirmar`, que canjea el token solo con el botón (POST) para que los escáneres de correo como Safe Links no lo gasten, y de ahí a `/cuenta/password`); si es de un reclutador o un cliente, "Pide a un administrador que te pase o te reinicie tu contraseña". El admin restablece la de reclutadores y clientes desde Configuración → Usuarios → Ver con una temporal (las contraseñas no se pueden ver: están cifradas); la de otro admin no. En la misma ficha cambia el rol de reclutadores y clientes (nunca el de otro admin ni el propio); al dejar de ser reclutador, la base lo saca de sus vacantes y deja de ver sus candidatos. Cada quien cambia la suya en Mi cuenta. El login lee el rol del correo con service role (`src/actions/auth.ts`). Revelar si un correo tiene cuenta es aceptado por Prime: es un sistema interno.
 - **Rol y `client_id` en `app_metadata`** del usuario (solo se escribe con service role). Viajan en el JWT y las políticas RLS los leen con helpers SQL: `app.role()`, `app.client_id()`, `app.is_staff()`. Tabla `users` espejo para nombre, avatar y joins, creada por trigger en `auth.users`.
 - **Next:** `proxy.ts` redirige sin sesión a `/login` y a los `client` a `/portal`. `src/lib/dal.ts` expone `verifySession()` y `requireRole()` con `React.cache`; los usan layouts, páginas y actions.
 - **Decisiones del cliente** (Vo.Bo., no continuar) van por función SQL `client_decide_application(application_id, decision)` `SECURITY DEFINER` que valida rol, `client_id` y etapa. El cliente nunca hace `UPDATE` directo sobre `applications`.
@@ -422,7 +422,8 @@ src/
   proxy.ts                          # redirecciones optimistas por sesión y rol
   app/
     (auth)/login/page.tsx
-    auth/callback/route.ts          # intercambio de código de Supabase
+    auth/callback/route.ts          # intercambio de código PKCE; token_hash se manda a /auth/confirmar
+    auth/confirmar/page.tsx         # botón que canjea token_hash por POST (escáneres de correo)
     (prime)/                        # layout con sidebar; requireRole(['admin','recruiter'])
       layout.tsx
       tablero/page.tsx
@@ -651,7 +652,7 @@ Deltas respecto al modelo de la sección 3, ya implementados en `supabase/migrat
 - **Cola**: RPCs `claim_scheduled_tasks` (FOR UPDATE SKIP LOCKED), `finish_scheduled_task` (backoff 2^attempts min) y `enqueue_task` (dedupe).
 - **Vistas**: `v_pipeline` y `v_bi_*` son `security_invoker` y además filtran `app.is_staff()`. `v_portal_applications` y `v_portal_documents` son security definer con filtro por `app.client_id()`: el cliente **no** tiene política sobre `psychometric_tests` ni `candidate_documents`; ve veredicto, % de fit y conteo de documentos solo por esas vistas (sin rutas de archivo). Se agrega `v_bi_prefilter_failures`.
 - **Storage**: buckets creados sin políticas para `authenticated`; todo pasa por el servidor (URL firmada de lectura y `createSignedUploadUrl` para subir directo desde el navegador sin pasar el archivo por Vercel).
-- **Auth**: acceso con correo y contraseña para los tres roles; cuentas creadas por el admin (contraseña temporal o invitación). Templates de correo con `token_hash` solo para invitación y recuperación (`supabase/templates/*`), `/auth/callback` acepta `code` y `token_hash`; `enable_signup = false`. En producción hay que replicar los dos templates y desactivar el registro en el dashboard.
+- **Auth**: acceso con correo y contraseña para los tres roles; cuentas creadas por el admin (contraseña temporal o invitación). Templates de correo con `token_hash` solo para invitación y recuperación (`supabase/templates/*`), `/auth/callback` acepta `code` y manda `token_hash` a `/auth/confirmar`, que solo lo canjea con POST (los escáneres de correo hacen GET); `enable_signup = false`. En producción hay que replicar los dos templates y desactivar el registro en el dashboard.
 - **Pendiente de confirmar con Prime**: las 10 claves de `document_types` en `seed.sql` son una propuesta; qué columnas del psicométrico ve el cliente; y si `prefilter_answers` (edad, sexo) debe ser visible para el cliente (hoy sí, según la matriz).
 
 ### 12.1 Migración 0013 (16 de septiembre de 2026, cotejo contra el alcance de la propuesta)
@@ -904,3 +905,16 @@ Decidido con el usuario el 24 nov: Fireflies graba como máximo 1 reunión a la 
 - Ficha → Entrevista: la transcripción por persona y minuto, solo staff (RLS de `interview_transcripts`). El estado de la entrevista no cambia.
 - Reagendar reescribe el cuerpo del evento con el enlace de Teams: la actualización que manda Exchange no siempre conservaba el bloque de Teams.
 - Siguiente: `interview_analysis` con la transcripción (hallazgos en `interviews.findings`).
+
+### 12.25 Candidatos sugeridos de otras vacantes, migración 0032 (27 de noviembre de 2026)
+
+Decidido con el usuario el 27 nov: la IA puede proponer para una vacante a personas que ya pasaron por Prime en **otras vacantes, de cualquier cliente** (p. ej. alguien de Telasist para otro cliente). Se descartó una "Bolsa Prime" curada a mano: entran todos para tener más opciones, menos las exclusiones de abajo.
+
+- **Solo admin** (`suggest_candidates`, en `app.has_permission()` y `permissions.ts`): las sugerencias muestran personas de vacantes que el reclutador no trabaja, así que no se abren a reclutadores (§2.3). El cliente no ve nada de esto.
+- **Quién entra** (`public.suggestion_pool`, solo service role): todos, menos lista negra, quien sigue en proceso en alguna vacante, quien trabaja por Prime (contratado sin seguimiento "se fue"), quien ya está postulado a la vacante y quien ya fue sugerido para ella (también los descartados con "No me sirve"). Los "inactivos" (§12.10) **sí** entran: son justo la gente libre.
+- **Cómo se elige**: columna `candidates.cv_tsv` (texto del CV en español, índice GIN) contra el puesto (pesa doble), requisitos y actividades de la vacante. Los 12 más parecidos pasan a la IA, que los califica con el mismo prompt y pesos del score del CV (`scoreCvAgainstProfile` en `tasks/score-cv.ts`; `ai_runs` con `entity_type = 'profile_suggestion'`). Un CV sin texto extraído (PDF escaneado) no entra.
+- **Cola**: `profile_suggestions` arma la lista y encola un `suggestion_score` por sugerido. El botón **"Correlacionar candidatos de otra vacante"** del menú de la vacante (solo admin) abre la pestaña **Sugeridos** y corre todo al responder (6 a la vez, `maxDuration = 60`); lo que no alcance lo retoma la cola. La lista se refresca sola mientras califica. Requiere la evaluación de IA de la vacante.
+- Cada sugerido muestra **todas sus postulaciones** en Prime (vacante, cliente, etapa o motivo de descarte y fecha), con enlace a cada ficha.
+- **Agregar a la vacante**: postulación nueva con canal "Bolsa Prime" (`prime_pool`) y el score ya calculado; sale el primer contacto por WhatsApp (§12.22). La postulación original no cambia. Desde ese momento la ven los reclutadores de la vacante.
+- Tabla `profile_candidate_suggestions` (RLS: solo admin lee y actualiza; la cola inserta). Archivo manual `19_sugeridos_otras_vacantes.sql`. Pruebas en `scripts/rls-lite/suggestions.test.mjs` y caso R de `manual-sql.test.mjs`.
+- **Pendiente con Prime**: confirmar que el aviso de privacidad cubre ofrecer al candidato en vacantes de otros clientes (LFPDPPP). El primer contacto por WhatsApp ya le manda el aviso con la vacante nueva.

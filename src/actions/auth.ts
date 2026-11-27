@@ -84,6 +84,42 @@ export async function requestPasswordReset(email: string): Promise<AuthFormState
   return { message: `Te mandamos un enlace a ${parsed.data} para definir una contraseña nueva. Revisa también el spam.` };
 }
 
+const EMAIL_LINK_TYPES = ["invite", "recovery", "magiclink", "email", "signup", "email_change"] as const;
+
+const emailLinkSchema = z.object({
+  token_hash: z.string().min(1),
+  type: z.enum(EMAIL_LINK_TYPES),
+});
+
+/**
+ * Canjea el token_hash de un enlace de correo. Solo por POST desde /auth/confirmar: así el GET de un
+ * escáner de correo (Safe Links) no gasta el token antes de que la persona dé clic.
+ */
+export async function confirmEmailLink(formData: FormData) {
+  const parsed = emailLinkSchema.safeParse({
+    token_hash: formData.get("token_hash"),
+    type: formData.get("type"),
+  });
+  if (!parsed.success) redirect("/login?error=enlace");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ token_hash: parsed.data.token_hash, type: parsed.data.type });
+  if (error) redirect("/login?error=enlace");
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const role = user?.app_metadata?.role;
+  if (!isRole(role)) {
+    await supabase.auth.signOut();
+    redirect("/login?error=sin-rol");
+  }
+
+  const { type } = parsed.data;
+  if (type === "invite" || type === "recovery") redirect("/cuenta/password");
+  redirect(safeNext(formData.get("next")) ?? homeFor(role));
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

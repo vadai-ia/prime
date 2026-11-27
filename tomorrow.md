@@ -4,6 +4,12 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 
 **No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
 
+## 27 nov: logos y sugeridos de otras vacantes (sin commit, sin probar en producción)
+
+- **Logos**: `public/brand/logo.png` (el del usuario) y sus versiones `logo-light.png` (texto blanco, fondos oscuros), `logo-dark.png` (texto oscuro, fondos claros) y `logo-icon.png` (solo el árbol). En login, menú lateral, barra del celular, `/auth/confirmar`, correos diarios y semanales, PDF semanal (`src/lib/email/logo-pdf.png`, incluido con `outputFileTracingIncludes`) y plantillas de Supabase. Pestaña: `src/app/icon.png` y `apple-icon.png`; se borró `favicon.ico`. **Falta**: copiar `invite.html` y `recovery.html` al dashboard de Supabase; las imágenes de los correos solo se ven ya desplegado.
+- **Sugeridos de otras vacantes** (plan §12.25, migración 0032, solo admin): pestaña Sugeridos de la vacante → "Buscar candidatos". La IA califica a los 12 CVs más parecidos de otras vacantes de cualquier cliente (sin lista negra, en proceso ni trabajando por Prime); "Agregar a la vacante" crea la postulación con canal Bolsa Prime y manda el primer contacto. `19_sugeridos_otras_vacantes.sql` **ya corrido en producción el 27 nov (5 ok)**. Botón "Correlacionar candidatos de otra vacante" en el menú de la vacante; cada sugerido muestra todas sus postulaciones. Falta: desplegar y probar con una vacante con evaluación de IA. Pendiente con Prime: que el aviso de privacidad cubra ofrecerlos a otros clientes.
+- Typecheck, eslint, `db:rls-lite` (incluye `suggestions.test.mjs` y caso R) y build pasan.
+
 ## 24 nov: transcripción de Teams en lugar de Fireflies (sin commit, sin probar)
 
 - El push de lo del 23 nov ya está (`57e1ee8 ultimas`). Prioridades del usuario: `siguientes_pasos.md` arriba.
@@ -11,7 +17,7 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 - **Fireflies fuera** (graba 1 reunión a la vez, 3 en Business; Prime quiere todas aunque se empalmen). Plan §12.24: grabación automática de Teams al agendar, transcripción a `interview_transcripts`, barrido diario `teams_transcripts`, botón "Traer transcripción de Teams" en la ficha. Apagado hasta `TEAMS_TRANSCRIPTS=1`, que va **después** de que sistemas agregue `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All` con consentimiento de admin.
 - Solo `sistemas@` tiene licencia y Outlook conectado; `entrevistas@` no existe y ya no hace falta para Fireflies.
 - Correos: el usuario no quiere Resend; propuesta de mandar los reportes por Graph (`Mail.Send` de aplicación) desde un buzón con licencia. Sin programar.
-- Falta programar: aviso cuando mueven o cancelan la entrevista en Outlook (suscripción de Graph), reportes por Graph, análisis de la entrevista con IA, cambiar logos.
+- Falta programar: aviso cuando mueven o cancelan la entrevista en Outlook (suscripción de Graph), reportes por Graph, análisis de la entrevista con IA. (Logos: hecho el 27 nov.)
 - Typecheck, eslint, `db:rls-lite` y build pasan.
 
 ## 23 nov (2): WhatsApp automático y correos (sin commit, sin probar)

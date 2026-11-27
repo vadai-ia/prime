@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { LoginForm } from "./login-form";
 import { alertErrorClass } from "@/components/ui/form";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -24,13 +25,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
       <section className="relative flex flex-col justify-between gap-10 overflow-hidden bg-chrome px-6 py-6 text-white md:px-12 md:py-12">
         <span aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-lime md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-1.5" />
 
-        <div className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-lg bg-lime text-xl font-bold text-black">P</span>
-          <div>
-            <p className="text-lg font-semibold tracking-wide">PRIME HR</p>
-            <p className="text-xs font-medium uppercase tracking-[0.25em] text-lime">Innovation</p>
-          </div>
-        </div>
+        <Image src="/brand/logo-light.png" alt="Prime HR Innovation" width={800} height={302} loading="eager" className="h-auto w-36 self-start md:w-44" />
 
         <div className="hidden max-w-sm md:block">
           <p className="text-3xl font-semibold leading-tight">

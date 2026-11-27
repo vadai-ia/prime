@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { BriefcaseBusiness, Building2, CalendarDays, ChartColumn, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Users, type LucideIcon } from "lucide-react";
 import { signOut } from "@/actions/auth";
@@ -56,18 +57,13 @@ export function Sidebar({ items, bell, userName, userRole, initialCollapsed }: {
     >
       {collapsed ? (
         <div className="flex flex-col items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-lime text-base font-bold text-black" title="Prime HR">
-            P
-          </span>
+          <Image src="/brand/logo-icon.png" alt="Prime HR Innovation" title="Prime HR Innovation" width={256} height={256} loading="eager" className="size-10" />
           {toggleButton}
           {bell}
         </div>
       ) : (
         <div className="flex items-start justify-between gap-1 px-2">
-          <div className="min-w-0">
-            <p className="text-base font-semibold">Prime HR</p>
-            <p className="text-xs text-white/60">Reclutamiento</p>
-          </div>
+          <Image src="/brand/logo-light.png" alt="Prime HR Innovation" width={800} height={302} loading="eager" className="h-auto min-w-0 max-w-full shrink" style={{ width: 140 }} />
           <div className="flex items-center">
             {bell}
             {toggleButton}

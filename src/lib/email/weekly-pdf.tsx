@@ -1,5 +1,7 @@
 import "server-only";
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { fmtDate, fmtDateLong, fmtMonths } from "@/lib/format";
 import type { WeeklyClientData } from "./data";
 
@@ -11,6 +13,7 @@ const C = { forest: "#007a6e", leaf: "#00897b", mint: "#e3f8f5", paper: "#f5f6f6
 const s = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 48, paddingHorizontal: 44, fontFamily: "Helvetica", fontSize: 10, color: C.ink, lineHeight: 1.4 },
   header: { borderBottomWidth: 2, borderBottomColor: C.forest, paddingBottom: 10, marginBottom: 16 },
+  logo: { width: 150, marginBottom: 8 },
   brand: { fontSize: 9, color: C.forest, fontFamily: "Helvetica-Bold", letterSpacing: 1 },
   title: { fontSize: 18, fontFamily: "Helvetica-Bold", marginTop: 4, lineHeight: 1.25 },
   subtitle: { fontSize: 10, color: C.slate, marginTop: 4 },
@@ -62,7 +65,7 @@ function Bars({ items }: { items: { label: string; value: number; max: number; c
   );
 }
 
-function WeeklyPdf({ data }: { data: WeeklyClientData }) {
+function WeeklyPdf({ data, logo }: { data: WeeklyClientData; logo: Buffer | null }) {
   const k = data.kpis;
   const hp = data.hiredProfile;
   const funnelMax = Math.max(1, data.funnel[0]?.value ?? 0);
@@ -71,7 +74,8 @@ function WeeklyPdf({ data }: { data: WeeklyClientData }) {
     <Document title={`Reporte semanal ${data.week} · ${data.client.name}`} author="Prime HR Innovation" language="es-MX">
       <Page size="LETTER" style={s.page}>
         <View style={s.header}>
-          <Text style={s.brand}>PRIME HR INNOVATION</Text>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- Image de react-pdf, no de HTML: no tiene alt */}
+          {logo ? <Image style={s.logo} src={{ data: logo, format: "png" }} /> : <Text style={s.brand}>PRIME HR INNOVATION</Text>}
           <Text style={s.title}>Reporte semanal de reclutamiento · {data.client.name}</Text>
           <Text style={s.subtitle}>
             Semana {data.week} · del {fmtDate(data.periodStart)} al {fmtDateLong(data.periodEnd)}
@@ -151,6 +155,16 @@ function WeeklyPdf({ data }: { data: WeeklyClientData }) {
   );
 }
 
+// Logo con texto oscuro (fondo blanco). Va en el bundle de Vercel por outputFileTracingIncludes (next.config.ts);
+// si no se encuentra, el PDF sale con el nombre en texto en lugar de fallar.
+async function loadLogo(): Promise<Buffer | null> {
+  try {
+    return await readFile(path.join(process.cwd(), "src/lib/email/logo-pdf.png"));
+  } catch {
+    return null;
+  }
+}
+
 export async function renderWeeklyPdf(data: WeeklyClientData): Promise<Buffer> {
-  return renderToBuffer(<WeeklyPdf data={data} />);
+  return renderToBuffer(<WeeklyPdf data={data} logo={await loadLogo()} />);
 }

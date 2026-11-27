@@ -18,6 +18,7 @@ const MANUAL_15 = readFileSync(new URL("../../supabase/manual/15_editar_candidat
 const MANUAL_16 = readFileSync(new URL("../../supabase/manual/16_reclutador_ve_su_vacante.sql", import.meta.url), "utf8");
 const MANUAL_17 = readFileSync(new URL("../../supabase/manual/17_lectura_de_descriptivo.sql", import.meta.url), "utf8");
 const MANUAL_18 = readFileSync(new URL("../../supabase/manual/18_canales_bolsas.sql", import.meta.url), "utf8");
+const MANUAL_19 = readFileSync(new URL("../../supabase/manual/19_sugeridos_otras_vacantes.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -322,6 +323,26 @@ if (OLD && existsSync(OLD)) {
   check("Q · 18 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_18), 3));
   const kept = await db.query(`select count(*)::int as n from public.applications where source_channel = 'indeed'`);
   check("Q · la postulación de Indeed se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- R. 19 (sugeridos de otras vacantes): dos veces, con CVs y una sugerencia de por medio
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15, MANUAL_16, MANUAL_17, MANUAL_18]) await runManual(db, sql);
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164, cv_text) values ('c0000000-0000-4000-8000-000000000003', 'Caro', '+524491000003', 'Vendedora de mostrador');
+    insert into public.applications (candidate_id, profile_id, stage) values ('c0000000-0000-4000-8000-000000000003', '${PX}', 'discarded');
+  `);
+  const first = await runManual(db, MANUAL_19);
+  check("R · 19: checklist completo", allOk(first, 5), missing(first));
+  const tsv = await db.query(`select cv_tsv::text as v from public.candidates where id = 'c0000000-0000-4000-8000-000000000003'`);
+  check("R · el CV que ya estaba queda indexado", (tsv.rows[0]?.v ?? "").includes("vendedor"), tsv.rows[0]?.v ?? "");
+  await db.exec(`insert into public.profile_candidate_suggestions (profile_id, candidate_id, status) values ('${PX}', 'c0000000-0000-4000-8000-000000000003', 'scored')`);
+  const again = await errorOf(() => runManual(db, MANUAL_19));
+  check("R · 19 por segunda vez no falla", !again, again ?? "");
+  check("R · 19 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_19), 5));
+  const kept = await db.query(`select count(*)::int as n from public.profile_candidate_suggestions`);
+  check("R · la sugerencia se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

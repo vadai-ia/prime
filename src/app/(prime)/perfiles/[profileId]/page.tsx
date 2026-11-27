@@ -17,17 +17,38 @@ import { Descriptivo } from "@/components/profile/descriptivo";
 import { EvaluacionIA } from "@/components/profile/evaluacion-ia";
 import { Levantamiento } from "@/components/profile/levantamiento";
 import { Reclutadores } from "@/components/profile/reclutadores";
+import { CorrelateButton, Sugeridos } from "@/components/profile/sugeridos";
+import { listProfileSuggestions } from "@/lib/queries/suggestions";
 import { PROFILE_STATUS_LABELS, PROFILE_STATUS_TONES } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Perfil · Prime HR Innovation" };
+// "Buscar candidatos de otras vacantes" califica con la IA al responder (actions/suggestions.ts).
+export const maxDuration = 60;
 
 export default async function PerfilDetailPage(props: PageProps<"/perfiles/[profileId]">) {
   const session = await requireStaff();
   const { profileId } = await props.params;
+  const search = await props.searchParams;
+  const tab = typeof search.tab === "string" ? search.tab : undefined;
+  const searching = typeof search.buscando === "string" ? Number(search.buscando) || null : null;
   const profile = await getProfile(profileId);
   if (!profile) notFound();
   // La asignación solo la ve y la cambia un admin; para el reclutador esta pestaña no existe.
-  const [team, rows] = await Promise.all([can(session.role, "manage_assignments") ? getProfileRecruiters(profileId) : null, listPipeline({ profileId, includeDiscarded: true })]);
+  // Los sugeridos de otras vacantes también son solo admin (plan §12.25).
+  const canSuggest = can(session.role, "suggest_candidates");
+  const [team, rows, suggestions] = await Promise.all([
+    can(session.role, "manage_assignments") ? getProfileRecruiters(profileId) : null,
+    listPipeline({ profileId, includeDiscarded: true }),
+    canSuggest ? listProfileSuggestions(profileId) : null,
+  ]);
+  const suggestBlocked = !aiEnabled()
+    ? "La IA no está configurada (falta ANTHROPIC_API_KEY)."
+    : profile.status === "closed"
+      ? "La vacante está cerrada."
+      : !profile.ai_config
+        ? "Primero genera la evaluación de IA (pestaña Evaluación IA): sin criterios del CV no hay con qué comparar."
+        : null;
+  const openSuggestions = suggestions?.filter((s) => s.status !== "added").length ?? 0;
   const channels: Partial<Record<SourceChannel, number>> = {};
   for (const r of rows) if (r.source_channel) channels[r.source_channel] = (channels[r.source_channel] ?? 0) + 1;
   const assignedCount = team?.recruiters.filter((r) => r.assigned).length ?? 0;
@@ -52,6 +73,7 @@ export default async function PerfilDetailPage(props: PageProps<"/perfiles/[prof
         actions={
           <>
             <Pill tone={PROFILE_STATUS_TONES[profile.status]}>{PROFILE_STATUS_LABELS[profile.status]}</Pill>
+            {canSuggest && <CorrelateButton profileId={profile.id} disabledReason={suggestBlocked} />}
             <ButtonLink href={`/perfiles/${profile.id}/editar`} variant="secondary">
               Editar
             </ButtonLink>
@@ -80,10 +102,22 @@ export default async function PerfilDetailPage(props: PageProps<"/perfiles/[prof
       </div>
 
       <Tabs
+        key={`${tab ?? ""}${searching ?? ""}`}
+        initial={tab}
         items={[
           { key: "descriptivo", label: "Descriptivo", content: <Descriptivo profile={profile} channels={channels} /> },
           { key: "ia", label: "Evaluación IA", badge: profile.ai_config ? `v${profile.ai_config.version}` : "sin config", content: <EvaluacionIA config={profile.ai_config} profileId={profile.id} aiOn={aiEnabled()} /> },
           { key: "levantamiento", label: "Levantamiento", badge: profile.intake ? (profile.intake.status === "generated" ? "generado" : "borrador") : undefined, content: <Levantamiento intake={profile.intake} /> },
+          ...(suggestions
+            ? [
+                {
+                  key: "sugeridos",
+                  label: "Sugeridos",
+                  badge: openSuggestions > 0 ? openSuggestions : undefined,
+                  content: <Sugeridos profileId={profile.id} suggestions={suggestions} canSearch={!suggestBlocked} blockedReason={suggestBlocked} threshold={profile.ai_config?.cv_threshold ?? null} searchStartedAt={searching} />,
+                },
+              ]
+            : []),
           ...(team ? [{ key: "reclutadores", label: "Reclutadores", badge: assignedCount > 0 ? assignedCount : "sin asignar", content: <Reclutadores profileId={profile.id} data={team} /> }] : []),
         ]}
       />

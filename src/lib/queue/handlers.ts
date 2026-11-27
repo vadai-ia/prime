@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { aiEnabled } from "@/lib/ai/client";
 import { scoreApplicationCv } from "@/lib/ai/tasks/score-cv";
+import { scoreSuggestion, searchSuggestions } from "@/lib/ai/tasks/suggestions";
 import { downloadMedia, WhaapyError } from "@/lib/integrations/whaapy";
 import { sendInterviewReminder, sweepTomorrowInterviews } from "@/lib/whatsapp/interview-reminder";
 import {
@@ -59,6 +60,22 @@ function handler<S extends z.ZodType>(h: Handler<S>) {
   return h;
 }
 
+/** Una calificación por sugerencia; la llave evita dos pendientes iguales, pero deja reintentar una que falló. */
+export async function enqueueSuggestionScore(admin: Admin, suggestionId: string): Promise<string> {
+  const { data, error } = await admin.rpc("enqueue_task", {
+    p_type: "suggestion_score",
+    p_payload: { suggestion_id: suggestionId },
+    p_dedupe_key: suggestionScoreKey(suggestionId),
+  });
+  if (error || !data) throw new Error(`No se pudo encolar suggestion_score: ${error?.message ?? "sin id"}`);
+  await admin.from("scheduled_tasks").update({ max_attempts: 3 }).eq("id", data).eq("status", "pending");
+  return data;
+}
+
+export function suggestionScoreKey(suggestionId: string): string {
+  return `suggestion_score:${suggestionId}`;
+}
+
 export const HANDLERS = {
   /** Score del CV al dar de alta un candidato (tasks.md §2). Lo encola createCandidate. */
   cv_score: handler({
@@ -69,6 +86,36 @@ export const HANDLERS = {
       if (!aiEnabled()) return { ok: false, error: "La IA no está configurada (falta ANTHROPIC_API_KEY).", retry: false };
       const result = await scoreApplicationCv(admin, application_id);
       if (result.ok) return { ok: true, detail: `score ${result.score}` };
+      return { ok: false, error: result.error, retry: !result.permanent };
+    },
+  }),
+
+  /**
+   * Candidatos sugeridos de otras vacantes (plan §12.25): arma la lista y encola la calificación de
+   * cada uno. La encola el admin desde la vacante (pestaña Sugeridos) y corre al momento.
+   */
+  profile_suggestions: handler({
+    label: "Buscar sugeridos de otras vacantes",
+    payload: z.object({ profile_id: z.string().uuid() }),
+    maxAttempts: 3,
+    async run({ profile_id }, admin) {
+      if (!aiEnabled()) return { ok: false, error: "La IA no está configurada (falta ANTHROPIC_API_KEY).", retry: false };
+      const result = await searchSuggestions(admin, profile_id);
+      if (!result.ok) return { ok: false, error: result.error, retry: !result.permanent };
+      for (const id of result.toScore) await enqueueSuggestionScore(admin, id);
+      return { ok: true, detail: `${result.created} nuevos · ${result.toScore.length} por calificar` };
+    },
+  }),
+
+  /** Califica una sugerencia contra los criterios del CV de la vacante. */
+  suggestion_score: handler({
+    label: "Calificar sugerido",
+    payload: z.object({ suggestion_id: z.string().uuid() }),
+    maxAttempts: 3,
+    async run({ suggestion_id }, admin) {
+      if (!aiEnabled()) return { ok: false, error: "La IA no está configurada (falta ANTHROPIC_API_KEY).", retry: false };
+      const result = await scoreSuggestion(admin, suggestion_id);
+      if (result.ok) return { ok: true, detail: result.score === null ? "sin cambios" : `score ${result.score}` };
       return { ok: false, error: result.error, retry: !result.permanent };
     },
   }),

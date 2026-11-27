@@ -1,6 +1,7 @@
 import "server-only";
 import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import type { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/db/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asArray, type CvWeight } from "@/lib/domain/json";
 import { buildCvScore, weightsTotal } from "@/lib/domain/scoring";
@@ -33,9 +34,47 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
 
   const candidate = app.candidates;
   const profile = app.job_profiles;
-  const config = profile?.job_profile_ai_configs ?? null;
-  const weights = asArray<CvWeight>(config?.cv_weights);
   if (!candidate || !profile) return { ok: false, error: "Postulación incompleta", permanent: true };
+
+  const scored = await scoreCvAgainstProfile(candidate, profile, { type: "application", id: app.id });
+  if (!scored.ok) return scored;
+  const { score, breakdown, flags, summary, version } = scored;
+
+  const { error: saveError } = await supabase
+    .from("applications")
+    .update({
+      cv_score: score,
+      cv_score_breakdown: breakdown,
+      // la versión de los pesos, no la de toda la evaluación: editar preguntas o reglas no pide recalificar
+      cv_score_version: version,
+      cv_scored_at: new Date().toISOString(),
+      cv_ai_rationale: summary,
+      ai_note: flags.length > 0 ? `Revisar: ${flags.join(" · ")}` : null,
+    })
+    .eq("id", app.id);
+  if (saveError) return { ok: false, error: saveError.message };
+  return { ok: true, score };
+}
+
+type CvCandidate = { full_name: string; cv_file_path: string | null; cv_text: string | null };
+type CvProfile = {
+  title: string;
+  requirements: Json;
+  activities: string[];
+  job_profile_ai_configs: { cv_version: number; cv_weights: Json } | null;
+};
+
+export type CvScored =
+  | { ok: true; score: number; breakdown: ReturnType<typeof buildCvScore>["breakdown"]; flags: string[]; summary: string | null; version: number }
+  | { ok: false; error: string; permanent?: boolean };
+
+/**
+ * Califica un CV contra los criterios de una vacante, sin guardar nada. La usan la postulación
+ * (arriba) y las sugerencias de otras vacantes (tasks/suggestions.ts), que guardan el resultado cada una en lo suyo.
+ */
+export async function scoreCvAgainstProfile(candidate: CvCandidate, profile: CvProfile, entity: { type: string; id: string }): Promise<CvScored> {
+  const config = profile.job_profile_ai_configs;
+  const weights = asArray<CvWeight>(config?.cv_weights);
   if (!config || weights.length === 0 || weightsTotal(weights) !== 100) {
     return { ok: false, error: "La vacante no tiene pesos del CV que sumen 100. Genera o captura la evaluación en la vacante.", permanent: true };
   }
@@ -53,10 +92,12 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
   const result = await runAi(
     { kind: "cv_score", promptVersion: PROMPT_VERSION, effort: EFFORT, system: SYSTEM, schema: CvScoreOutput },
     {
-      entity: { type: "application", id: app.id },
+      entity,
       content: [
         // La vacante se repite en cada CV de la misma vacante: va primero y en caché
-        { type: "text", text: `Vacante y criterios:\n\n${JSON.stringify(vacante, null, 2)}`, cache_control: { type: "ephemeral" } },
+        { type: "text", text: `Vacante y criterios:
+
+${JSON.stringify(vacante, null, 2)}`, cache_control: { type: "ephemeral" } },
         cv,
         { type: "text", text: `CV de ${candidate.full_name}. Califícalo contra cada criterio.` },
       ],
@@ -67,21 +108,7 @@ export async function scoreApplicationCv(supabase: Supabase, applicationId: stri
   const { score, breakdown, missing } = buildCvScore(weights, result.output.criteria);
   const flags = result.output.flags.map((f) => f.trim()).filter(Boolean);
   if (missing.length > 0) flags.push(`Sin evaluar: ${missing.join(", ")}`);
-
-  const { error: saveError } = await supabase
-    .from("applications")
-    .update({
-      cv_score: score,
-      cv_score_breakdown: breakdown,
-      // la versión de los pesos, no la de toda la evaluación: editar preguntas o reglas no pide recalificar
-      cv_score_version: config.cv_version,
-      cv_scored_at: new Date().toISOString(),
-      cv_ai_rationale: result.output.summary.trim() || null,
-      ai_note: flags.length > 0 ? `Revisar: ${flags.join(" · ")}` : null,
-    })
-    .eq("id", app.id);
-  if (saveError) return { ok: false, error: saveError.message };
-  return { ok: true, score };
+  return { ok: true, score, breakdown, flags, summary: result.output.summary.trim() || null, version: config.cv_version };
 }
 
 /** El PDF va como documento (Claude lee tablas y columnas); si no se puede bajar, el texto extraído en el alta. */

@@ -662,6 +662,7 @@ export type Database = {
           cv_file_path: string | null
           cv_summary: string | null
           cv_text: string | null
+          cv_tsv: unknown
           education_level: string | null
           email: string | null
           first_name: string | null
@@ -1760,6 +1761,105 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_portal_documents"
             referencedColumns: ["application_id"]
+          },
+        ]
+      }
+      profile_candidate_suggestions: {
+        Row: {
+          added_application_id: string | null
+          candidate_id: string
+          created_at: string
+          cv_score: number | null
+          cv_score_breakdown: Json | null
+          cv_score_version: number | null
+          decided_at: string | null
+          decided_by: string | null
+          error: string | null
+          flags: string | null
+          id: string
+          match_rank: number
+          profile_id: string
+          rationale: string | null
+          scored_at: string | null
+          source_application_id: string | null
+          status: Database["public"]["Enums"]["suggestion_status"]
+          updated_at: string
+        }
+        Insert: {
+          added_application_id?: string | null
+          candidate_id: string
+          created_at?: string
+          cv_score?: number | null
+          cv_score_breakdown?: Json | null
+          cv_score_version?: number | null
+          decided_at?: string | null
+          decided_by?: string | null
+          error?: string | null
+          flags?: string | null
+          id?: string
+          match_rank?: number
+          profile_id: string
+          rationale?: string | null
+          scored_at?: string | null
+          source_application_id?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          updated_at?: string
+        }
+        Update: {
+          added_application_id?: string | null
+          candidate_id?: string
+          created_at?: string
+          cv_score?: number | null
+          cv_score_breakdown?: Json | null
+          cv_score_version?: number | null
+          decided_at?: string | null
+          decided_by?: string | null
+          error?: string | null
+          flags?: string | null
+          id?: string
+          match_rank?: number
+          profile_id?: string
+          rationale?: string | null
+          scored_at?: string | null
+          source_application_id?: string | null
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_candidate_suggestions_added_application_id_fkey"
+            columns: ["added_application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_candidate_suggestions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_candidate_suggestions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_candidate_suggestions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "job_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_candidate_suggestions_source_application_id_fkey"
+            columns: ["source_application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2942,6 +3042,14 @@ export type Database = {
         Args: { p_profile_id: string; p_recruiter_ids: string[] }
         Returns: number
       }
+      suggestion_pool: {
+        Args: { p_limit?: number; p_profile_id: string }
+        Returns: {
+          candidate_id: string
+          match_rank: number
+          source_application_id: string
+        }[]
+      }
       unblacklist_candidate: {
         Args: { p_entry_id: string; p_note?: string }
         Returns: {
@@ -3166,6 +3274,7 @@ export type Database = {
         | "indeed"
         | "occ"
         | "computrabajo"
+      suggestion_status: "pending" | "scored" | "failed" | "added" | "dismissed"
       task_status: "pending" | "running" | "done" | "failed" | "cancelled"
       user_role: "admin" | "recruiter" | "client"
       wa_conversation_status:
@@ -3441,6 +3550,7 @@ export const Constants = {
         "occ",
         "computrabajo",
       ],
+      suggestion_status: ["pending", "scored", "failed", "added", "dismissed"],
       task_status: ["pending", "running", "done", "failed", "cancelled"],
       user_role: ["admin", "recruiter", "client"],
       wa_conversation_status: [

@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   // unpdf carga su build de pdf.js con import dinámico y mammoth (Word) es CommonJS: que los resuelva Node, no el bundler.
   // @react-pdf/renderer (PDF del reporte semanal) trae su propio reconciliador y fuentes: también por Node.
   serverExternalPackages: ["unpdf", "mammoth", "@react-pdf/renderer"],
+  // Logo del PDF semanal: se lee con fs en tiempo de ejecución (weekly-pdf.tsx), así que hay que incluirlo en el bundle.
+  outputFileTracingIncludes: { "/*": ["./src/lib/email/logo-pdf.png"] },
   experimental: {
     // El descriptivo de puesto (PDF o Word, hasta 4 MB) llega por acción del servidor (actions/intakes.ts).
     serverActions: { bodySizeLimit: "5mb" },
