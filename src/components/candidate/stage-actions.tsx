@@ -6,11 +6,19 @@ import { DISCARD_REASON_LABELS, PIPELINE_STAGES, STAGE_LABELS, type Stage } from
 import { Button } from "@/components/ui/button";
 import { inputClass, labelClass } from "@/components/ui/form";
 import { LeaveHiredDialog } from "./leave-hired-dialog";
+import { HireConfirmDialog } from "./hire-confirm-dialog";
 
 export function StageActions({ applicationId, stage, discardedFrom, name }: { applicationId: string; stage: Stage; discardedFrom: Stage | null; name: string }) {
   const [state, action, pending] = useActionState(setStage, undefined);
   const [discarding, setDiscarding] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [hiring, setHiring] = useState(false);
+  // Pasar a Contratado: modal de confirmación; se cierra solo si la base aceptó el cambio.
+  const [hireState, hireAction, hirePending] = useActionState(async (prev: Awaited<ReturnType<typeof setStage>>, fd: FormData) => {
+    const result = await setStage(prev, fd);
+    if (result?.ok) setHiring(false);
+    return result;
+  }, undefined);
   // Sacar de Contratado: modal de aviso; se cierra solo si la base aceptó el cambio.
   const [leaveState, leaveAction, leavePending] = useActionState(async (prev: Awaited<ReturnType<typeof setStage>>, fd: FormData) => {
     const result = await setStage(prev, fd);
@@ -27,7 +35,12 @@ export function StageActions({ applicationId, stage, discardedFrom, name }: { ap
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {next && (
+        {next === "hired" && (
+          <Button type="button" onClick={() => setHiring(true)}>
+            Avanzar a {STAGE_LABELS.hired}
+          </Button>
+        )}
+        {next && next !== "hired" && (
           <form action={action}>
             <input type="hidden" name="applicationId" value={applicationId} />
             <input type="hidden" name="stage" value={next} />
@@ -68,6 +81,10 @@ export function StageActions({ applicationId, stage, discardedFrom, name }: { ap
           )
         )}
       </div>
+
+      {next === "hired" && (
+        <HireConfirmDialog open={hiring} onClose={() => setHiring(false)} name={name} applicationId={applicationId} action={hireAction} pending={hirePending} error={hireState?.error} />
+      )}
 
       {stage === "hired" && (
         <LeaveHiredDialog

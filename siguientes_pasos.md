@@ -21,7 +21,7 @@ Escrito el 18 de noviembre de 2026, después de agendar en producción la primer
    - Agendar una entrevista de prueba con Nancy. Si sale el aviso de que su calendario no tiene Teams, sistemas revisa su licencia.
    - Cerrar las 2 entrevistas pasadas sin enlace (17 y 25 nov) como Realizada o Cancelada.
 8. ✅ **Corrido el 27 nov (5 ok):** `supabase/manual/20_reportes_por_fecha.sql` en el SQL Editor (reportes por fecha, plan §12.27). Checklist: 5 ok. Sin esto, la página funciona sin fechas y falla al elegirlas.
-8b. **Correr `supabase/manual/21_distintivo_contratado.sql` ANTES de desplegar** (distintivo de contratado, plan §12.28). Checklist: 5 ok. Sin esto, el tablero y la lista de Candidatos fallan porque leen columnas nuevas de `v_pipeline`.
+8b. ✅ **Corrido el 27 nov (5 ok):** `supabase/manual/21_distintivo_contratado.sql` (distintivo de contratado, plan §12.28).
 9. ✅ **Cambiar logos** (27 nov): login, menú lateral, barra del celular, correos, PDF semanal y pestaña del navegador.
 
 ## 1. Terminar de probar la entrevista
