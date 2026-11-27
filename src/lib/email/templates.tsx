@@ -4,7 +4,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { PSYCH_VERDICT_LABELS, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { fmtDate, fmtDateLong, fmtMonths, fmtTime } from "@/lib/format";
-import type { DailyClientData, DailyInternalData, WeeklyClientData } from "./data";
+import type { DailyClientData, DailyInternalData, UpcomingInterview, WeeklyClientData } from "./data";
 
 // Paleta de marca, tema claro (globals.css) repetida aquí: los clientes de correo no leen variables CSS.
 const C = {
@@ -129,6 +129,32 @@ const TABLE_STAGES: Stage[] = ["new", "prefilter", "cv_review", "prime_interview
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const firstName = (name: string | null | undefined) => (name ?? "").trim().split(/\s+/)[0] ?? "";
 
+/** "Mañana a las 10:00 · Ana López · Ejecutivo de cobranza · con Lic. Pérez · Teams". */
+function UpcomingList({ items, showType, showClient }: { items: UpcomingInterview[]; showType?: boolean; showClient?: boolean }) {
+  return (
+    <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} style={{ borderCollapse: "collapse", margin: "0 0 10px" }}>
+      <tbody>
+        {items.map((i) => (
+          <tr key={i.id}>
+            <td style={{ ...td, width: 130, whiteSpace: "nowrap" }}>
+              <div style={{ fontWeight: 600, color: C.forest }}>{i.day}</div>
+              <div style={muted}>a las {i.time}</div>
+            </td>
+            <td style={td}>
+              <div style={{ fontWeight: 600 }}>{i.candidate}</div>
+              <div style={{ ...muted, marginTop: 2 }}>
+                {showType ? `${i.type} · ` : ""}
+                {i.vacancy}
+                {showClient && i.client ? ` (${i.client})` : ""} · con {i.with} · {i.platform}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ─── Resumen diario interno ───────────────────────────────────────────────
 
 export function dailyInternalSubject(d: DailyInternalData) {
@@ -204,6 +230,12 @@ export function DailyInternalEmail({ data, appUrl }: { data: DailyInternalData; 
           ))}
         </ul>
       )}
+      {data.nextDays.length > 0 && (
+        <>
+          <H>Próximos días</H>
+          <UpcomingList items={data.nextDays} showType showClient />
+        </>
+      )}
       <Button href={`${appUrl}/tablero`}>Abrir el tablero</Button>
     </Shell>
   );
@@ -267,6 +299,12 @@ export function DailyClientEmail({ data, appUrl }: { data: DailyClientData; appU
           </table>
         </div>
       ))}
+      {data.upcoming.length > 0 && (
+        <>
+          <H>Entrevistas agendadas con ustedes</H>
+          <UpcomingList items={data.upcoming} />
+        </>
+      )}
       <Button href={`${appUrl}/portal/candidatos`}>Ver expedientes en el portal</Button>
     </Shell>
   );
@@ -344,6 +382,13 @@ export function WeeklyClientEmail({ data, appUrl }: { data: WeeklyClientData; ap
             </tbody>
           </table>
         </>
+      )}
+
+      <H>Entrevistas de los próximos 7 días</H>
+      {data.upcoming.length === 0 ? (
+        <p style={{ ...p, color: C.slate }}>Sin entrevistas agendadas con ustedes por ahora.</p>
+      ) : (
+        <UpcomingList items={data.upcoming} />
       )}
 
       <H>Siguientes pasos</H>

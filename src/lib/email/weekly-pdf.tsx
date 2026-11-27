@@ -135,6 +135,24 @@ function WeeklyPdf({ data, logo }: { data: WeeklyClientData; logo: Buffer | null
           </View>
         )}
 
+        <View wrap={false}>
+          <Text style={s.h}>Entrevistas de los próximos 7 días</Text>
+          {data.upcoming.length === 0 ? (
+            <Text style={s.muted}>Sin entrevistas agendadas con ustedes por ahora.</Text>
+          ) : (
+            data.upcoming.map((i) => (
+              <View key={i.id} style={s.row}>
+                <Text style={{ width: 130, fontFamily: "Helvetica-Bold" }}>
+                  {i.day}, {i.time}
+                </Text>
+                <Text style={{ flex: 1 }}>
+                  {i.candidate} · {i.vacancy} · con {i.with}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
         <Text style={s.h}>Siguientes pasos</Text>
         {data.nextSteps.length === 0 ? (
           <Text style={s.muted}>Seguimos filtrando candidatos; en cuanto alguien llegue a psicométrico lo verán aquí.</Text>

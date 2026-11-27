@@ -12,6 +12,7 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 - **Recordatorio sin enlace** (aviso de `interview_confirm`): Outlook conectado pero el evento salió sin enlace de Teams (se preguntaba una sola vez). Ahora reintenta ~6 s y avisa; el recordatorio y Reagendar recuperan el enlace del evento. Diagnóstico confirmado el 27 nov: 2 entrevistas creadas en Outlook sin enlace (sistemas@ el 17 nov, con el buzón recién creado; nmorales@ el 25 nov para el 26). Las dos ya pasaron: cerrarlas en la ficha (Realizada o Cancelada). Después de desplegar, que Nancy agende una de prueba: si el aviso dice "calendario sin Teams", sistemas revisa que su licencia incluya Teams.
 - **WhatsApp al agendar**: `confirmacion_entrevista_utility` sale al momento de agendar o reagendar, y el recordatorio del día anterior sigue (no se repite si la confirmación salió hace < 18 h). Probar agendando con un teléfono propio.
 - Typecheck, eslint, `db:rls-lite` (incluye `suggestions.test.mjs` y caso R) y build pasan.
+- **Entrevistas próximas en los reportes** (plan §12.23): interno con "Próximos días", diario al cliente con hoy y mañana, semanal (correo y PDF) con 7 días. Se ve en Reportes → Vista previa de correos. Los reportes siguen sin salir hasta pasarlos a Outlook (`siguientes_pasos.md` prioridad 6).
 
 ## 24 nov: transcripción de Teams en lugar de Fireflies (sin commit, sin probar)
 

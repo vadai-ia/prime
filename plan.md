@@ -893,6 +893,7 @@ Decidido con el usuario el 23 nov: todo sale con el cron de las 8:00 (plan Hobby
 - Cada envío queda en `report_runs`. Antes de mandar se busca el mismo tipo, cliente, periodo y destinatarios ya enviado: reintentar no duplica correos.
 - `src/lib/email/schedule.ts`: `reportReferenceNow()` (ayer a las 23:59) lo usan el envío y la vista previa de Reportes, que ahora muestra exactamente lo que sale. Textos: "Entrevistas de hoy", "Avanzó ayer".
 - `/api/cron/tick` se vuelve a llamar solo (hasta 6 vueltas, `?hop=`) si la cola no terminó en sus 60 s.
+- **Entrevistas próximas (27 nov):** `upcomingInterviews()` en `src/lib/email/data.ts` lista las agendadas o confirmadas como "Mañana a las 10:00 · candidato · vacante · con quién". El diario interno agrega "Próximos días" (de mañana a 7 días, con tipo y cliente). El diario al cliente agrega las suyas de hoy y mañana, y el semanal (correo y PDF) las de los próximos 7 días. Al cliente solo le salen las entrevistas con el cliente, nunca las de Prime.
 
 ### 12.24 Transcripción de Teams en lugar de Fireflies (24 de noviembre de 2026)
 

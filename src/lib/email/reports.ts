@@ -252,7 +252,7 @@ async function runForClients(admin: Admin, kind: "daily" | "weekly", now: Date):
       try {
         let r: "sent" | "skipped";
         if (kind === "daily") {
-          const data = buildDailyClient({ rows, client, now: ref });
+          const data = buildDailyClient({ rows, interviews, client, now: ref });
           // Sin candidatos en etapas finales no se manda: el cliente no recibe correos vacíos diario.
           if (data.groups.length === 0) {
             empty++;

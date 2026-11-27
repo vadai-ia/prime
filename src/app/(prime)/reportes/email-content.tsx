@@ -47,7 +47,7 @@ export async function EmailPreviewSection({ kind, clientId, role, email }: { kin
   const to = client.report_recipients.length ? client.report_recipients : client.contact_email ? [client.contact_email] : [];
 
   if (kind === "cliente") {
-    const data = buildDailyClient({ rows, client, now });
+    const data = buildDailyClient({ rows, interviews, client, now });
     return (
       <EmailPreview kind={kind} clientId={client.id} clients={clientOptions} envelope={{ to, subject: dailyClientSubject(data), schedule: "Diario a las 8:00 con lo del día anterior, solo si hay candidatos que reportar", note: clientNote }}>
         <DailyClientEmail data={data} appUrl={appUrl()} />
