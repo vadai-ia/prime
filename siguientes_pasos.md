@@ -15,12 +15,13 @@ Escrito el 18 de noviembre de 2026, después de agendar en producción la primer
    - **Código (mío):** cambiar `src/lib/email/send.ts` de Resend a Graph (`/users/reportes@…/sendMail`, token de aplicación, PDF adjunto). Corregir el texto de la ficha del cliente: hoy dice "Viernes a las 17:00", pero todo sale a las 8:00 por el cron de Vercel.
    - **Prime:** capturar los destinatarios de cada cliente en Clientes → cliente → Editar → correos de reportes.
    - **Alternativa sin crear buzón:** mandar desde `sistemas@`. El cliente vería ese correo como remitente.
-8. **Probar lo del 27 nov:**
+7. **Probar lo del 27 nov:**
    - Sugeridos: Perfiles → vacante → "Correlacionar candidatos de otra vacante".
    - WhatsApp `confirmacion_entrevista_utility` en el momento de agendar.
    - Agendar una entrevista de prueba con Nancy. Si sale el aviso de que su calendario no tiene Teams, sistemas revisa su licencia.
    - Cerrar las 2 entrevistas pasadas sin enlace (17 y 25 nov) como Realizada o Cancelada.
-7. ✅ **Cambiar logos** (27 nov): login, menú lateral, barra del celular, correos, PDF semanal y pestaña del navegador.
+8. **Correr `supabase/manual/20_reportes_por_fecha.sql`** en el SQL Editor (reportes por fecha, plan §12.27). Checklist: 5 ok. Sin esto, la página funciona sin fechas y falla al elegirlas.
+9. ✅ **Cambiar logos** (27 nov): login, menú lateral, barra del celular, correos, PDF semanal y pestaña del navegador.
 
 ## 1. Terminar de probar la entrevista
 

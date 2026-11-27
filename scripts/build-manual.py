@@ -755,6 +755,45 @@ order by orden;
 """
 
 
+HEAD_20 = """-- Prime HR · migración 0033 para pegar en el SQL Editor (después de 19_*.sql).
+-- Reportes por rango de fechas: funciones bi_* con "desde" y "hasta" que dan lo mismo que las
+-- vistas v_bi_* pero de un periodo. Aplican la misma visibilidad (el reclutador, solo sus vacantes).
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0033.
+
+begin;
+
+"""
+
+TAIL_20 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0033', 'bi_date_range')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  fn (orden, name) as (values (1, 'bi_funnel'), (2, 'bi_channel'), (3, 'bi_stage_durations'), (4, 'bi_discard_reasons'), (5, 'bi_prefilter_failures')),
+  checks (orden, objeto, ok) as (
+    select fn.orden, 'función ' || fn.name || ' (con sesión, sin anónimo)',
+           exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = fn.name)
+           and has_function_privilege('authenticated', 'public.' || fn.name || '(timestamptz, timestamptz)', 'execute')
+           and not has_function_privilege('anon', 'public.' || fn.name || '(timestamptz, timestamptz)', 'execute')
+    from fn
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+
 TARGETS = [
     {
         "out": "04_asignacion_reclutadores_y_alcance.sql",
@@ -869,6 +908,13 @@ TARGETS = [
         "head": HEAD_19,
         "tail": TAIL_19,
         "expected": {"type": 1, "table": 1, "index": 2, "column": 1, "trigger": 1, "policy": 2},
+    },
+    {
+        "out": "20_reportes_por_fecha.sql",
+        "migrations": ["0033_bi_date_range.sql"],
+        "head": HEAD_20,
+        "tail": TAIL_20,
+        "expected": {},  # solo create or replace function y grants: ya es re-ejecutable
     },
 ]
 

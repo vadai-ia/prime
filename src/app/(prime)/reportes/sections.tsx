@@ -16,7 +16,7 @@ import { QUESTION_LABELS, type ChannelAgg, type DiscardAgg, type DiscardByStage,
 export function EmbudoSection({ stages, discarded }: { stages: FunnelAgg[]; discarded: number }) {
   const first = stages[0]?.value ?? 0;
   const hired = stages.find((s) => s.key === "hired")?.value ?? 0;
-  if (!first) return <EmptyState title="Sin postulaciones en el filtro" hint="Cambia el cliente o la vacante." />;
+  if (!first) return <EmptyState title="Sin postulaciones en el filtro" hint="Cambia el cliente, la vacante o el periodo." />;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

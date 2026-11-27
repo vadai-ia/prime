@@ -929,3 +929,13 @@ Decidido con el usuario el 27 nov: a **quien agenda** la entrevista le llega un 
 - Reagendar y cancelar no mandan correo (Outlook ya actualiza el calendario). Sin migración.
 - **Entrevistas sin enlace de Teams** (27 nov; aviso "falló una tarea automática" de `interview_confirm`). Con Outlook conectado, Outlook a veces crea el evento y la reunión de Teams llega segundos después: antes se preguntaba una sola vez y la entrevista quedaba sin enlace. Ahora `createTeamsEvent` reintenta ~6 s; si aun así no llega, la entrevista se guarda y el aviso dice por qué (calendario sin Teams habilitado, `allowedOnlineMeetingProviders`, o Teams tardó). El recordatorio vuelve a pedir el enlace al evento y lo guarda; reagendar también lo recupera, y un enlace pegado en Reagendar ahora sí se guarda cuando el evento de Outlook no tiene. Sin Outlook conectado, el enlace es obligatorio al agendar.
 - **WhatsApp al agendar** (27 nov, decidido con el usuario): la plantilla `confirmacion_entrevista_utility` sale **en el momento** de agendar o reagendar (tarea `interview_confirm` con `kind: "scheduled"`, llave `interview_scheduled:{id}:{hora}`), además del recordatorio del día anterior a las 8:00 (`kind: "reminder"`). El recordatorio no sale si la confirmación salió hace menos de 18 h. Ya no hace falta el "si el barrido ya pasó" (`sweepAlreadyPassed`, quitado). El candidato con correo recibe además la invitación de Outlook; el reclutador, el correo de §12.26.
+
+### 12.27 Reportes por fecha, migración 0033 (27 de noviembre de 2026)
+
+Pedido por el usuario el 27 nov: poder elegir fechas en Reportes.
+
+- **Desde y Hasta** en los filtros de Reportes (con atajos: últimos 7 y 30 días, este mes, mes pasado). Son días locales de México: de las 00:00 de "desde" a las 24:00 de "hasta".
+- Sin fechas se leen las vistas `v_bi_*` como antes. Con fechas, `src/lib/queries/reports.ts` llama a las funciones `bi_funnel`, `bi_channel`, `bi_stage_durations`, `bi_discard_reasons` y `bi_prefilter_failures` (migración 0033). Devuelven las mismas columnas. Son `security invoker`, así que aplican la misma RLS (el reclutador, solo sus vacantes); anon no las puede llamar.
+- Qué fecha cuenta: embudo y canales, la postulación (`applied_at`); tiempos por etapa, cuando empezó la estancia; descartes, `discarded_at`; prefiltro, `answered_at`. "Correos enviados" filtra por `report_runs.created_at`.
+- **Vista previa de correos:** "Día de envío" arma el correo como saldría ese día a las 8:00. Sirve para ver las entrevistas de un día futuro. Las etapas de los candidatos son las de hoy.
+- SQL manual: `supabase/manual/20_reportes_por_fecha.sql`. Pruebas: `scripts/rls-lite/bi-range.test.mjs` y caso S de `manual-sql.test.mjs`.

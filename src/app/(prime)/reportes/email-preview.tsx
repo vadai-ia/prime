@@ -26,15 +26,22 @@ export function EmailPreview({
   clientId,
   clients,
   envelope,
+  sendDate,
+  today,
+  dateNote,
   children,
 }: {
   kind: EmailKind;
   clientId?: string;
   clients: { id: string; name: string }[];
   envelope: EmailEnvelope | null;
+  /** Día en que saldría el correo (YYYY-MM-DD). */
+  sendDate: string;
+  today: string;
+  dateNote?: string;
   children: ReactNode;
 }) {
-  const href = (k: EmailKind) => `/reportes?correo=${k}${clientId ? `&client=${clientId}` : ""}`;
+  const href = (k: EmailKind) => `/reportes?correo=${k}${clientId ? `&client=${clientId}` : ""}${sendDate !== today ? `&envio=${sendDate}` : ""}`;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -49,9 +56,10 @@ export function EmailPreview({
             </Link>
           ))}
         </div>
-        {kind !== "interno" && (
-          <form method="get" action="/reportes" className="flex items-center gap-2">
-            <input type="hidden" name="correo" value={kind} />
+        <form method="get" action="/reportes" className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="correo" value={kind} />
+          {kind === "interno" && clientId && <input type="hidden" name="client" value={clientId} />}
+          {kind !== "interno" && (
             <select name="client" defaultValue={clientId ?? ""} className={`${inputClass} mt-0 min-w-48`} aria-label="Cliente">
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -59,11 +67,15 @@ export function EmailPreview({
                 </option>
               ))}
             </select>
-            <button type="submit" className="rounded-lg bg-forest px-3.5 py-2 text-sm font-medium text-on-forest transition hover:bg-forest-deep">
-              Ver
-            </button>
-          </form>
-        )}
+          )}
+          <label className="flex items-center gap-2 text-xs font-medium text-ink-muted">
+            Día de envío
+            <input type="date" name="envio" defaultValue={sendDate} className={`${inputClass} mt-0`} />
+          </label>
+          <button type="submit" className="rounded-lg bg-forest px-3.5 py-2 text-sm font-medium text-on-forest transition hover:bg-forest-deep">
+            Ver
+          </button>
+        </form>
       </div>
 
       {!envelope ? (
@@ -78,10 +90,11 @@ export function EmailPreview({
             <dt className="text-ink-muted">Envío</dt>
             <dd className="flex flex-wrap items-center gap-2 text-ink">
               {envelope.schedule}
-              <Pill tone="amber">Vista previa · se enviará al conectar Resend</Pill>
+              <Pill tone="amber">Vista previa · todavía no se envía</Pill>
             </dd>
           </dl>
           {envelope.note && <p className="border-b border-line bg-info-soft px-5 py-2 text-xs text-info">{envelope.note}</p>}
+          {dateNote && <p className="border-b border-line bg-amber-soft px-5 py-2 text-xs text-amber">{dateNote}</p>}
           {children}
         </div>
       )}

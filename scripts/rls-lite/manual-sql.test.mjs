@@ -19,6 +19,7 @@ const MANUAL_16 = readFileSync(new URL("../../supabase/manual/16_reclutador_ve_s
 const MANUAL_17 = readFileSync(new URL("../../supabase/manual/17_lectura_de_descriptivo.sql", import.meta.url), "utf8");
 const MANUAL_18 = readFileSync(new URL("../../supabase/manual/18_canales_bolsas.sql", import.meta.url), "utf8");
 const MANUAL_19 = readFileSync(new URL("../../supabase/manual/19_sugeridos_otras_vacantes.sql", import.meta.url), "utf8");
+const MANUAL_20 = readFileSync(new URL("../../supabase/manual/20_reportes_por_fecha.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -343,6 +344,23 @@ if (OLD && existsSync(OLD)) {
   check("R · 19 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_19), 5));
   const kept = await db.query(`select count(*)::int as n from public.profile_candidate_suggestions`);
   check("R · la sugerencia se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- S. 20 (reportes por fecha): dos veces; con datos de por medio, nada cambia
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15, MANUAL_16, MANUAL_17, MANUAL_18, MANUAL_19]) await runManual(db, sql);
+  const first = await runManual(db, MANUAL_20);
+  check("S · 20: checklist completo", allOk(first, 5), missing(first));
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164) values ('c0000000-0000-4000-8000-000000000004', 'Dani', '+524491000004');
+    insert into public.applications (candidate_id, profile_id) values ('c0000000-0000-4000-8000-000000000004', '${PX}');
+  `);
+  const again = await errorOf(() => runManual(db, MANUAL_20));
+  check("S · 20 por segunda vez no falla", !again, again ?? "");
+  check("S · 20 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_20), 5));
+  const kept = await db.query(`select count(*)::int as n from public.applications`);
+  check("S · la postulación se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

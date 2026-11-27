@@ -2835,6 +2835,26 @@ export type Database = {
       }
     }
     Functions: {
+      bi_channel: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Database["public"]["Views"]["v_bi_channel"]["Row"][]
+      }
+      bi_discard_reasons: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Database["public"]["Views"]["v_bi_discard_reasons"]["Row"][]
+      }
+      bi_funnel: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Database["public"]["Views"]["v_bi_funnel"]["Row"][]
+      }
+      bi_prefilter_failures: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Database["public"]["Views"]["v_bi_prefilter_failures"]["Row"][]
+      }
+      bi_stage_durations: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Database["public"]["Views"]["v_bi_stage_durations"]["Row"][]
+      }
       blacklist_candidate: {
         Args: {
           p_candidate_id: string

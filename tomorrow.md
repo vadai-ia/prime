@@ -13,6 +13,7 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 - **WhatsApp al agendar**: `confirmacion_entrevista_utility` sale al momento de agendar o reagendar, y el recordatorio del día anterior sigue (no se repite si la confirmación salió hace < 18 h). Probar agendando con un teléfono propio.
 - Typecheck, eslint, `db:rls-lite` (incluye `suggestions.test.mjs` y caso R) y build pasan.
 - **Entrevistas próximas en los reportes** (plan §12.23): interno con "Próximos días", diario al cliente con hoy y mañana, semanal (correo y PDF) con 7 días. Se ve en Reportes → Vista previa de correos. Los reportes siguen sin salir hasta pasarlos a Outlook (`siguientes_pasos.md` prioridad 6).
+- **Reportes por fecha** (plan §12.27, migración 0033): Desde/Hasta y atajos en Reportes; "Día de envío" en la vista previa. **Correr `supabase/manual/20_reportes_por_fecha.sql` antes de usar las fechas** (sin fechas la página funciona igual que antes). Checklist: 5 ok.
 
 ## 24 nov: transcripción de Teams en lugar de Fireflies (sin commit, sin probar)
 
