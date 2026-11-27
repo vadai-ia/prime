@@ -2,6 +2,7 @@
 
 import { useOptimistic, useState, useTransition, type DragEvent } from "react";
 import Link from "next/link";
+import { CalendarClock } from "lucide-react";
 import { setStage } from "@/actions/applications";
 import {
   CHANNEL_LABELS,
@@ -16,7 +17,8 @@ import {
 import type { PipelineRow } from "@/lib/queries/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Pill } from "@/components/ui/pill";
-import { daysLabel } from "@/lib/format";
+import { daysLabel, fmtDate, fmtTime } from "@/lib/format";
+import { dayIndex } from "@/lib/metrics";
 
 const DRAG_TYPE = "application/x-prime-application";
 
@@ -37,6 +39,8 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
   const [dragging, setDragging] = useState<{ id: string; from: Stage } | null>(null);
   const [over, setOver] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Hoy en la zona de México, para "Hoy"/"Mañana" en la entrevista de cada tarjeta.
+  const [today] = useState(() => dayIndex(new Date()));
 
   function drop(e: DragEvent, to: Stage) {
     e.preventDefault();
@@ -93,6 +97,7 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
                   <KanbanCard
                     key={row.application_id}
                     row={row}
+                    today={today}
                     isDragging={dragging?.id === row.application_id}
                     onDragStart={(e) => {
                       if (!row.application_id || !row.stage) return;
@@ -118,7 +123,33 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
   );
 }
 
-function KanbanCard({ row, isDragging, onDragStart, onDragEnd }: { row: PipelineRow; isDragging: boolean; onDragStart: (e: DragEvent) => void; onDragEnd: () => void }) {
+const LIVE = new Set(["scheduled", "confirmed"]);
+
+/**
+ * Entrevistas agendadas del candidato (Prime y con cliente), en cualquier etapa: "Entrevista Prime ·
+ * Mañana 10:00". Las que ya pasaron y nadie cerró salen en ámbar para que se marquen en la ficha.
+ */
+function interviewBadges(row: PipelineRow, today: number) {
+  const items = [
+    { kind: "Prime", at: row.prime_interview_at, status: row.prime_interview_status },
+    { kind: "Cliente", at: row.client_interview_at, status: row.client_interview_status },
+  ].filter((i): i is { kind: string; at: string; status: NonNullable<typeof i.status> } => !!i.at && !!i.status && LIVE.has(i.status));
+  return items
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .map((i) => {
+      const d = dayIndex(i.at) - today;
+      const when = d === 0 ? "Hoy" : d === 1 ? "Mañana" : fmtDate(i.at, { weekday: "short", day: "numeric", month: "short" });
+      return {
+        key: i.kind,
+        tone: (d < 0 ? "amber" : d === 0 ? "forest" : "info") as "amber" | "forest" | "info",
+        text: d < 0 ? `${i.kind} · ${fmtDate(i.at)} · sin cerrar` : `${i.kind} · ${when} ${fmtTime(i.at)}`,
+        title: d < 0 ? `Entrevista ${i.kind === "Prime" ? "Prime" : "con cliente"}: ya pasó y sigue como agendada: márcala como realizada, no se presentó o cancelada en la ficha.` : `Entrevista ${i.kind === "Prime" ? "Prime" : "con cliente"} ${i.status === "confirmed" ? "confirmada" : "agendada"}: ${fmtDate(i.at, { weekday: "long", day: "numeric", month: "long" })} a las ${fmtTime(i.at)}`,
+      };
+    });
+}
+
+function KanbanCard({ row, today, isDragging, onDragStart, onDragEnd }: { row: PipelineRow; today: number; isDragging: boolean; onDragStart: (e: DragEvent) => void; onDragEnd: () => void }) {
+  const interviews = interviewBadges(row, today);
   const cvTone = row.cv_score !== null && row.cv_threshold !== null ? (row.cv_score >= row.cv_threshold ? "mint" : "amber") : "neutral";
   const showDocs = (row.docs_validated ?? 0) > 0 || row.stage === "documents";
   const movable = row.stage !== "hired";
@@ -144,6 +175,18 @@ function KanbanCard({ row, isDragging, onDragStart, onDragEnd }: { row: Pipeline
       <p className="mt-2 text-[11px] text-ink-faint">
         {row.source_channel ? CHANNEL_LABELS[row.source_channel] : "—"} · {daysLabel(row.days_in_stage)} en etapa
       </p>
+      {interviews.length > 0 && (
+        <div className="mt-2 flex flex-col items-start gap-1">
+          {interviews.map((i) => (
+            <span key={i.key} title={i.title}>
+              <Pill tone={i.tone}>
+                <CalendarClock className="h-3 w-3" aria-hidden />
+                {i.text}
+              </Pill>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap gap-1">
         {row.cv_score !== null && <Pill tone={cvTone}>CV {row.cv_score}</Pill>}
         {(row.prefilter_status === "exception" || row.prefilter_status === "in_progress") && (

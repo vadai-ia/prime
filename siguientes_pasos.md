@@ -20,7 +20,7 @@ Escrito el 18 de noviembre de 2026, después de agendar en producción la primer
    - WhatsApp `confirmacion_entrevista_utility` en el momento de agendar.
    - Agendar una entrevista de prueba con Nancy. Si sale el aviso de que su calendario no tiene Teams, sistemas revisa su licencia.
    - Cerrar las 2 entrevistas pasadas sin enlace (17 y 25 nov) como Realizada o Cancelada.
-8. **Correr `supabase/manual/20_reportes_por_fecha.sql`** en el SQL Editor (reportes por fecha, plan §12.27). Checklist: 5 ok. Sin esto, la página funciona sin fechas y falla al elegirlas.
+8. ✅ **Corrido el 27 nov (5 ok):** `supabase/manual/20_reportes_por_fecha.sql` en el SQL Editor (reportes por fecha, plan §12.27). Checklist: 5 ok. Sin esto, la página funciona sin fechas y falla al elegirlas.
 9. ✅ **Cambiar logos** (27 nov): login, menú lateral, barra del celular, correos, PDF semanal y pestaña del navegador.
 
 ## 1. Terminar de probar la entrevista
