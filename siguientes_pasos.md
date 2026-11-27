@@ -9,7 +9,17 @@ Escrito el 18 de noviembre de 2026, después de agendar en producción la primer
 3. Conectar el Outlook de cada usuario: cuenta onmicrosoft con licencia, reenvío a cPanel, entrar una vez a outlook.office.com y Mi cuenta → Conectar Outlook; el admin lo asigna a sus vacantes.
 4. **Correo de entrevista agendada** (27 nov, plan §12.26, sin probar): sistemas agrega `Mail.Send` (delegado) con consentimiento de admin en la misma app de Entra ID → `OUTLOOK_MAIL_SEND=1` en Vercel → desplegar → agendar una entrevista con Outlook conectado y revisar la bandeja de quien agendó.
 5. ~~Fireflies~~ **Transcripción de Teams** (24 nov, plan §12.24, sin probar): sistemas agrega `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All` con consentimiento de admin → `TEAMS_TRANSCRIPTS=1` en Vercel → desplegar → agendar con `sistemas@`, entrar, hablar 2 min, salir y en la ficha "Traer transcripción de Teams". Revisar en el centro de Teams que la directiva de reuniones permita grabar y transcribir. Siguiente: análisis de la entrevista con IA.
-6. Reportes a clientes: envío por Graph (`Mail.Send` de aplicación desde `entrevistas@`) en lugar de Resend, y destinatarios de cada cliente.
+6. **Reportes a clientes por Outlook en lugar de Resend** (27 nov, decidido, sin programar). El semanal ya está programado (plan §12.23) pero no sale porque Resend no está configurado.
+   - **Sin licencia nueva:** sistemas crea el buzón compartido `reportes@primehrinnovation.com.mx`, que es gratis hasta 50 GB.
+   - **Permiso:** en la misma app de Entra ID, `Mail.Send` **de aplicación** con consentimiento de admin, **restringido solo a `reportes@`** (RBAC for Applications o ApplicationAccessPolicy), para que la app no pueda mandar como nadie más. Así no depende de que alguien tenga su Outlook conectado.
+   - **Código (mío):** cambiar `src/lib/email/send.ts` de Resend a Graph (`/users/reportes@…/sendMail`, token de aplicación, PDF adjunto). Corregir el texto de la ficha del cliente: hoy dice "Viernes a las 17:00", pero todo sale a las 8:00 por el cron de Vercel.
+   - **Prime:** capturar los destinatarios de cada cliente en Clientes → cliente → Editar → correos de reportes.
+   - **Alternativa sin crear buzón:** mandar desde `sistemas@`. El cliente vería ese correo como remitente.
+8. **Probar lo del 27 nov:**
+   - Sugeridos: Perfiles → vacante → "Correlacionar candidatos de otra vacante".
+   - WhatsApp `confirmacion_entrevista_utility` en el momento de agendar.
+   - Agendar una entrevista de prueba con Nancy. Si sale el aviso de que su calendario no tiene Teams, sistemas revisa su licencia.
+   - Cerrar las 2 entrevistas pasadas sin enlace (17 y 25 nov) como Realizada o Cancelada.
 7. ✅ **Cambiar logos** (27 nov): login, menú lateral, barra del celular, correos, PDF semanal y pestaña del navegador.
 
 ## 1. Terminar de probar la entrevista
@@ -32,7 +42,7 @@ Recorrido completo: `pendientes_revision.md`, sección de Outlook.
 | Cuentas de Microsoft 365 | Crear `entrevistas@` y una cuenta con licencia por reclutador; cada uno hace **Mi cuenta → Conectar Outlook**. Hoy solo está conectada `sistemas@`. Falta confirmar a Xavier, Edwin y Ulises. |
 | Fireflies | Cuenta con `entrevistas@`, su API key, y `FIREFLIES_INVITEE` en Vercel. Sin eso la transcripción no llega a la ficha. |
 | WhatsApp (Whaapy) | Probar que un mensaje de un candidato llegue a la ficha (y revisar Configuración → Logs). **Rotar la API key**, que se pegó en el chat el 13 nov. |
-| Resend | **No está configurado (23 nov).** Crear la cuenta, pegar 3 registros DNS en cPanel, crear la clave, ponerla en Vercel (`RESEND_API_KEY`, `RESEND_FROM`) y en el SMTP de Supabase (`junta.md` pasos 5 a 7 y 9.2). Sin esto no salen los reportes. |
+| ~~Resend~~ | **Se reemplaza por Outlook (27 nov)** para los reportes: ver prioridad 6. Queda pendiente el SMTP de Supabase (invitaciones y "Olvidé mi contraseña"): hoy usa el correo de prueba de Supabase, que tiene un límite muy bajo por hora. Hay que decidir con qué SMTP. Un buzón compartido no sirve para eso porque no tiene contraseña; tendría que ser una cuenta con licencia y SMTP AUTH habilitado. |
 | ~~Pandapé~~ | **Descartado el 23 nov**: no se integra. Los candidatos entran a mano o por carga masiva de CV. |
 | Psicotest | Ver §5 de este archivo. |
 
@@ -92,4 +102,4 @@ El primer contacto de antes (`primer_contacto_utility`) ya no lo usa el sistema 
 
 ## 6. Lo que Prime sigue debiendo
 
-Aviso de privacidad y consentimiento, acceso a Psicotest y PDF de resultados, CV reales, Excel histórico de candidatos, logotipo, destinatarios de los correos por cliente, correcciones de `datos_errores.md`, Grupo Huerta y Chela Chupas.
+~~Aviso de privacidad~~ (ya está desde el 23 nov: `PRIVACY_NOTICE_URL`, página de Pandapé, va en el primer contacto por WhatsApp), acceso a Psicotest y PDF de resultados, CV reales, Excel histórico de candidatos, ~~logotipo~~ (ya está), destinatarios de los correos por cliente, correcciones de `datos_errores.md`, Grupo Huerta y Chela Chupas.
