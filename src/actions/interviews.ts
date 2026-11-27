@@ -17,13 +17,16 @@ import {
   getEventJoinUrl,
   MicrosoftGraphError,
   moveEvent,
+  outlookMailEnabled,
+  teamsAllowedInCalendar,
   teamsTranscriptsEnabled,
 } from "@/lib/integrations/microsoft-graph";
+import { interviewConfirmationKey } from "@/lib/interviews/confirmation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchInterviewTranscript } from "@/lib/teams/transcripts";
 import { enqueueOnce } from "@/lib/whatsapp/system-send";
 import { runTaskNow } from "@/lib/queue/run";
-import { enqueueInterviewReminder, sweepAlreadyPassed } from "@/lib/whatsapp/interview-reminder";
+import { enqueueInterviewConfirmation } from "@/lib/whatsapp/interview-reminder";
 import { triggerWhatsApp } from "@/lib/whatsapp/trigger";
 
 // Entrevistas por Teams con Outlook (plan §4.4, opción B). Si quien agenda conectó su Outlook en
@@ -119,6 +122,20 @@ async function recordAutomatically(token: string, joinUrl: string | null): Promi
   }
 }
 
+/**
+ * Correo de "entrevista agendada" a quien la agendó, desde su Outlook (plan §12.26). Sale al responder;
+ * si falla, la cola reintenta. La entrevista ya quedó guardada: un fallo aquí no la deshace.
+ */
+async function queueConfirmation(interviewId: string): Promise<void> {
+  if (!outlookMailEnabled()) return;
+  try {
+    const taskId = await enqueueOnce(createAdminClient(), "interview_confirm_email", { interview_id: interviewId }, interviewConfirmationKey(interviewId), 3);
+    if (taskId) after(() => runTaskNow(taskId).then(() => undefined, (e) => console.error("[microsoft] confirmación", taskId, e)));
+  } catch (e) {
+    console.error("[microsoft] no se pudo encolar la confirmación", e);
+  }
+}
+
 /** Encola la búsqueda de la transcripción y la intenta al responder; si aún no está, la cola reintenta. */
 async function queueTranscript(interviewId: string): Promise<void> {
   if (!teamsTranscriptsEnabled()) return;
@@ -135,13 +152,12 @@ const time = z.string().regex(/^\d{2}:\d{2}$/, "Hora no válida");
 const url = z.string().trim().url("El enlace de la reunión no es válido").or(z.literal(""));
 
 /**
- * Recordatorio por WhatsApp: lo manda el barrido de las 8:00 del día anterior. Si ese barrido ya
- * pasó (se agendó hoy para mañana o para hoy), se encola aquí y sale en el momento. La entrevista ya
- * quedó guardada: un fallo aquí no la deshace; la tarea queda en Configuración → Logs.
+ * WhatsApp al candidato en el momento de agendar o reagendar (plantilla confirmacion_entrevista_utility,
+ * plan §12.21). El recordatorio del día anterior lo sigue mandando el barrido de las 8:00. La entrevista
+ * ya quedó guardada: un fallo aquí no la deshace; la tarea queda en Configuración → Logs.
  */
-async function remindIfSweepPassed(interview: { id: string; scheduled_at: string }) {
-  if (!sweepAlreadyPassed(interview.scheduled_at)) return;
-  await triggerWhatsApp("recordatorio de entrevista", (admin) => enqueueInterviewReminder(admin, interview));
+async function confirmByWhatsApp(interview: { id: string; scheduled_at: string }) {
+  await triggerWhatsApp("confirmación de entrevista", (admin) => enqueueInterviewConfirmation(admin, interview));
 }
 
 function done(applicationId: string): InterviewActionState {
@@ -220,6 +236,17 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
   } catch (e) {
     return { error: `No se pudo crear la entrevista en Outlook: ${graphMessage(e)} Si sigue fallando, desconecta Outlook en Mi cuenta y agenda pegando el enlace de Teams.` };
   }
+  // Sin Outlook, sin enlace el candidato no puede entrar y el recordatorio de WhatsApp no tiene qué mandarle.
+  if (!meetingUrl && !eventId) return { error: "Pega el enlace de Teams de la reunión (o conecta tu Outlook en Mi cuenta para que se genere solo)." };
+  // Con Outlook, el evento ya existe: se guarda igual y se avisa. El recordatorio vuelve a pedir el enlace al evento.
+  if (!meetingUrl && token) {
+    const allowed = await teamsAllowedInCalendar(token);
+    const why =
+      allowed === false
+        ? "Tu calendario de Outlook no tiene Teams habilitado (revisa con sistemas que tu licencia incluya Teams)."
+        : "Teams tardó en generar la reunión.";
+    recordingWarning = `La entrevista quedó en tu Outlook, pero sin enlace de Teams. ${why} Abre el evento en Outlook, actívale "Reunión de Teams" y pega el enlace en Reagendar (misma fecha y hora).`;
+  }
 
   const { error } = await supabase.from("interviews").insert({
     id: interviewId,
@@ -240,7 +267,9 @@ export async function scheduleInterview(_prev: InterviewActionState, formData: F
     if (token && eventId) await cancelEvent(token, eventId, "Se canceló al agendar.").catch(() => undefined);
     return { error: error.message };
   }
-  await remindIfSweepPassed({ id: interviewId, scheduled_at: scheduledAt });
+  await confirmByWhatsApp({ id: interviewId, scheduled_at: scheduledAt });
+  // Solo con Outlook conectado: el correo sale de su buzón
+  if (eventId) await queueConfirmation(interviewId);
 
   const target = d.type === "prime" ? "prime_interview" : "client_interview";
   const open = application.stage !== "discarded" && application.stage !== "hired";
@@ -327,13 +356,14 @@ export async function rescheduleInterview(_prev: InterviewActionState, formData:
 
   const { data, error } = await supabase
     .from("interviews")
-    .update({ scheduled_at: scheduledAt, status: "scheduled", ...(d.meeting_url && !current.calendar_event_id ? { meeting_url: d.meeting_url } : {}), ...calendar })
+    // El enlace pegado vale si no hay evento de Outlook o si el evento se quedó sin enlace; el de Outlook (calendar) manda.
+    .update({ scheduled_at: scheduledAt, status: "scheduled", ...(d.meeting_url && (!current.calendar_event_id || !current.meeting_url) ? { meeting_url: d.meeting_url } : {}), ...calendar })
     .eq("id", d.interview_id)
     .select("id")
     .maybeSingle();
   if (error) return { error: error.message };
   if (!data) return { error: "Entrevista no encontrada" };
-  await remindIfSweepPassed({ id: d.interview_id, scheduled_at: scheduledAt });
+  await confirmByWhatsApp({ id: d.interview_id, scheduled_at: scheduledAt });
   return { ...done(d.application_id), warning };
 }
 

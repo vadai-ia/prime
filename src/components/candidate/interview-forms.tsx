@@ -48,7 +48,7 @@ export function ScheduleInterviewForm({ applicationId, staff, currentUserId, def
         ) : (
           <label className={`${labelClass} sm:col-span-2 lg:col-span-3`}>
             Enlace de Teams
-            <input name="meeting_url" type="url" placeholder="https://teams.microsoft.com/…" className={inputClass} />
+            <input name="meeting_url" type="url" required placeholder="https://teams.microsoft.com/…" className={inputClass} />
             <span className="mt-1 block text-xs font-normal text-ink-faint">
               Conecta tu Outlook en{" "}
               <a href="/mi-cuenta" className="font-medium text-forest hover:underline">
@@ -173,8 +173,8 @@ export function InterviewActions({ applicationId, interview: iv }: { application
             <input name="time" type="time" required step={300} defaultValue={iv.time} className={inputClass} />
           </label>
           <label className={labelClass}>
-            Enlace (si cambió)
-            <input name="meeting_url" type="url" defaultValue={iv.meetingUrl ?? ""} className={inputClass} />
+            {iv.meetingUrl ? "Enlace (si cambió)" : "Enlace de Teams (falta)"}
+            <input name="meeting_url" type="url" defaultValue={iv.meetingUrl ?? ""} placeholder="https://teams.microsoft.com/…" className={inputClass} />
           </label>
           <div className="flex items-end">
             <button type="submit" disabled={rePending} className={`${buttonPrimaryClass} mt-0 w-auto`}>

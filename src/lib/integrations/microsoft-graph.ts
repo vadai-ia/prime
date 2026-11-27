@@ -20,6 +20,14 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 export function teamsTranscriptsEnabled(): boolean {
   return process.env.TEAMS_TRANSCRIPTS === "1";
 }
+/**
+ * Correo desde el Outlook de quien agenda (confirmación de entrevista, plan §12.26). Mail.Send
+ * delegado con consentimiento de admin en Entra ID; mismo cuidado que arriba: sin el consentimiento,
+ * OUTLOOK_MAIL_SEND queda apagado.
+ */
+export function outlookMailEnabled(): boolean {
+  return process.env.OUTLOOK_MAIL_SEND === "1";
+}
 const SCOPES = [
   "openid",
   "email",
@@ -27,6 +35,7 @@ const SCOPES = [
   "User.Read",
   "Calendars.ReadWrite",
   ...(teamsTranscriptsEnabled() ? ["OnlineMeetings.ReadWrite", "OnlineMeetingTranscript.Read.All"] : []),
+  ...(outlookMailEnabled() ? ["Mail.Send"] : []),
 ];
 // Login responde rápido; crear un evento con reunión de Teams puede tardar (sobre todo el primero de un buzón nuevo).
 const LOGIN_TIMEOUT_MS = 15_000;
@@ -252,12 +261,45 @@ export async function createTeamsEvent(token: string, input: EventInput): Promis
   if (!event) throw new MicrosoftGraphError("Outlook no devolvió el evento");
 
   let joinUrl = event.onlineMeeting?.joinUrl ?? null;
-  if (!joinUrl) {
-    // A veces la reunión de Teams se genera unos instantes después de crear el evento
+  // La reunión de Teams a veces se genera unos segundos después de crear el evento: se vuelve a
+  // preguntar con espera creciente (en total ~6 s) antes de darla por perdida.
+  for (const waitMs of JOIN_URL_RETRIES_MS) {
+    if (joinUrl) break;
+    await new Promise((r) => setTimeout(r, waitMs));
     const again = await graph<GraphEvent>(token, `/me/events/${encodeURIComponent(event.id)}?$select=id,onlineMeeting`);
     joinUrl = again?.onlineMeeting?.joinUrl ?? null;
   }
   return { eventId: event.id, joinUrl };
+}
+
+const JOIN_URL_RETRIES_MS = [0, 1000, 2000, 3000];
+
+/**
+ * Por qué un evento salió sin reunión de Teams: si el calendario no admite Teams (cuenta sin Teams en
+ * su licencia o buzón recién creado) lo dice; si sí la admite, fue que Teams tardó en generarla.
+ */
+export async function teamsAllowedInCalendar(token: string): Promise<boolean | null> {
+  try {
+    const cal = await graph<{ allowedOnlineMeetingProviders?: string[] }>(token, "/me/calendar?$select=allowedOnlineMeetingProviders");
+    return cal?.allowedOnlineMeetingProviders?.includes("teamsForBusiness") ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Manda un correo desde el buzón del dueño del token. No se guarda en Enviados. */
+export async function sendMail(token: string, input: { to: Attendee[]; subject: string; html: string }): Promise<void> {
+  await graph(token, "/me/sendMail", {
+    method: "POST",
+    body: JSON.stringify({
+      message: {
+        subject: input.subject,
+        body: { contentType: "HTML", content: input.html },
+        toRecipients: input.to.map((a) => ({ emailAddress: { address: a.email, name: a.name ?? undefined } })),
+      },
+      saveToSentItems: false,
+    }),
+  });
 }
 
 /** Enlace de Teams del evento (null si Outlook no lo generó). */

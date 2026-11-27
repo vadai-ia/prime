@@ -27,6 +27,7 @@ Los valores **no** se escriben en este archivo ni se mandan por chat. Las mismas
 | `MICROSOFT_CLIENT_SECRET` | El **Valor** del secreto (no el "Id. de secreto") | Lo manda sistemas de Prime (Certificados y secretos). Anotar su fecha de vencimiento |
 | `ENCRYPTION_KEY` | 32 bytes en base64 | **La generamos nosotros una vez** (abajo). No cambiarla: si cambia, todos reconectan su Outlook |
 | `TEAMS_TRANSCRIPTS` | `1` | **Solo después** de que sistemas agregue `OnlineMeetings.ReadWrite` y `OnlineMeetingTranscript.Read.All` con consentimiento de admin. Activa la grabación automática y la transcripción en la ficha (plan §12.24). Si se pone antes, agendar falla |
+| `OUTLOOK_MAIL_SEND` | `1` | **Solo después** de que sistemas agregue `Mail.Send` (delegado) con consentimiento de admin. Al agendar una entrevista, le llega un correo de confirmación a quien la agendó, desde su Outlook (plan §12.26). Si se pone antes, agendar falla |
 | `FIREFLIES_INVITEE` | *(vacía)* | Desde el 24 nov la transcripción es de Teams. Solo se pone si algún día se usa Fireflies; sin ella no se invita a nadie |
 
 Generar `ENCRYPTION_KEY` (en la terminal):

@@ -17,6 +17,7 @@ import {
 } from "@/lib/whatsapp/candidate-flows";
 import { runDailyClient, runDailyInternal, runWeeklyClient } from "@/lib/email/reports";
 import { fetchInterviewTranscript, sweepTeamsTranscripts } from "@/lib/teams/transcripts";
+import { sendInterviewConfirmation } from "@/lib/interviews/confirmation";
 import { enqueueOnce } from "@/lib/whatsapp/system-send";
 
 const MEDIA_EXT: Record<string, string> = {
@@ -163,15 +164,16 @@ export const HANDLERS = {
   }),
 
   /**
-   * Recordatorio por WhatsApp de una entrevista (plantilla con fecha, hora y enlace de Teams). Lo
-   * encolan el barrido diario y, si el barrido ya pasó, scheduleInterview / rescheduleInterview.
+   * Entrevista por WhatsApp (plantilla con fecha, hora y enlace de Teams). "scheduled": la encolan
+   * scheduleInterview / rescheduleInterview y sale en el momento; "reminder" (o sin kind, las tareas
+   * viejas): la encola el barrido del día anterior.
    */
   interview_confirm: handler({
-    label: "Recordatorio de entrevista",
-    payload: z.object({ interview_id: z.string().uuid(), scheduled_at: z.string() }),
+    label: "WhatsApp: entrevista",
+    payload: z.object({ interview_id: z.string().uuid(), scheduled_at: z.string(), kind: z.enum(["scheduled", "reminder"]).optional() }),
     maxAttempts: 3,
-    async run({ interview_id, scheduled_at }, admin) {
-      return sendInterviewReminder(admin, interview_id, scheduled_at);
+    async run({ interview_id, scheduled_at, kind }, admin) {
+      return sendInterviewReminder(admin, interview_id, scheduled_at, kind ?? "reminder");
     },
   }),
 
@@ -184,6 +186,14 @@ export const HANDLERS = {
     payload: z.object({ interview_id: z.string().uuid() }),
     maxAttempts: 4,
     run: ({ interview_id }, admin) => fetchInterviewTranscript(admin, interview_id),
+  }),
+
+  /** Correo a quien agendó la entrevista, desde su Outlook (plan §12.26). Lo encola scheduleInterview. */
+  interview_confirm_email: handler({
+    label: "Correo: entrevista agendada",
+    payload: z.object({ interview_id: z.string().uuid() }),
+    maxAttempts: 3,
+    run: ({ interview_id }, admin) => sendInterviewConfirmation(admin, interview_id),
   }),
 
   /** Barrido diario (8:00): busca la transcripción de las entrevistas de los últimos 3 días. */
