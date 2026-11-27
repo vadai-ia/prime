@@ -82,7 +82,7 @@ function mkCandidate(p: Partial<Candidate> & Pick<Candidate, "id" | "full_name" 
   return {
     first_name: p.full_name.split(" ")[0] ?? null, email: null, birth_date: null, age_reported: null, gender: null, zone: null, municipality: "Aguascalientes",
     education_level: null, cv_file_path: `${p.id}/cv/cv.pdf`, cv_text: null, cv_tsv: null, cv_summary: null, privacy_consent_at: daysAgo(10), privacy_consent_via: "whatsapp",
-    whaapy_contact_id: null, in_prime_pool: false, notes: null, curp: null, rfc: null, nss: null, address_line: null, retention_until: null,
+    whaapy_contact_id: null, in_prime_pool: false, hired_badge_at: null, hired_application_id: null, notes: null, curp: null, rfc: null, nss: null, address_line: null, retention_until: null,
     created_at: daysAgo(10), updated_at: daysAgo(1), ...p,
   };
 }
@@ -642,6 +642,8 @@ function toPipelineRow(a: Application): PipelineRow {
   const pi = latestScheduled(ivs.filter((i) => i.type === "prime"));
   const ci = latestScheduled(ivs.filter((i) => i.type === "client"));
   const ps = latest(psychTests.filter((t) => t.application_id === a.id));
+  // Distintivo de contratado (0034): la postulación contratada más reciente de la persona.
+  const hiredApp = applications.filter((x) => x.candidate_id === c.id && x.stage === "hired").sort((x, y) => (y.hired_at ?? "").localeCompare(x.hired_at ?? ""))[0] ?? null;
   const docs = candidateDocuments.filter((d) => d.candidate_id === c.id && d.status !== "rejected");
   const wc = waConversations.filter((w) => w.candidate_id === c.id).sort((x, y) => (y.application_id === a.id ? 1 : 0) - (x.application_id === a.id ? 1 : 0))[0] ?? null;
   return {
@@ -658,6 +660,7 @@ function toPipelineRow(a: Application): PipelineRow {
     docs_validated: docs.filter((d) => d.status === "validated").length, docs_in_review: docs.filter((d) => d.status === "received" || d.status === "in_review").length,
     docs_required: documentTypes.filter((d) => d.required).length, wa_ai_paused: wc?.ai_paused ?? null, wa_status: wc?.status ?? null, wa_last_inbound_at: wc?.last_inbound_at ?? null,
     assigned_recruiter_id: a.assigned_recruiter_id, assigned_recruiter_name: users.find((u) => u.id === a.assigned_recruiter_id)?.full_name ?? null,
+    hired_badge_at: hiredApp?.hired_at ?? null, hired_application_id: hiredApp?.id ?? null,
   };
 }
 

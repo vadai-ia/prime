@@ -794,6 +794,54 @@ order by orden;
 """
 
 
+HEAD_21 = """-- Prime HR · migración 0034 para pegar en el SQL Editor (después de 20_*.sql).
+-- Distintivo de contratado: la persona contratada lo lleva en la base (candidates.hired_badge_at)
+-- y se le quita sola al sacarla de Contratado. Los que ya están contratados lo reciben al correrlo.
+--
+-- SE PUEDE CORRER MÁS DE UNA VEZ y no toca datos de captura. Al final sale un checklist: debe decir "ok".
+--
+-- Generado por scripts/build-manual.py a partir de supabase/migrations/0034.
+
+begin;
+
+"""
+
+TAIL_21 = """
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text not null primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0034', 'hired_badge')
+on conflict (version) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- Checklist: todas las filas deben decir "ok". Si alguna dice FALTA, mándame la tabla.
+-- ---------------------------------------------------------------------------
+with
+  checks (orden, objeto, ok) as (
+    values
+      (1, 'candidates.hired_badge_at y hired_application_id',
+          (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'candidates'
+           and column_name in ('hired_badge_at', 'hired_application_id')) = 2),
+      (2, 'trigger que pone y quita el distintivo',
+          exists (select 1 from pg_trigger where tgname = 'applications_hired_badge' and not tgisinternal)),
+      (3, 'candado: no se escribe a mano',
+          exists (select 1 from pg_trigger where tgname = 'candidates_guard_hired_badge' and not tgisinternal)),
+      (4, 'v_pipeline trae el distintivo',
+          exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'v_pipeline' and column_name = 'hired_badge_at')),
+      (5, 'cada contratado tiene su distintivo',
+          not exists (select 1 from public.applications a join public.candidates c on c.id = a.candidate_id
+                      where a.stage = 'hired' and c.hired_badge_at is null)
+          and not exists (select 1 from public.candidates c where c.hired_badge_at is not null
+                          and not exists (select 1 from public.applications a where a.candidate_id = c.id and a.stage = 'hired')))
+  )
+select orden, objeto, case when ok then 'ok' else 'FALTA' end as estado
+from checks
+order by orden;
+"""
+
+
 TARGETS = [
     {
         "out": "04_asignacion_reclutadores_y_alcance.sql",
@@ -915,6 +963,13 @@ TARGETS = [
         "head": HEAD_20,
         "tail": TAIL_20,
         "expected": {},  # solo create or replace function y grants: ya es re-ejecutable
+    },
+    {
+        "out": "21_distintivo_contratado.sql",
+        "migrations": ["0034_hired_badge.sql"],
+        "head": HEAD_21,
+        "tail": TAIL_21,
+        "expected": {"column": 2, "trigger": 2},
     },
 ]
 

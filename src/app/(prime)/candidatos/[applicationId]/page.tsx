@@ -15,6 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { StagePill } from "@/components/ui/pill";
 import { Tabs } from "@/components/ui/tabs";
 import { StageActions } from "@/components/candidate/stage-actions";
+import { HiredBadge } from "@/components/candidate/hired-badge";
 import { CandidateHistory } from "@/components/candidate/history";
 import { Resumen } from "@/components/candidate/resumen";
 import { WhatsApp } from "@/components/candidate/whatsapp";
@@ -68,6 +69,7 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold text-ink">{c.full_name}</h1>
               <StagePill stage={a.stage} />
+              <HiredBadge badgeAt={c.hired_badge_at} hiredApplicationId={c.hired_application_id} applicationId={a.id} />
             </div>
             <p className="mt-0.5 text-sm text-ink-muted">
               <Link href={`/perfiles/${a.profile_id}`} className="font-medium text-ink hover:text-forest hover:underline">
@@ -100,7 +102,7 @@ export default async function CandidatoPage(props: PageProps<"/candidatos/[appli
             <EditCandidate applicationId={a.id} candidate={c} />
           </div>
         </div>
-        <StageActions applicationId={a.id} stage={a.stage} discardedFrom={a.discarded_from_stage} />
+        <StageActions applicationId={a.id} stage={a.stage} discardedFrom={a.discarded_from_stage} name={c.full_name} />
       </div>
 
       {canBlacklist && (

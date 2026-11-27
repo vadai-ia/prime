@@ -939,3 +939,15 @@ Pedido por el usuario el 27 nov: poder elegir fechas en Reportes.
 - Qué fecha cuenta: embudo y canales, la postulación (`applied_at`); tiempos por etapa, cuando empezó la estancia; descartes, `discarded_at`; prefiltro, `answered_at`. "Correos enviados" filtra por `report_runs.created_at`.
 - **Vista previa de correos:** "Día de envío" arma el correo como saldría ese día a las 8:00. Sirve para ver las entrevistas de un día futuro. Las etapas de los candidatos son las de hoy.
 - SQL manual: `supabase/manual/20_reportes_por_fecha.sql`. Pruebas: `scripts/rls-lite/bi-range.test.mjs` y caso S de `manual-sql.test.mjs`.
+
+### 12.28 Distintivo de contratado, migración 0034 (27 de noviembre de 2026)
+
+Pedido por el usuario el 27 nov: que el contratado lleve un distintivo en la base y que al sacarlo de Contratado salga un aviso y se le quite.
+
+- `candidates.hired_badge_at` (cuándo lo contrataron; null = sin distintivo) y `candidates.hired_application_id` (por qué postulación). Va en la persona para que se vea en cualquier vacante.
+- Lo mantiene la base: el trigger `applications_hired_badge` lo pone al entrar a Contratado y lo recalcula al salir (cancelar la contratación, descartar o borrar la postulación). Si tiene otra postulación contratada, se queda con esa. El candado `candidates_guard_hired_badge` impide escribirlo a mano, ni al editar ni al dar de alta. Se expone en `v_pipeline`.
+- "Se fue" en los seguimientos no lo quita: la postulación sigue en Contratado.
+- UI (`HiredBadge`): en su postulación, "Contratado · 12 nov" (verde). En cualquier otra vacante, "Ya contratado por Prime" (ámbar), sin decir el cliente. Sale en la tarjeta del tablero, la lista de Candidatos y el encabezado de la ficha.
+- Sacar de Contratado: en la ficha ("Cancelar contratación") y ahora también arrastrando la tarjeta en el tablero. Las dos abren `LeaveHiredDialog`: "Lo sacarás de Contratados y se le quitará el distintivo de contratado", con motivo obligatorio. En la columna Contratado sigue sin poder soltarse.
+- SQL manual: `supabase/manual/21_distintivo_contratado.sql` (los ya contratados reciben su distintivo al correrlo). Pruebas: `scripts/rls-lite/hired-badge.test.mjs` y caso T de `manual-sql.test.mjs`.
+

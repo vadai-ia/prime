@@ -5,6 +5,7 @@ import type { PipelineRow } from "@/lib/queries/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Pill, StagePill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HiredBadge } from "@/components/candidate/hired-badge";
 import { daysLabel, fmtPhone, timeAgo } from "@/lib/format";
 
 const th = "px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
@@ -56,7 +57,10 @@ export function PipelineList({ rows }: { rows: PipelineRow[] }) {
                   <p className="text-xs text-ink-muted">{row.client_name}</p>
                 </td>
                 <td className={td}>
-                  <StagePill stage={row.stage} />
+                  <div className="flex flex-col items-start gap-1">
+                    <StagePill stage={row.stage} />
+                    <HiredBadge badgeAt={row.hired_badge_at} hiredApplicationId={row.hired_application_id} applicationId={row.application_id} />
+                  </div>
                 </td>
                 <td className={`${td} text-ink-muted`}>{row.source_channel ? CHANNEL_LABELS[row.source_channel] : "—"}</td>
                 <td className={td}>{row.cv_score !== null ? <Pill tone={cvTone}>{row.cv_score}</Pill> : <span className="text-ink-faint">—</span>}</td>

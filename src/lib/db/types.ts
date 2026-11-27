@@ -668,6 +668,8 @@ export type Database = {
           first_name: string | null
           full_name: string
           gender: string | null
+          hired_application_id: string | null
+          hired_badge_at: string | null
           id: string
           in_prime_pool: boolean
           municipality: string | null
@@ -696,6 +698,8 @@ export type Database = {
           first_name?: string | null
           full_name: string
           gender?: string | null
+          hired_application_id?: string | null
+          hired_badge_at?: string | null
           id?: string
           in_prime_pool?: boolean
           municipality?: string | null
@@ -724,6 +728,8 @@ export type Database = {
           first_name?: string | null
           full_name?: string
           gender?: string | null
+          hired_application_id?: string | null
+          hired_badge_at?: string | null
           id?: string
           in_prime_pool?: boolean
           municipality?: string | null
@@ -2596,6 +2602,8 @@ export type Database = {
           applied_at: string | null
           assigned_recruiter_id: string | null
           assigned_recruiter_name: string | null
+          hired_application_id: string | null
+          hired_badge_at: string | null
           available: boolean | null
           candidate_id: string | null
           client_decision: Database["public"]["Enums"]["client_decision"] | null

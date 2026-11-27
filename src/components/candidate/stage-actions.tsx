@@ -5,11 +5,18 @@ import { setStage } from "@/actions/applications";
 import { DISCARD_REASON_LABELS, PIPELINE_STAGES, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { inputClass, labelClass } from "@/components/ui/form";
+import { LeaveHiredDialog } from "./leave-hired-dialog";
 
-export function StageActions({ applicationId, stage, discardedFrom }: { applicationId: string; stage: Stage; discardedFrom: Stage | null }) {
+export function StageActions({ applicationId, stage, discardedFrom, name }: { applicationId: string; stage: Stage; discardedFrom: Stage | null; name: string }) {
   const [state, action, pending] = useActionState(setStage, undefined);
   const [discarding, setDiscarding] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  // Sacar de Contratado: modal de aviso; se cierra solo si la base aceptó el cambio.
+  const [leaveState, leaveAction, leavePending] = useActionState(async (prev: Awaited<ReturnType<typeof setStage>>, fd: FormData) => {
+    const result = await setStage(prev, fd);
+    if (result?.ok) setCancelling(false);
+    return result;
+  }, undefined);
 
   const position = PIPELINE_STAGES.indexOf(stage);
   const next = stage !== "discarded" && position >= 0 && position < PIPELINE_STAGES.length - 1 ? PIPELINE_STAGES[position + 1]! : null;
@@ -40,8 +47,8 @@ export function StageActions({ applicationId, stage, discardedFrom }: { applicat
           </form>
         )}
         {stage === "hired" && (
-          <Button type="button" variant="danger" onClick={() => setCancelling((v) => !v)} aria-expanded={cancelling}>
-            {cancelling ? "Cancelar" : "Cancelar contratación"}
+          <Button type="button" variant="danger" onClick={() => setCancelling(true)}>
+            Cancelar contratación
           </Button>
         )}
         {stage === "discarded" ? (
@@ -62,26 +69,17 @@ export function StageActions({ applicationId, stage, discardedFrom }: { applicat
         )}
       </div>
 
-      {cancelling && stage === "hired" && (
-        <form action={action} className="w-80 rounded-card border border-line bg-surface p-4 shadow-sm">
-          <input type="hidden" name="applicationId" value={applicationId} />
-          <input type="hidden" name="stage" value="client_interview" />
-          <p className="text-sm text-ink">
-            El candidato regresa a <strong>{STAGE_LABELS.client_interview}</strong>. Se borran la fecha de contratación, la decisión del cliente y los seguimientos pendientes; la línea de tiempo conserva todo.
-          </p>
-          <label className={`${labelClass} mt-3`}>
-            Motivo
-            <textarea name="reason" rows={3} maxLength={500} required placeholder="No se presentó el primer día, declinó la oferta, el cliente cambió de opinión…" className={inputClass} />
-          </label>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setCancelling(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="danger" disabled={pending}>
-              {pending ? "Guardando…" : "Confirmar"}
-            </Button>
-          </div>
-        </form>
+      {stage === "hired" && (
+        <LeaveHiredDialog
+          open={cancelling}
+          onClose={() => setCancelling(false)}
+          name={name}
+          applicationId={applicationId}
+          to="client_interview"
+          action={leaveAction}
+          pending={leavePending}
+          error={leaveState?.error}
+        />
       )}
 
       {discarding && stage !== "discarded" && (

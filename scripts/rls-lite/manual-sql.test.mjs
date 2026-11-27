@@ -20,6 +20,7 @@ const MANUAL_17 = readFileSync(new URL("../../supabase/manual/17_lectura_de_desc
 const MANUAL_18 = readFileSync(new URL("../../supabase/manual/18_canales_bolsas.sql", import.meta.url), "utf8");
 const MANUAL_19 = readFileSync(new URL("../../supabase/manual/19_sugeridos_otras_vacantes.sql", import.meta.url), "utf8");
 const MANUAL_20 = readFileSync(new URL("../../supabase/manual/20_reportes_por_fecha.sql", import.meta.url), "utf8");
+const MANUAL_21 = readFileSync(new URL("../../supabase/manual/21_distintivo_contratado.sql", import.meta.url), "utf8");
 const PX = "b0000000-0000-4000-8000-000000000001";
 
 async function fresh() {
@@ -361,6 +362,27 @@ if (OLD && existsSync(OLD)) {
   check("S · 20 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_20), 5));
   const kept = await db.query(`select count(*)::int as n from public.applications`);
   check("S · la postulación se queda", kept.rows[0].n === 1, `${kept.rows[0].n}`);
+}
+
+// --- T. 21 (distintivo de contratado): el que ya estaba contratado lo recibe; dos veces sin tocar datos
+{
+  const db = await fresh();
+  for (const sql of [MANUAL, MANUAL_05, MANUAL_06, MANUAL_07, MANUAL_08, MANUAL_09, MANUAL_10, MANUAL_11, MANUAL_12, MANUAL_13, MANUAL_14, MANUAL_15, MANUAL_16, MANUAL_17, MANUAL_18, MANUAL_19, MANUAL_20]) await runManual(db, sql);
+  await db.exec(`
+    insert into public.candidates (id, full_name, phone_e164) values ('c0000000-0000-4000-8000-000000000005', 'Eva', '+524491000005');
+    insert into public.applications (id, candidate_id, profile_id) values ('d0000000-0000-4000-8000-000000000005', 'c0000000-0000-4000-8000-000000000005', '${PX}');
+    update public.applications set stage = 'hired' where id = 'd0000000-0000-4000-8000-000000000005';
+  `);
+  const first = await runManual(db, MANUAL_21);
+  check("T · 21: checklist completo", allOk(first, 5), missing(first));
+  const b = await db.query(`select hired_application_id from public.candidates where id = 'c0000000-0000-4000-8000-000000000005'`);
+  check("T · el que ya estaba contratado recibe el distintivo", b.rows[0].hired_application_id === "d0000000-0000-4000-8000-000000000005");
+  const again = await errorOf(() => runManual(db, MANUAL_21));
+  check("T · 21 por segunda vez no falla", !again, again ?? "");
+  check("T · 21 por segunda vez sigue completo", allOk(await runManual(db, MANUAL_21), 5));
+  await db.exec(`update public.applications set stage = 'client_interview' where id = 'd0000000-0000-4000-8000-000000000005'`);
+  const gone = await db.query(`select hired_badge_at from public.candidates where id = 'c0000000-0000-4000-8000-000000000005'`);
+  check("T · al sacarlo de Contratado se le quita", gone.rows[0].hired_badge_at === null);
 }
 
 console.log(failed() === 0 ? "\nTodas las verificaciones pasaron." : `\n${failed()} verificaciones fallaron.`);

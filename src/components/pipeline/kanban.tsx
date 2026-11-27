@@ -18,6 +18,8 @@ import type { PipelineRow } from "@/lib/queries/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Pill } from "@/components/ui/pill";
 import { daysLabel, fmtDate, fmtTime } from "@/lib/format";
+import { HiredBadge } from "@/components/candidate/hired-badge";
+import { LeaveHiredDialog } from "@/components/candidate/leave-hired-dialog";
 import { dayIndex } from "@/lib/metrics";
 
 const DRAG_TYPE = "application/x-prime-application";
@@ -26,8 +28,9 @@ const DRAG_TYPE = "application/x-prime-application";
  * Tablero del pipeline. Las tarjetas se arrastran entre columnas, hacia adelante o hacia atrás;
  * el cambio pasa por la misma acción que el botón de la ficha (queda en la línea de tiempo, y
  * RLS decide si ese candidato es tuyo). Descartar no se hace aquí: pide motivo, va en la ficha.
- * La columna Contratado no participa: ni se arrastra desde ella ni se suelta en ella. Contratar lo
- * hace el Vo.Bo. del cliente (o "Avanzar" en la ficha) y cancelarlo, el botón de la ficha con motivo.
+ * En la columna Contratado no se suelta: contratar lo hace el Vo.Bo. del cliente (o "Avanzar" en la
+ * ficha). Sí se puede arrastrar desde ella, pero antes sale un aviso con motivo: se le quita el
+ * distintivo de contratado (0034) y se borra lo que la contratación había fijado (0018).
  */
 export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: Stage }) {
   const stages: Stage[] = onlyStage ? [onlyStage] : PIPELINE_STAGES;
@@ -35,7 +38,8 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
   const [board, moveCard] = useOptimistic(rows, (current, move: { id: string; stage: Stage }) =>
     current.map((r) => (r.application_id === move.id ? { ...r, stage: move.stage, days_in_stage: 0 } : r)),
   );
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
+  const [leaving, setLeaving] = useState<{ id: string; to: Stage; name: string } | null>(null);
   const [dragging, setDragging] = useState<{ id: string; from: Stage } | null>(null);
   const [over, setOver] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +55,10 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
     if (!id || !from || from === to) return;
 
     setError(null);
+    if (from === "hired") {
+      setLeaving({ id, to, name: board.find((r) => r.application_id === id)?.full_name ?? "" });
+      return;
+    }
     startTransition(async () => {
       moveCard({ id, stage: to });
       const form = new FormData();
@@ -62,8 +70,22 @@ export function Kanban({ rows, onlyStage }: { rows: PipelineRow[]; onlyStage?: S
     });
   }
 
+  function leaveHired(form: FormData) {
+    const move = leaving;
+    if (!move) return;
+    setLeaving(null);
+    startTransition(async () => {
+      moveCard({ id: move.id, stage: move.to });
+      const result = await setStage(undefined, form);
+      if (result?.error) setError(result.error);
+    });
+  }
+
   return (
     <div>
+      {leaving && (
+        <LeaveHiredDialog open onClose={() => setLeaving(null)} name={leaving.name} applicationId={leaving.id} to={leaving.to} action={leaveHired} pending={pending} />
+      )}
       {error && (
         <p role="alert" className="mb-3 rounded-lg bg-amber-soft px-3 py-2 text-sm text-amber">
           No se pudo mover: {error}
@@ -152,15 +174,14 @@ function KanbanCard({ row, today, isDragging, onDragStart, onDragEnd }: { row: P
   const interviews = interviewBadges(row, today);
   const cvTone = row.cv_score !== null && row.cv_threshold !== null ? (row.cv_score >= row.cv_threshold ? "mint" : "amber") : "neutral";
   const showDocs = (row.docs_validated ?? 0) > 0 || row.stage === "documents";
-  const movable = row.stage !== "hired";
 
   return (
     <Link
       href={`/candidatos/${row.application_id}`}
-      draggable={movable}
-      onDragStart={movable ? onDragStart : undefined}
+      draggable
+      onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`block rounded-lg border border-line bg-surface p-3 shadow-sm transition hover:border-leaf hover:shadow ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-40" : ""}`}
+      className={`block rounded-lg border border-line bg-surface p-3 shadow-sm transition hover:border-leaf hover:shadow cursor-grab active:cursor-grabbing ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex items-start gap-2">
         <Avatar name={row.full_name} size="sm" />
@@ -199,6 +220,7 @@ function KanbanCard({ row, today, isDragging, onDragStart, onDragEnd }: { row: P
           </Pill>
         )}
         {row.wa_ai_paused && <Pill tone="danger">IA pausada</Pill>}
+        <HiredBadge badgeAt={row.hired_badge_at} hiredApplicationId={row.hired_application_id} applicationId={row.application_id} />
       </div>
     </Link>
   );
