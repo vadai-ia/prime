@@ -1,6 +1,6 @@
 // Plantillas de los tres correos automáticos (plan §6.6). HTML de correo: tablas y estilos en línea,
 // porque Gmail y Outlook no leen clases ni variables CSS. Sin hooks: la vista previa en Reportes
-// las pinta tal cual y al conectar Resend se mandan con renderToStaticMarkup (o su prop `react`).
+// las pinta tal cual y el envío (Outlook, send.ts) las manda con renderToStaticMarkup.
 import type { CSSProperties, ReactNode } from "react";
 import { PSYCH_VERDICT_LABELS, STAGE_LABELS, type Stage } from "@/lib/labels";
 import { fmtDate, fmtDateLong, fmtMonths, fmtTime } from "@/lib/format";

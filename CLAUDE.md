@@ -2,6 +2,8 @@
 
 # Prime HR · reglas del proyecto
 
+**Al empezar cada sesión, leer `importante.md`** (estado, lo que falta y quién lo debe) y `tomorrow.md` (bitácora).
+
 `plan.md` (raíz) es la fuente de verdad; `tasks.md` detalla servicios, llaves y tareas. Si una decisión cambia, se actualiza `plan.md` en el mismo cambio. Identificadores en inglés `snake_case`, etiquetas de UI en español, fechas `timestamptz`, sin `any`.
 
 ## Visibilidad y permisos (plan §2.3, migraciones 0014, 0015 y 0029)

@@ -40,7 +40,16 @@ o, en Git Bash, `openssl rand -base64 32`.
 
 **Qué cambia al desplegar:** en Mi cuenta desaparece "Pendiente: falta registrar la app…" y aparece el botón **Conectar Outlook**. La pantalla revisa `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` y `ENCRYPTION_KEY`; sin `MICROSOFT_TENANT_ID` el botón sale igual, pero aceptaría cuentas de trabajo de cualquier empresa. Con ella, solo las de Prime.
 
-## 3. Resend · cuando el dominio diga "Verified" (`junta.md` pasos 6 y 7)
+## 3a. Correos automáticos por Outlook (27 nov, plan §12.29)
+
+| Variable | Valor | Nota |
+|---|---|---|
+| `REPORTS_MAILBOX` | `reportes@primehrinnovation.com.mx` | Buzón compartido; pasos para sistemas en `microsoft365-pasos.md` paso 6b |
+| `MICROSOFT_TENANT_ID` | Id. de directorio (inquilino) | **Obligatoria aquí**: el token de aplicación no acepta `organizations` |
+
+Usan además `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET`, que ya están. Con esto salen los tres reportes desde `reportes@`; Resend ya no hace falta. Para probar: Configuración → Integraciones → "Mandarme un correo de prueba".
+
+## 3. Resend · ya no hace falta (respaldo, solo si no hay `REPORTS_MAILBOX`)
 
 | Variable | Valor | Nota |
 |---|---|---|

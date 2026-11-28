@@ -7,7 +7,7 @@ import { countStages } from "@/lib/metrics";
 import { utcIsoToZoned, zonedToUtcIso } from "@/lib/domain/time";
 import { buildDailyClient, buildDailyInternal, buildWeeklyClient } from "./data";
 import { DailyClientEmail, DailyInternalEmail, WeeklyClientEmail, dailyClientSubject, dailyInternalSubject, weeklyClientSubject } from "./templates";
-import { emailEnabled, EmailError, sendEmail, type Attachment } from "./send";
+import { emailEnabled, emailStatus, EmailError, sendEmail, type Attachment } from "./send";
 import { addDays, localDow, reportReferenceNow } from "./schedule";
 
 export { reportReferenceNow };
@@ -157,7 +157,7 @@ function failure(e: unknown): Outcome {
 }
 
 function notConfigured(): Outcome | null {
-  return emailEnabled() ? null : { ok: true, detail: "Correo no configurado (faltan RESEND_API_KEY o RESEND_FROM); no se mandó nada" };
+  return emailEnabled() ? null : { ok: true, detail: `Correo no configurado: ${emailStatus().detail}; no se mandó nada` };
 }
 
 // ---------------------------------------------------------------------------

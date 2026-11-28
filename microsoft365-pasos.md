@@ -142,6 +142,59 @@ No hace falta suscripción de pago de Azure.
 | ☐ | Menú **Información general** → copiar **Id. de directorio (inquilino)** | — |
 | ☐ | Menú **Información general** → copiar **Id. de aplicación (cliente)** | — |
 
+**6.4 Correo al reclutador cuando agenda (27 nov)** · Permisos de API → Agregar un permiso → Microsoft Graph → **Permisos delegados**
+
+| ✓ | Qué | Para qué |
+|---|---|---|
+| ☐ | `Mail.Send` (delegado) | Que al agendar le llegue a quien agendó la confirmación, desde su propio Outlook |
+| ☐ | **Conceder consentimiento de administrador** otra vez | Con palomita verde |
+| ☐ | Nosotros: `OUTLOOK_MAIL_SEND=1` en Vercel y redesplegar | Antes del consentimiento no se prende: pedir el permiso sin él rompería la conexión de todos |
+
+## Paso 6b · Reportes automáticos desde `reportes@` (27 nov)
+
+Los reportes a clientes (diario y semanal con PDF) y el resumen interno salen de un **buzón compartido**, no del Outlook de una persona. Un buzón compartido **no lleva licencia** (gratis hasta 50 GB). La app manda con permiso **de aplicación**, pero **restringido solo a ese buzón**: no puede mandar como nadie más.
+
+**6b.1 Crear el buzón** · admin.microsoft.com → **Equipos y grupos → Buzones compartidos → Agregar un buzón compartido**
+
+| ✓ | Campo | Valor |
+|---|---|---|
+| ☐ | Nombre | `Prime HR · Reportes` (es lo que verá el cliente como remitente) |
+| ☐ | Correo | `reportes@primehrinnovation.com.mx` |
+| ☐ | Miembros (opcional) | Quien de Prime quiera ver en **Enviados** la copia de cada reporte |
+
+Esperar unos minutos a que el buzón quede listo.
+
+**6b.2 Dar el permiso solo sobre ese buzón** · PowerShell de Exchange Online (RBAC for Applications). **No** agregar `Mail.Send` *de aplicación* en Entra ID: eso daría permiso sobre **todos** los buzones. Aquí se da solo sobre `reportes@`.
+
+Se necesitan dos datos de Entra ID → **Aplicaciones empresariales** → `Prime HR Reclutamiento`: el **Id. de aplicación** (el mismo client id del paso 6.3) y el **Id. de objeto** de esa pantalla (el de *Aplicaciones empresariales*, no el de *Registros de aplicaciones*).
+
+```powershell
+Install-Module ExchangeOnlineManagement   # solo la primera vez
+Connect-ExchangeOnline                     # con la cuenta de admin
+
+$appId    = "<Id. de aplicación (cliente)>"
+$objectId = "<Id. de objeto en Aplicaciones empresariales>"
+
+New-ServicePrincipal -AppId $appId -ObjectId $objectId -DisplayName "Prime HR Reclutamiento"
+New-ManagementScope -Name "Solo reportes" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'reportes@primehrinnovation.com.mx'"
+New-ManagementRoleAssignment -App $appId -Role "Application Mail.Send" -CustomResourceScope "Solo reportes"
+
+# Comprobar: reportes@ debe decir InScope = True; cualquier otro buzón, False.
+Test-ServicePrincipalAuthorization -Identity $appId -Resource reportes@primehrinnovation.com.mx
+Test-ServicePrincipalAuthorization -Identity $appId -Resource sistemas@primehrinnovation.com.mx
+```
+
+El permiso puede tardar hasta 1 hora en aplicarse.
+
+**6b.3 Nosotros, en Vercel** (Production) y redesplegar:
+
+| Variable | Valor |
+|---|---|
+| `REPORTS_MAILBOX` | `reportes@primehrinnovation.com.mx` |
+| `MICROSOFT_TENANT_ID` | El **Id. de directorio (inquilino)** del paso 6.3. Con `organizations` no funciona el permiso de aplicación |
+
+**6b.4 Probar:** en la app, **Configuración → Integraciones → Correos automáticos (Outlook) → "Mandarme un correo de prueba"**. Si dice que no tiene permiso, falta el paso 6b.2 o todavía no se aplica.
+
 ## Paso 7 · Fireflies · fireflies.ai
 
 | ✓ | Qué | Valor |

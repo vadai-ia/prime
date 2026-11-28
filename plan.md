@@ -953,3 +953,19 @@ Pedido por el usuario el 27 nov: que el contratado lleve un distintivo en la bas
 - **Corregir un error:** el distintivo sigue a la etapa, así que se corrige la etapa. Desde la app, "Cancelar contratación" (o arrastrar fuera de Contratado) lo quita, y volver a contratar lo pone. Desde código o SQL, cualquier cambio de etapa (`set_application_stage`, o un `update applications set stage`) lo recalcula. Si alguna vez quedara desfasado, `select app.refresh_hired_badge('<candidate_id>')` en el SQL Editor lo vuelve a calcular. El candado solo impide escribir las dos columnas a mano: así nunca contradicen la etapa.
 - SQL manual: `supabase/manual/21_distintivo_contratado.sql` (los ya contratados reciben su distintivo al correrlo). **Corrido en producción el 27 nov (5 ok).** Pruebas: `scripts/rls-lite/hired-badge.test.mjs` y caso T de `manual-sql.test.mjs`.
 
+### 12.29 Correos automáticos por Outlook en lugar de Resend (27 de noviembre de 2026)
+
+Decidido con el usuario el 27 nov: no se usa Resend. Los tres reportes (diario interno, diario al cliente y semanal con PDF) salen desde el buzón compartido `reportes@primehrinnovation.com.mx`.
+
+- **Sin licencia nueva:** un buzón compartido es gratis hasta 50 GB.
+- **Permiso:** `Mail.Send` de aplicación **restringido a ese buzón** con RBAC for Applications de Exchange (`New-ManagementScope` + `New-ManagementRoleAssignment -Role "Application Mail.Send"`). **No** se da `Mail.Send` de aplicación en Entra ID, que valdría para todos los buzones. Pasos en `microsoft365-pasos.md` paso 6b.
+- `src/lib/email/send.ts`:
+  - Token de aplicación (client credentials con `MICROSOFT_CLIENT_ID`/`SECRET`, `MICROSOFT_TENANT_ID` obligatorio, cacheado en memoria) y `POST /users/{REPORTS_MAILBOX}/sendMail`, con el PDF como `fileAttachment` y copia en Enviados de `reportes@`.
+  - No depende de que alguien tenga su Outlook conectado.
+  - 403 o buzón inexistente se marcan permanentes, sin reintento, con un mensaje que dice qué falta.
+  - Resend queda solo como respaldo si no hay `REPORTS_MAILBOX`.
+- `emailStatus()` alimenta Configuración → Integraciones ("Correos automáticos (Outlook)") y el aviso de la cola cuando falta algo.
+- **Prueba:** botón "Mandarme un correo de prueba" en esa tarjeta, solo admin (`src/actions/email.ts`).
+- Graph no devuelve id del mensaje: `report_runs.resend_message_id` guarda `outlook:<buzón>:<hora>`.
+- Sin migración.
+

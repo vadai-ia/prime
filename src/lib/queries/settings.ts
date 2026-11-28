@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MOCK_CORE as MOCK } from "@/lib/mock";
 import * as mock from "@/lib/mock/data";
 import type { IntegrationStatus, WaTemplate } from "./types";
+import { emailStatus } from "@/lib/email/send";
 
 export async function listWaTemplates(): Promise<WaTemplate[]> {
   await requireAdmin();
@@ -25,6 +26,6 @@ export async function getIntegrationsStatus(): Promise<IntegrationStatus[]> {
     { key: "fireflies", label: "Fireflies", configured: has("FIREFLIES_API_KEY"), detail: "Transcripción de entrevistas" },
     { key: "microsoft", label: "Outlook y Teams (Microsoft 365)", configured: has("MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "ENCRYPTION_KEY"), detail: "Al agendar, la entrevista se crea en el Outlook del reclutador con enlace de Teams y Fireflies invitado" },
     { key: "cron", label: "Tareas automáticas (cron)", configured: has("CRON_SECRET"), detail: "Cola diaria, 8:00: reintentos del score del CV y avisos de permanencia" },
-    { key: "resend", label: "Resend (correo)", configured: has("RESEND_API_KEY", "RESEND_FROM"), detail: process.env.RESEND_FROM ? `Remitente ${process.env.RESEND_FROM}` : "Dominio de Prime sin verificar" },
+    { key: "resend", label: "Correos automáticos (Outlook)", ...emailStatus() },
   ];
 }

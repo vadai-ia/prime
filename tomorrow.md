@@ -4,6 +4,9 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 
 **No se commitea ni se pushea**: lo hace el usuario. Último commit `0326d34 llaves microsoft` (12 nov), con todo lo anterior.
 
+
+> Lista de pendientes al día: **`importante.md`**.
+
 ## 27 nov: logos y sugeridos de otras vacantes (sin commit, sin probar en producción)
 
 - **Logos**: `public/brand/logo.png` (el del usuario) y sus versiones `logo-light.png` (texto blanco, fondos oscuros), `logo-dark.png` (texto oscuro, fondos claros) y `logo-icon.png` (solo el árbol). En login, menú lateral, barra del celular, `/auth/confirmar`, correos diarios y semanales, PDF semanal (`src/lib/email/logo-pdf.png`, incluido con `outputFileTracingIncludes`) y plantillas de Supabase. Pestaña: `src/app/icon.png` y `apple-icon.png`; se borró `favicon.ico`. **Falta**: copiar `invite.html` y `recovery.html` al dashboard de Supabase; las imágenes de los correos solo se ven ya desplegado.
@@ -16,6 +19,7 @@ Escrito el 29 de octubre de 2026; actualizado el **18 de noviembre**. **Léelo p
 - **Reportes por fecha** (plan §12.27, migración 0033): Desde/Hasta y atajos en Reportes; "Día de envío" en la vista previa. **Correr `supabase/manual/20_reportes_por_fecha.sql` antes de usar las fechas** (sin fechas la página funciona igual que antes). **Corrido en producción el 27 nov (5 ok).**
 - **Entrevista en la tarjeta del kanban** (`src/components/pipeline/kanban.tsx`): en cualquier etapa, "Prime · Mañana 10:00" o "Cliente · Hoy 16:00" si tiene entrevista agendada o confirmada (de `v_pipeline`, sin SQL). Si ya pasó y nadie la cerró, sale en ámbar "sin cerrar".
 - **Distintivo de contratado** (plan §12.28, migración 0034): lo pone y lo quita la base; "Contratado · fecha" o "Ya contratado por Prime" en tablero, lista y ficha. Sacar de Contratado (ficha o arrastrando en el tablero) pide confirmación con motivo. SQL 21 **corrido en producción el 27 nov (5 ok)**. Después: confirmación al contratar en la ficha y en el Vo.Bo. del portal (sin commit).
+- **Reportes por Outlook** (plan §12.29): `send.ts` manda con Graph desde `REPORTS_MAILBOX` con token de aplicación; Resend solo de respaldo. Botón "Mandarme un correo de prueba" en Configuración → Integraciones. Falta: sistemas hace el paso 6b de `microsoft365-pasos.md`, y en Vercel `REPORTS_MAILBOX` + `MICROSOFT_TENANT_ID`. Sin migración. Nuevo `importante.md` con todo lo que falta.
 
 ## 24 nov: transcripción de Teams en lugar de Fireflies (sin commit, sin probar)
 

@@ -15,6 +15,7 @@ import { TASK_STATUS_LABELS, TASK_STATUS_TONES } from "@/lib/labels";
 import { ROLE_LABELS, type Role } from "@/lib/auth/roles";
 import { fmtDateTime, timeAgo } from "@/lib/format";
 import type { IntegrationStatus } from "@/lib/queries/types";
+import { TestEmailButton } from "./test-email-button";
 import { SimpleTable } from "../reportes/simple-table";
 import { CreateUserDialog, UserDetailDialog } from "./user-dialogs";
 import { UsersTable } from "./users-table";
@@ -29,7 +30,7 @@ const NEEDS: Record<IntegrationStatus["key"], string> = {
   fireflies: "API key de la cuenta de Prime y webhook de transcripción apuntando a /api/webhooks/fireflies.",
   microsoft: "Falta que el admin de Microsoft 365 de Prime registre la app y nos pase tres datos (tenant, client id y secreto; pasos en tasks.md §6). Con eso, cada reclutador da clic en Conectar Outlook en Mi cuenta.",
   cron: "CRON_SECRET (cualquier texto largo) en Vercel y en .env.local, y el cron diario de vercel.json. En local se corre con npm run queue:tick.",
-  resend: "Dominio de Prime verificado (SPF, DKIM, DMARC) y remitente configurado.",
+  resend: "Buzón compartido reportes@ en Microsoft 365, Mail.Send de aplicación restringido a ese buzón y, en Vercel, REPORTS_MAILBOX y MICROSOFT_TENANT_ID (pasos en microsoft365-pasos.md).",
 };
 
 /** Vacantes asignadas a un reclutador: cuántas y las dos primeras; el resto en el tooltip y en Ver. */
@@ -119,6 +120,7 @@ export default async function ConfiguracionPage() {
             </div>
             <p className="mt-1 text-sm text-ink-muted">{i.detail}</p>
             <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">{NEEDS[i.key]}</p>
+            {i.key === "resend" && <TestEmailButton />}
           </div>
         ))}
       </div>
