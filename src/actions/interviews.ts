@@ -79,7 +79,10 @@ async function eventDetails(
     bodyHtml: (joinUrl) =>
       `<p>Hola ${escapeHtml(who.split(" ")[0])}:</p><p>Te esperamos en tu ${kind.toLowerCase()} para la vacante <b>${escapeHtml(title)}</b>. ` +
       (joinUrl
-        ? `Únete unos minutos antes con este enlace de Teams (no necesitas cuenta):</p><p><a href="${escapeHtml(joinUrl)}">Unirse a la reunión de Teams</a></p>`
+        ? `Únete unos minutos antes con este enlace de Teams (no necesitas cuenta):</p>` +
+          `<p><a href="${escapeHtml(joinUrl)}"><b>Unirse a la reunión de Teams</b></a></p>` +
+          // el enlace también en texto, por si el cliente de correo no muestra el botón
+          `<p style="font-size:12px;color:#525252">Si el botón no abre, copia este enlace en tu navegador:<br>${escapeHtml(joinUrl)}</p>`
         : `Únete con el enlace de Teams de esta invitación unos minutos antes.</p>`) +
       `<p>Prime HR Innovation</p>`,
     attendees,
@@ -332,13 +335,23 @@ export async function rescheduleInterview(_prev: InterviewActionState, formData:
           });
           calendar = { calendar_event_id: event.eventId, ...(event.joinUrl ? { meeting_url: event.joinUrl } : {}) };
           warning = event.recordingWarning;
+          // La invitación nueva sale sin el enlace en el cuerpo (Teams lo genera después de crear el evento):
+          // se reescribe el cuerpo con el enlace para que el correo que reciben los invitados lo traiga.
+          const joinUrl = event.joinUrl ?? (d.meeting_url || null);
+          if (joinUrl) {
+            const details = await eventDetails(supabase, { ...current, owner_id: ownerId });
+            await moveEvent(token, event.eventId, scheduledAt, current.duration_min, details.bodyHtml(joinUrl)).catch((e) =>
+              console.error("[microsoft] enlace en el cuerpo del evento", e),
+            );
+          }
         };
         if (current.status === "cancelled") await recreate();
         else {
           const eventId = current.calendar_event_id;
           const move = async () => {
-            // La actualización a los invitados lleva el enlace de Teams en el cuerpo (si no, puede llegar sin él)
-            const joinUrl = current.meeting_url ?? (await getEventJoinUrl(token, eventId));
+            // La actualización a los invitados lleva el enlace de Teams en el cuerpo (si no, puede llegar sin él).
+            // Orden: el guardado, el que tenga el evento en Outlook y, si el evento se quedó sin Teams, el pegado aquí.
+            const joinUrl = current.meeting_url ?? (await getEventJoinUrl(token, eventId)) ?? (d.meeting_url || null);
             const details = await eventDetails(supabase, { ...current, owner_id: ownerId });
             await moveEvent(token, eventId, scheduledAt, current.duration_min, details.bodyHtml(joinUrl));
             if (joinUrl && !current.meeting_url) calendar = { meeting_url: joinUrl };
